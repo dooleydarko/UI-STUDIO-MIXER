@@ -1,5 +1,7 @@
 import { ComponentPackage } from '../types';
 import { getStoredBrowserKey, callBrowserGemini } from './browserGemini';
+import { webGpuRunner } from './webGpuRunner';
+import { synthesizeHardwareBlueprint } from '../hardware/hardwareSchematicEngine';
 
 export interface GenerationProgress {
   step: 'analyzing' | 'synthesizing' | 'styling' | 'verifying' | 'ready';
