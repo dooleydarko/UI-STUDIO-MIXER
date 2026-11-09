@@ -147,16 +147,20 @@ export function buildSandboxedDocument(
       height: 100%;
       background-color: ${bg};
       color: ${fg};
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      overflow-y: auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     .sandboxed-container {
       width: 100%;
-      height: 100%;
+      min-height: 100%;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       position: relative;
+      transform-style: preserve-3d;
+      perspective: 1200px;
     }
     ${processedCss}
   </style>
