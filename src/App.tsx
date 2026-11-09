@@ -9,6 +9,7 @@ import { MixerTray } from './components/MixerTray';
 import { PackRevealModal } from './components/PackRevealModal';
 import { PopoutPreview } from './components/PopoutPreview';
 import { AddUIModal } from './components/AddUIModal';
+import { NativePromptBar } from './components/NativePromptBar';
 import { DiscoveryRoom } from './discovery/DiscoveryRoom';
 // Loaded on demand so three.js stays out of the initial bundle
 const Studio3DWorkstation = lazy(() =>
@@ -299,6 +300,11 @@ export const App: React.FC = () => {
       <main className="flex-1 overflow-hidden relative">
         {activeWorkspace === 'ui_playground' && (
           <>
+            <NativePromptBar
+              theme={theme}
+              onComponentGenerated={handleSaveNewComponent}
+            />
+
             <InfiniteCanvas
               components={components}
               theme={theme}
