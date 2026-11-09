@@ -27,25 +27,32 @@ function loadEnvFile() {
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    if (m) {
+      const val = m[2].replace(/^["']|["']$/g, '').trim();
+      if (val) process.env[m[1]] = val;
+    }
   }
 }
 loadEnvFile();
 
 // Real OpenAI-compatible upstreams, in failover order.
 const PROVIDERS = [
+  { name: 'github', keyEnv: 'GITHUB_TOKEN', url: 'https://models.inference.ai.azure.com/chat/completions', model: 'gpt-4o-mini' },
   { name: 'groq', keyEnv: 'GROQ_API_KEY', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
   { name: 'cerebras', keyEnv: 'CEREBRAS_API_KEY', url: 'https://api.cerebras.ai/v1/chat/completions', model: 'llama-3.3-70b' },
   { name: 'gemini', keyEnv: 'GEMINI_API_KEY', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-2.0-flash' },
   { name: 'openrouter', keyEnv: 'OPENROUTER_API_KEY', url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' },
 ];
 
-const configured = () => PROVIDERS.filter((p) => process.env[p.keyEnv]);
+const configured = () => {
+  loadEnvFile();
+  return PROVIDERS.filter((p) => process.env[p.keyEnv]);
+};
 
 async function callUpstream(messages, opts = {}) {
   const list = configured();
   if (list.length === 0) {
-    const err = new Error('No provider keys configured. Set GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY or CEREBRAS_API_KEY.');
+    const err = new Error('No provider keys configured. Set GITHUB_TOKEN, GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY or CEREBRAS_API_KEY in .env.local.');
     err.status = 503;
     throw err;
   }

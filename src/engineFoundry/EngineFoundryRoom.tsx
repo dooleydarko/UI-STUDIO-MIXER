@@ -90,25 +90,49 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
     setSynthesizedPipeline(mix);
   };
 
-  const handleRunTestPrompt = async (eng: EnginePackage) => {
+  const handleRunTestPrompt = async (eng: EnginePackage, customPrompt?: string) => {
+    const promptToUse = customPrompt ?? eng.samplePrompt;
     setActiveTestingEngine(eng);
-    setTestPrompt(eng.samplePrompt);
+    setTestPrompt(promptToUse);
     setTestOutput(null);
     setIsTesting(true);
 
-    // Simulate high-speed generation from the engine endpoint
-    setTimeout(() => {
+    const startTime = performance.now();
+    try {
+      const res = await fetch('http://localhost:3001/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: eng.id,
+          messages: [{ role: 'user', content: promptToUse }],
+        }),
+      });
+      const elapsed = Math.round(performance.now() - startTime);
+      const data = await res.json();
+      if (!res.ok) {
+        setTestOutput(
+          `[${eng.name} // HTTP ${res.status} Proxy Response]\n` +
+          `Latency: ${elapsed}ms\n\n` +
+          `${data?.error?.message || JSON.stringify(data, null, 2)}`
+        );
+      } else {
+        const reply = data?.choices?.[0]?.message?.content || '';
+        const provider = data?.x_provider || data?.model || 'proxy';
+        setTestOutput(
+          `[${eng.name} // Live Proxy 200 OK via ${provider}]\n` +
+          `Latency: ${elapsed}ms | Model: ${data?.model || eng.id}\n\n` +
+          `${reply}`
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       setTestOutput(
-        `[${eng.name} // Telemetry 200 OK]\n` +
-        `Latency: ${eng.latencyEstimateMs}ms | Quota Used: 0 Tokens ($0.00)\n\n` +
-        `// Synthesized Output for: "${eng.samplePrompt}"\n\n` +
-        `export function optimizeRenderPipeline() {\n` +
-        `  console.log("⚡ Executing via ${eng.name} (${eng.tokenQuota})");\n` +
-        `  return { status: "success", unmetered: true, provider: "${eng.author}" };\n` +
-        `}`
+        `[${eng.name} // Connection Error]\n` +
+        `Could not reach http://localhost:3001/v1/chat/completions: ${msg}`
       );
+    } finally {
       setIsTesting(false);
-    }, 800);
+    }
   };
 
   const handleAddCustomEngine = (e: React.FormEvent) => {
@@ -406,7 +430,7 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
               </div>
 
               <button
-                onClick={() => handleRunTestPrompt(activeTestingEngine)}
+                onClick={() => handleRunTestPrompt(activeTestingEngine, testPrompt)}
                 disabled={isTesting}
                 className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition"
               >
