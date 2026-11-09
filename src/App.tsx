@@ -13,6 +13,7 @@ import { NativePromptBar } from './components/NativePromptBar';
 import { QueueLibraryDock } from './components/QueueLibraryDock';
 import { VideoStudioDrawer } from './components/VideoStudioDrawer';
 import { DiscoveryRoom } from './discovery/DiscoveryRoom';
+import { EngineFoundryRoom } from './engineFoundry/EngineFoundryRoom';
 // Loaded on demand so three.js stays out of the initial bundle
 const Studio3DWorkstation = lazy(() =>
   import('./studio3d/Studio3DWorkstation').then((m) => ({ default: m.Studio3DWorkstation }))
@@ -29,14 +30,15 @@ import {
   Plus, 
   HardDrive,
   Sliders,
-  Film
+  Film,
+  Cpu
 } from 'lucide-react';
 
 export const App: React.FC = () => {
   const storage = StorageManager.getInstance();
   const mixerEngine = CodeMixerEngine.getInstance();
 
-  const [activeWorkspace, setActiveWorkspace] = useState<'ui_playground' | '3d_studio' | 'discovery'>('ui_playground');
+  const [activeWorkspace, setActiveWorkspace] = useState<'ui_playground' | '3d_studio' | 'discovery' | 'engine_foundry'>('ui_playground');
   const [theme, setTheme] = useState<'obsidian' | 'frost'>('obsidian');
   const [components, setComponents] = useState<ComponentPackage[]>([]);
   const [projects3D, setProjects3D] = useState<Product3DProject[]>([]);
@@ -251,6 +253,19 @@ export const App: React.FC = () => {
               <Compass className="w-3.5 h-3.5 text-purple-400" />
               <span>Discovery Room</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveWorkspace('engine_foundry')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                activeWorkspace === 'engine_foundry'
+                  ? isFrost ? 'bg-white text-slate-900 shadow-sm' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-inner'
+                  : 'text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span>Engine Foundry</span>
+            </button>
           </div>
         </div>
 
@@ -433,6 +448,12 @@ export const App: React.FC = () => {
               handleSaveNewComponent(c);
               setMixerTrayIds((prev) => [...prev, c.id]);
             }}
+          />
+        )}
+
+        {activeWorkspace === 'engine_foundry' && (
+          <EngineFoundryRoom
+            theme={theme}
           />
         )}
       </main>

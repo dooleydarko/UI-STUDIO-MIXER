@@ -1,4 +1,5 @@
 import { ComponentPackage, Product3DProject, QueuedComponent } from '../types';
+import { EnginePackage, STARTER_ENGINES_CATALOG } from '../engineFoundry/types';
 import { STARTER_COMPONENTS } from '../assets/starterComponents';
 import { STARTER_3D_PROJECTS } from '../assets/starter3dProjects';
 import { mirrorToDisk, getNativeStorageInfo } from './nativeBridge';
@@ -9,6 +10,7 @@ const STORAGE_KEYS = {
   SETTINGS: 'antigravity_cm_settings_v1',
   CANVAS_STATE: 'antigravity_cm_canvas_state_v1',
   QUEUE: 'antigravity_cm_queue_v1',
+  ENGINES: 'antigravity_cm_engines_v1',
 };
 
 /** Bump when the persisted shape of any collection changes, and add a migration. */
@@ -263,5 +265,35 @@ export class StorageManager {
 
   public clearQueue(): void {
     this.saveQueue([]);
+  }
+
+  // --- Engine Foundry Storage Backbone ---
+
+  public loadEngines(): EnginePackage[] {
+    const stored = readVersioned<EnginePackage[]>('ENGINES');
+    if (!stored || stored.length === 0) {
+      this.saveEngines(STARTER_ENGINES_CATALOG);
+      return STARTER_ENGINES_CATALOG;
+    }
+    return stored;
+  }
+
+  public saveEngines(engines: EnginePackage[]): void {
+    writeVersioned('ENGINES', engines);
+  }
+
+  public addEngine(engine: EnginePackage): void {
+    const engines = this.loadEngines();
+    this.saveEngines([engine, ...engines.filter(e => e.id !== engine.id)]);
+  }
+
+  public updateEngine(id: string, updates: Partial<EnginePackage>): void {
+    const engines = this.loadEngines();
+    this.saveEngines(engines.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+  }
+
+  public deleteEngine(id: string): void {
+    const engines = this.loadEngines();
+    this.saveEngines(engines.filter((e) => e.id !== id));
   }
 }

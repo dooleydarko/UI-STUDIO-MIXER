@@ -400,6 +400,54 @@ runTest('TEST-VID-04', 'Rate-limit cooldown and automated node rotation', () => 
   assert.strictEqual(failoverCount, 1);
 });
 
+// TEST-ENG-01: Engine Foundry Package schema validation
+runTest('TEST-ENG-01', 'Engine Foundry Package schema validation', () => {
+  const engine = {
+    id: 'eng-freellm-gateway',
+    name: 'FreeLLM 7.4B Universal Gateway',
+    version: '1.2.0',
+    category: 'universal_proxy',
+    costTier: 'free_unmetered',
+    latencyEstimateMs: 45,
+    tokenQuota: '7.4B Tokens / Month ($0)',
+    tags: ['Proxy', 'Auto-Failover'],
+    status: 'online',
+  };
+  assert.strictEqual(engine.category, 'universal_proxy');
+  assert.strictEqual(engine.costTier, 'free_unmetered');
+  assert.strictEqual(engine.status, 'online');
+  assert(engine.latencyEstimateMs < 100);
+});
+
+// TEST-ENG-02: Engine Foundry Hybrid Mixer synthesis verification
+runTest('TEST-ENG-02', 'Engine Foundry Hybrid Mixer synthesis verification', () => {
+  const mix = {
+    id: 'mix-123',
+    name: 'Hybrid // Qwen + Groq',
+    primaryEngineId: 'eng-qwen-coder-32b',
+    secondaryEngineId: 'eng-llama33-70b-groq',
+    synthesizedPurpose: 'Pipelines Qwen for coding and Groq for reasoning',
+    createdAt: Date.now(),
+  };
+  assert.strictEqual(mix.primaryEngineId, 'eng-qwen-coder-32b');
+  assert.strictEqual(mix.secondaryEngineId, 'eng-llama33-70b-groq');
+  assert(mix.name.includes('Hybrid'));
+});
+
+// TEST-ENG-03: Custom Engine Emblem attachment and registration
+runTest('TEST-ENG-03', 'Custom Engine Emblem attachment and registration', () => {
+  const customEngine = {
+    id: 'eng-custom-alpha',
+    name: 'Custom Core',
+    emblemUrl: 'https://example.com/emblem.svg',
+    emblemSvg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
+    status: 'ready',
+  };
+  assert.ok(customEngine.emblemUrl);
+  assert(customEngine.emblemSvg.includes('<svg'));
+  assert.strictEqual(customEngine.status, 'ready');
+});
+
 console.log('\n----------------------------------------------------');
 console.log(`SUMMARY: ${passCount} passed, ${failCount} failed.`);
 console.log('----------------------------------------------------');

@@ -13,6 +13,9 @@
     "proxy:freellm": "node scripts/freeLlmDaemon.js",
     "video:proxy": "node src/video/videoProxyServer.ts",
     "claude:free": "bash scripts/launch-claude-free.sh",
+    "service:install": "bash scripts/install-service.sh",
+    "service:uninstall": "bash scripts/uninstall-service.sh",
+    "service:status": "launchctl list | grep freellm || echo 'Not registered'",
     "electron:dev": "node electron/dev.cjs",
     "electron:start": "npm run build && electron ."
   },
