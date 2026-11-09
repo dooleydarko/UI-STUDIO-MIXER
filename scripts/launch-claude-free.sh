@@ -9,9 +9,14 @@ echo "Target Proxy: http://localhost:3001 (Anthropic Messages API)"
 echo "Quota: 7.4 Billion Monthly Free Tokens Pooled"
 echo "========================================================"
 
-if command -v claude >/dev/null 2>&1; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_CLAUDE="$SCRIPT_DIR/../node_modules/.bin/claude"
+
+if [ -f "$LOCAL_CLAUDE" ]; then
+  "$LOCAL_CLAUDE" "$@"
+elif command -v claude >/dev/null 2>&1; then
   claude "$@"
 else
-  echo "Claude Code CLI not found in PATH. You can install via: npm install -g @anthropic-ai/claude-code"
-  echo "Or run with npx: npx @anthropic-ai/claude-code $@"
+  echo "Running via npx..."
+  npx @anthropic-ai/claude-code "$@"
 fi
