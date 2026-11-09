@@ -7,3 +7,6 @@ dist-ssr/
 /storage/
 .staging/
 
+
+.env.local
+.env

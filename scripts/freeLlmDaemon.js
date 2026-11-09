@@ -1,249 +1,204 @@
 /**
- * Universal FreeLLM Proxy Daemon (Runs on http://localhost:3001)
- * Bridges Claude Code (Anthropic /v1/messages) and OpenAI (/v1/chat/completions)
- * to 34 free provider tiers with automated failover and SSE streaming.
+ * FreeLLM Proxy Daemon (http://localhost:3001)
+ *
+ * Accepts OpenAI (/v1/chat/completions) and Anthropic (/v1/messages) requests and
+ * forwards them to REAL upstream providers that offer free tiers, using YOUR OWN keys.
+ * Providers are tried in order; on 429 / 5xx / network error the next one is used.
+ *
+ * Configure keys via environment variables or a git-ignored `.env.local` file:
+ *   GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, CEREBRAS_API_KEY
+ *
+ * Limits: free tiers have real rate limits (this is not unlimited usage).
+ * Anthropic tool_use blocks are NOT translated, so agentic tool calling in Claude Code
+ * will not work through this proxy; plain chat/completion requests do.
+ * Streaming is emulated: the full upstream reply is fetched, then sent as SSE chunks.
  */
 
 import http from 'http';
-import { parse } from 'url';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const PORT = 3001;
+const PORT = Number(process.env.FREELLM_PORT || 3001);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Provider free-tier model routing map
-const FREE_TIER_MODELS = [
-  { id: 'claude-3-5-sonnet-20241022', provider: 'free_pool', targetModel: 'qwen-2.5-coder-32b', name: 'Claude 3.5 Sonnet (Free Masked Pool)' },
-  { id: 'gpt-4o', provider: 'free_pool', targetModel: 'llama-3.3-70b-versatile', name: 'ChatGPT-4o (Free Masked Pool)' },
-  { id: 'gpt-4o-mini', provider: 'free_pool', targetModel: 'llama-3.1-8b-instant', name: 'ChatGPT-4o Mini (Free Pool)' },
-  { id: 'gemini-2.0-flash', provider: 'google', targetModel: 'gemini-2.0-flash', name: 'Google Gemini 2.0 Flash' },
-  { id: 'deepseek-coder', provider: 'deepseek', targetModel: 'deepseek-coder-v2', name: 'DeepSeek Coder V2' },
-  { id: 'qwen-2.5-coder-32b', provider: 'groq', targetModel: 'qwen-2.5-coder-32b', name: 'Qwen 2.5 Coder 32B' },
+function loadEnvFile() {
+  const file = path.join(__dirname, '..', '.env.local');
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
+loadEnvFile();
+
+// Real OpenAI-compatible upstreams, in failover order.
+const PROVIDERS = [
+  { name: 'groq', keyEnv: 'GROQ_API_KEY', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
+  { name: 'cerebras', keyEnv: 'CEREBRAS_API_KEY', url: 'https://api.cerebras.ai/v1/chat/completions', model: 'llama-3.3-70b' },
+  { name: 'gemini', keyEnv: 'GEMINI_API_KEY', url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-2.0-flash' },
+  { name: 'openrouter', keyEnv: 'OPENROUTER_API_KEY', url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' },
 ];
+
+const configured = () => PROVIDERS.filter((p) => process.env[p.keyEnv]);
+
+async function callUpstream(messages, opts = {}) {
+  const list = configured();
+  if (list.length === 0) {
+    const err = new Error('No provider keys configured. Set GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY or CEREBRAS_API_KEY.');
+    err.status = 503;
+    throw err;
+  }
+  const errors = [];
+  for (const p of list) {
+    try {
+      const res = await fetch(p.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env[p.keyEnv]}` },
+        body: JSON.stringify({
+          model: p.model,
+          messages,
+          temperature: opts.temperature ?? 0.7,
+          max_tokens: opts.max_tokens,
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (res.status === 429 || res.status >= 500) {
+        errors.push(`${p.name}: HTTP ${res.status}`);
+        continue; // fail over
+      }
+      if (!res.ok) {
+        errors.push(`${p.name}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+        continue;
+      }
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content ?? '';
+      return { text, provider: p.name, model: p.model, usage: data.usage || {} };
+    } catch (e) {
+      errors.push(`${p.name}: ${e.message}`);
+    }
+  }
+  const err = new Error(`All configured providers failed: ${errors.join(' | ')}`);
+  err.status = 502;
+  throw err;
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      try { resolve(JSON.parse(body || '{}')); } catch (e) { reject(Object.assign(e, { status: 400 })); }
+    });
+    req.on('error', reject);
+  });
+}
+
+const anthropicText = (c) =>
+  typeof c === 'string' ? c : Array.isArray(c) ? c.filter((b) => b.type === 'text').map((b) => b.text).join('\n') : '';
+
+const json = (res, status, obj) => {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(obj, null, 2));
+};
 
 export function createFreeLlmProxyServer(port = PORT) {
   const server = http.createServer(async (req, res) => {
-    // Enable full CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, anthropic-version');
+    if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
 
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
+    const pathname = new URL(req.url || '/', 'http://localhost').pathname;
 
-    const { pathname } = parse(req.url || '', true);
-
-    // 1. Health & Status
     if (req.method === 'GET' && (pathname === '/' || pathname === '/health' || pathname === '/v1/health')) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'online',
-        service: 'FreeLLM Gateway Daemon',
-        version: '1.2.0',
+      const list = configured();
+      return json(res, 200, {
+        status: list.length ? 'online' : 'online-no-keys',
         port,
-        monthlyFreeTokensPooled: '7,400,000,000',
-        activeProviders: 34,
-        endpoints: [
-          'POST /v1/messages (Anthropic Claude Code Compatible)',
-          'POST /v1/chat/completions (OpenAI / Cursor Compatible)',
-          'GET  /v1/models (Model Catalog)',
-        ],
-      }, null, 2));
-      return;
+        configuredProviders: list.map((p) => p.name),
+        unconfiguredProviders: PROVIDERS.filter((p) => !process.env[p.keyEnv]).map((p) => p.name),
+        note: 'Free tiers have rate limits. Add provider keys to .env.local to enable routing.',
+      });
     }
 
-    // 2. Model Catalog (GET /v1/models)
     if (req.method === 'GET' && pathname === '/v1/models') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
+      return json(res, 200, {
         object: 'list',
-        data: FREE_TIER_MODELS.map((m) => ({
-          id: m.id,
-          object: 'model',
-          created: Math.floor(Date.now() / 1000),
-          owned_by: 'antigravity-free-pool',
-          permission: [],
-          root: m.id,
-        })),
-      }, null, 2));
-      return;
-    }
-
-    // 3. Anthropic Messages Protocol (POST /v1/messages) — Required for Claude Code CLI
-    if (req.method === 'POST' && pathname === '/v1/messages') {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
-      req.on('end', async () => {
-        try {
-          const payload = JSON.parse(body || '{}');
-          const isStream = Boolean(payload.stream);
-          const messages = payload.messages || [];
-
-          const lastUser = messages.slice(-1)[0];
-          const querySnippet = typeof lastUser?.content === 'string'
-            ? lastUser.content.slice(0, 80)
-            : 'Task executed';
-
-          const responseText = `[Antigravity FreeLLM Gateway // Pooled 7.4B Engine]\nProcessed request with zero credit consumption.\n\nCode synthesis completed successfully for: ${querySnippet}`;
-
-          const msgId = `msg_free_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
-          if (isStream) {
-            // Stream back standard Anthropic SSE chunks
-            res.writeHead(200, {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
-            });
-
-            const sendEvent = (event, data) => {
-              res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-            };
-
-            sendEvent('message_start', {
-              type: 'message_start',
-              message: {
-                id: msgId,
-                type: 'message',
-                role: 'assistant',
-                model: payload.model || 'claude-3-5-sonnet-20241022',
-                content: [],
-                usage: { input_tokens: 150, output_tokens: 1 },
-              },
-            });
-
-            sendEvent('content_block_start', {
-              type: 'content_block_start',
-              index: 0,
-              content_block: { type: 'text', text: '' },
-            });
-
-            // Stream chunks
-            const words = responseText.split(' ');
-            for (let i = 0; i < words.length; i++) {
-              sendEvent('content_block_delta', {
-                type: 'content_block_delta',
-                index: 0,
-                delta: { type: 'text_delta', text: (i === 0 ? '' : ' ') + words[i] },
-              });
-              await new Promise((r) => setTimeout(r, 15));
-            }
-
-            sendEvent('content_block_stop', { type: 'content_block_stop', index: 0 });
-            sendEvent('message_delta', {
-              type: 'message_delta',
-              delta: { stop_reason: 'end_turn', stop_sequence: null },
-              usage: { output_tokens: words.length },
-            });
-            sendEvent('message_stop', { type: 'message_stop' });
-            res.end();
-          } else {
-            // Non-streaming Anthropic JSON response
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              id: msgId,
-              type: 'message',
-              role: 'assistant',
-              model: payload.model || 'claude-3-5-sonnet-20241022',
-              content: [{ type: 'text', text: responseText }],
-              stop_reason: 'end_turn',
-              stop_sequence: null,
-              usage: { input_tokens: 150, output_tokens: 80 },
-            }, null, 2));
-          }
-        } catch (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: err.message } }));
-        }
+        data: configured().map((p) => ({ id: p.model, object: 'model', owned_by: p.name })),
       });
-      return;
     }
 
-    // 4. OpenAI Chat Completions Protocol (POST /v1/chat/completions) — Required for Cursor, Aider, ChatGPT OSS
-    if (req.method === 'POST' && pathname === '/v1/chat/completions') {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
-      req.on('end', async () => {
-        try {
-          const payload = JSON.parse(body || '{}');
-          const isStream = Boolean(payload.stream);
-          const messages = payload.messages || [];
-          const lastUserMsg = messages.filter((m) => m.role === 'user').slice(-1)[0]?.content || '';
-
-          const responseText = `[Antigravity FreeLLM Gateway // Pooled ChatGPT-4o & OSS]\nSynthesized response using unmetered free tier quota.\n\nResult for: ${String(lastUserMsg).slice(0, 80)}`;
-          const completionId = `chatcmpl_free_${Date.now()}`;
-
-          if (isStream) {
-            res.writeHead(200, {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
-            });
-
-            const words = responseText.split(' ');
-            for (const word of words) {
-              const chunk = {
-                id: completionId,
-                object: 'chat.completion.chunk',
-                created: Math.floor(Date.now() / 1000),
-                model: payload.model || 'gpt-4o',
-                choices: [{ index: 0, delta: { content: word + ' ' }, finish_reason: null }],
-              };
-              res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-              await new Promise((r) => setTimeout(r, 15));
-            }
-
-            res.write(`data: [DONE]\n\n`);
-            res.end();
-          } else {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              id: completionId,
-              object: 'chat.completion',
-              created: Math.floor(Date.now() / 1000),
-              model: payload.model || 'gpt-4o',
-              choices: [{
-                index: 0,
-                message: { role: 'assistant', content: responseText },
-                finish_reason: 'stop',
-              }],
-              usage: { prompt_tokens: 120, completion_tokens: 60, total_tokens: 180 },
-            }, null, 2));
-          }
-        } catch (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: { message: err.message, type: 'proxy_error' } }));
+    try {
+      if (req.method === 'POST' && pathname === '/v1/chat/completions') {
+        const payload = await readBody(req);
+        const r = await callUpstream(payload.messages || [], payload);
+        const id = `chatcmpl_${Date.now()}`;
+        const created = Math.floor(Date.now() / 1000);
+        if (payload.stream) {
+          res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+          const chunk = (delta, finish) => `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model: r.model, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+          res.write(chunk({ role: 'assistant', content: r.text }, null));
+          res.write(chunk({}, 'stop'));
+          res.write('data: [DONE]\n\n');
+          return res.end();
         }
-      });
-      return;
+        return json(res, 200, {
+          id, object: 'chat.completion', created, model: r.model,
+          choices: [{ index: 0, message: { role: 'assistant', content: r.text }, finish_reason: 'stop' }],
+          usage: r.usage,
+          x_provider: r.provider,
+        });
+      }
+
+      if (req.method === 'POST' && pathname === '/v1/messages') {
+        const payload = await readBody(req);
+        const messages = [];
+        const sys = anthropicText(payload.system);
+        if (sys) messages.push({ role: 'system', content: sys });
+        for (const m of payload.messages || []) messages.push({ role: m.role, content: anthropicText(m.content) });
+        const r = await callUpstream(messages, payload);
+        const id = `msg_${Date.now()}`;
+        const usage = { input_tokens: r.usage.prompt_tokens || 0, output_tokens: r.usage.completion_tokens || 0 };
+        if (payload.stream) {
+          res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+          const ev = (e, d) => res.write(`event: ${e}\ndata: ${JSON.stringify(d)}\n\n`);
+          ev('message_start', { type: 'message_start', message: { id, type: 'message', role: 'assistant', model: payload.model, content: [], usage } });
+          ev('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
+          ev('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: r.text } });
+          ev('content_block_stop', { type: 'content_block_stop', index: 0 });
+          ev('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: usage.output_tokens } });
+          ev('message_stop', { type: 'message_stop' });
+          return res.end();
+        }
+        return json(res, 200, {
+          id, type: 'message', role: 'assistant', model: payload.model,
+          content: [{ type: 'text', text: r.text }],
+          stop_reason: 'end_turn', stop_sequence: null, usage,
+        });
+      }
+    } catch (err) {
+      return json(res, err.status || 500, { error: { type: 'proxy_error', message: err.message } });
     }
 
-    // 404 Fallthrough
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Endpoint not found', available: ['/v1/messages', '/v1/chat/completions', '/v1/models', '/health'] }));
+    json(res, 404, { error: 'Endpoint not found', available: ['/v1/messages', '/v1/chat/completions', '/v1/models', '/health'] });
   });
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.log(`\n✅ [FreeLLMDaemon] Port ${port} is ALREADY ACTIVE and running!`);
-      console.log(`   Your unmetered 7.4B token proxy is live on http://localhost:${port}.`);
-      console.log(`   You can run 'npm run claude:free' immediately without restarting.\n`);
+      console.log(`[FreeLLMDaemon] Port ${port} already in use. Another instance may be running.`);
       process.exit(0);
-    } else {
-      console.error('[FreeLLMDaemon] Server error:', err);
-      process.exit(1);
     }
+    console.error('[FreeLLMDaemon] Server error:', err);
+    process.exit(1);
   });
 
   server.listen(port, () => {
-    console.log(`[FreeLLMDaemon] Proxy listening on http://localhost:${port}`);
+    const list = configured().map((p) => p.name);
+    console.log(`[FreeLLMDaemon] Listening on http://localhost:${port}`);
+    console.log(list.length ? `[FreeLLMDaemon] Providers: ${list.join(', ')}` : '[FreeLLMDaemon] WARNING: no provider keys set; requests will return 503.');
   });
-
   return server;
 }
 
-// Auto-run if executed directly
-if (process.argv[1]?.includes('freeLlmDaemon')) {
-  createFreeLlmProxyServer();
-}
+if (process.argv[1]?.includes('freeLlmDaemon')) createFreeLlmProxyServer();
