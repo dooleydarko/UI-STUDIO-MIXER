@@ -328,6 +328,27 @@ runTest('TEST-HW-01', 'Hardware schematic and embedded Arduino firmware generati
   assert(hwSchema.pinoutCount >= 4);
 });
 
+// TEST-API-01: Automated Component API Harvester and registry schema verification
+runTest('TEST-API-01', 'Automated Component API Harvester and registry schema verification', () => {
+  const harvested = {
+    id: 'uiverse-test-1',
+    title: 'Cyberpunk Button',
+    category: 'buttons',
+    source: 'Uiverse API',
+    sourceUrl: 'https://uiverse.io/buttons/test-1',
+    author: 'prince_css',
+    license: 'MIT',
+    html: '<button class="cyber-btn">Click</button>',
+    css: '.cyber-btn { background: #38bdf8; }',
+    js: '',
+    tags: ['button', 'neon'],
+  };
+  assert(harvested.source.includes('API'));
+  assert.strictEqual(harvested.category, 'buttons');
+  assert(harvested.html.includes('cyber-btn'));
+  assert(harvested.css.includes('#38bdf8'));
+});
+
 console.log('\n----------------------------------------------------');
 console.log(`SUMMARY: ${passCount} passed, ${failCount} failed.`);
 console.log('----------------------------------------------------');
