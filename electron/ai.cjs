@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Gemini handles both jobs with one key: reading code + writing mixes, and transcribing speech.
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 const keyFile = () => path.join(app.getPath('userData'), 'gemini.key');

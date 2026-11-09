@@ -602,34 +602,38 @@ export const MixerTray: React.FC<MixerTrayProps> = ({
               )}
 
               {/* Connect Gemini: opens Google's key page, then picks the key up from the clipboard */}
-              {provider === 'gemini' && desktopAi && !ai?.hasKey && connecting && (
+              {provider === 'gemini' && !ai?.hasKey && (
                 <div className={`rounded-xl border p-2.5 flex flex-col gap-2 ${isFrost ? 'bg-slate-50 border-slate-200' : 'bg-neutral-950 border-white/10'}`}>
                   <p className={`text-[11px] leading-snug ${subtle}`}>
-                    Google's page just opened in your browser. Sign in, click <b>Create API key</b>, then click the copy icon. I'll notice the
-                    key as soon as it's copied.
+                    1. Get a free API key from{' '}
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-400 hover:underline font-semibold"
+                    >
+                      Google AI Studio ↗
+                    </a>
+                    .<br />
+                    2. Click <b>Create API key</b>, then copy and paste it below:
                   </p>
-                  {copiedKey ? (
+                  {copiedKey && (
                     <button
                       type="button"
                       onClick={() => connectWithKey(copiedKey)}
                       disabled={keyBusy}
-                      className="self-start px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-[11px] font-bold flex items-center gap-1.5"
+                      className="self-start px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-[11px] font-bold flex items-center gap-1.5 transition-colors"
                     >
                       <KeyRound className="w-3 h-3" />
-                      {keyBusy ? 'Connecting...' : 'Key copied. Connect Gemini'}
+                      {keyBusy ? 'Validating key...' : 'Connect Copied Key'}
                     </button>
-                  ) : (
-                    <p className={`text-[10px] flex items-center gap-1.5 ${faint}`}>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Waiting for you to copy the key...
-                    </p>
                   )}
                   <div className="flex items-center gap-2">
                     <input
                       type="password"
                       value={keyDraft}
                       onChange={(e) => setKeyDraft(e.target.value)}
-                      placeholder="or paste it here"
+                      placeholder="Paste AIzaSy... key here"
                       autoComplete="off"
                       className={`flex-1 min-w-0 px-3 py-1.5 rounded-lg text-[11px] border focus:outline-none ${field}`}
                     />
@@ -637,15 +641,14 @@ export const MixerTray: React.FC<MixerTrayProps> = ({
                       type="button"
                       onClick={() => connectWithKey(keyDraft)}
                       disabled={keyBusy || keyDraft.trim().length < 20}
-                      className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black text-[11px] font-bold disabled:opacity-40"
+                      className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black text-[11px] font-bold disabled:opacity-40 transition-colors"
                     >
-                      Save
+                      {keyBusy ? 'Checking...' : 'Save & Connect'}
                     </button>
                   </div>
-                  {keyError && <p className="text-[10px] text-red-400">{keyError}</p>}
+                  {keyError && <p className="text-[10px] text-red-400 font-medium">{keyError}</p>}
                   <p className={`text-[10px] leading-snug ${faint}`}>
-                    The key is stored encrypted in your Mac's keychain. When you mix or dictate with Gemini, your direction, the selected
-                    code and your voice audio are sent to Google.
+                    Your key is stored locally in your browser/keychain and only used to call the Gemini API for mixing and dictation.
                   </p>
                 </div>
               )}
