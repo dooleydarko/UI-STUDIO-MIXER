@@ -2,6 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Product3DProject } from '../types';
 import { createProductMeshGroup } from './proceduralModels';
 import { disposeObject3D } from './disposal';
@@ -25,6 +29,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const productGroupRef = useRef<THREE.Group | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const composerRef = useRef<EffectComposer | null>(null);
+  const bloomPassRef = useRef<UnrealBloomPass | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const projectRef = useRef<Product3DProject>(project);
   const lightsRef = useRef<StudioLights | null>(null);
@@ -110,12 +116,31 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     disk.receiveShadow = true;
     scene.add(disk);
 
+    // 7. Postprocessing EffectComposer with UnrealBloomPass & OutputPass
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(mount.clientWidth, mount.clientHeight),
+      projectRef.current.state.bloomStrength ?? 0.85,
+      projectRef.current.state.bloomRadius ?? 0.35,
+      projectRef.current.state.bloomThreshold ?? 0.82
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+    composerRef.current = composer;
+    bloomPassRef.current = bloomPass;
+
     // Resize observer
     const handleResize = () => {
       if (!mount) return;
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
+      composer.setSize(mount.clientWidth, mount.clientHeight);
     };
     window.addEventListener('resize', handleResize);
 
@@ -128,7 +153,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         productGroupRef.current.rotation.y += 0.006 * (liveState.rotationSpeed || 1);
       }
 
-      renderer.render(scene, camera);
+      // If bloom is enabled in state, render via composer; otherwise direct render
+      if (liveState.bloomEnabled) {
+        composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
+
       animFrameRef.current = requestAnimationFrame(animate);
     };
     animate();
@@ -137,6 +168,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       window.removeEventListener('resize', handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       controls.dispose();
+      composer.dispose();
+      bloomPass.dispose();
       if (productGroupRef.current) {
         scene.remove(productGroupRef.current);
         disposeObject3D(productGroupRef.current);
@@ -168,6 +201,21 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       softboxesEnabled,
     });
   }, [project.state.lighting, project.state.reflectionStrength]);
+
+  // Update postprocessing bloom parameters live
+  useEffect(() => {
+    if (bloomPassRef.current) {
+      if (project.state.bloomStrength !== undefined) {
+        bloomPassRef.current.strength = project.state.bloomStrength;
+      }
+      if (project.state.bloomRadius !== undefined) {
+        bloomPassRef.current.radius = project.state.bloomRadius;
+      }
+      if (project.state.bloomThreshold !== undefined) {
+        bloomPassRef.current.threshold = project.state.bloomThreshold;
+      }
+    }
+  }, [project.state.bloomStrength, project.state.bloomRadius, project.state.bloomThreshold]);
 
   // Update product mesh when project or decal changes
   useEffect(() => {

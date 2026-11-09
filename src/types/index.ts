@@ -126,6 +126,11 @@ export interface Product3DProject {
     /** Multiplier on the lighting rig's base reflection strength (1 = default). */
     reflectionStrength?: number;
     showWireframe: boolean;
+    /** Postprocessing bloom options */
+    bloomEnabled?: boolean;
+    bloomStrength?: number;
+    bloomRadius?: number;
+    bloomThreshold?: number;
   };
   savedAt: number;
 }

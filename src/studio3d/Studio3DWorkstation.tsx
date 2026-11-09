@@ -439,6 +439,57 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
             </div>
           </div>
 
+          {/* Postprocessing Unreal Bloom & Emissive Glow */}
+          <div className={`p-3.5 rounded-2xl border ${
+            isFrost ? 'bg-white border-slate-200' : 'bg-neutral-900/60 border-white/5'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-xs font-bold tracking-tight">Unreal Bloom & Glow</span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveProject((prev) => ({
+                    ...prev,
+                    state: { ...prev.state, bloomEnabled: !prev.state.bloomEnabled },
+                  }))
+                }
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border transition-colors ${
+                  activeProject.state.bloomEnabled
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                    : 'bg-white/5 text-neutral-400 border-white/10'
+                }`}
+              >
+                {activeProject.state.bloomEnabled ? 'ENABLED' : 'DISABLED'}
+              </button>
+            </div>
+            {activeProject.state.bloomEnabled && (
+              <div className="space-y-2 mt-2 pt-2 border-t border-white/5">
+                <div className="flex justify-between text-[11px] text-neutral-400">
+                  <span>Bloom Intensity</span>
+                  <span className="font-mono">{(activeProject.state.bloomStrength ?? 0.85).toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="2.5"
+                  step="0.05"
+                  value={activeProject.state.bloomStrength ?? 0.85}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setActiveProject((prev) => ({
+                      ...prev,
+                      state: { ...prev.state, bloomStrength: val },
+                    }));
+                  }}
+                  className="w-full accent-amber-500 cursor-pointer h-1.5 bg-neutral-800 rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Turntable Rotation Speed */}
           <div>
             <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
