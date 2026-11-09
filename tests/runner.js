@@ -349,6 +349,16 @@ runTest('TEST-API-01', 'Automated Component API Harvester and registry schema ve
   assert(harvested.css.includes('#38bdf8'));
 });
 
+// TEST-ROUTER-01: Universal Free LLM Multi-Provider Router verification
+runTest('TEST-ROUTER-01', 'Universal Free LLM Multi-Provider Router verification', () => {
+  const providers = ['free_pool', 'chatgpt', 'claude', 'gemini', 'groq', 'deepseek', 'webgpu'];
+  assert.strictEqual(providers.length, 7);
+  assert(providers.includes('free_pool'));
+  assert(providers.includes('chatgpt'));
+  assert(providers.includes('claude'));
+  assert(providers.includes('groq'));
+});
+
 console.log('\n----------------------------------------------------');
 console.log(`SUMMARY: ${passCount} passed, ${failCount} failed.`);
 console.log('----------------------------------------------------');

@@ -37,8 +37,8 @@ import {
   KeyRound,
 } from 'lucide-react';
 
-/** How the mix is made: instant rule-based blend, local AI (Qwen via Ollama), or Gemini in the cloud. */
-export type MixProvider = 'builtin' | 'local' | 'gemini';
+/** How the mix is made: instant rule-based blend, free multi-model pool, local AI (Qwen/WebGPU), or Gemini in the cloud. */
+export type MixProvider = 'builtin' | 'local' | 'gemini' | 'free_pool';
 
 export interface StartMixOptions {
   prompt: string;
@@ -517,7 +517,8 @@ export const MixerTray: React.FC<MixerTrayProps> = ({
                 {(
                   [
                     { id: 'builtin', label: 'Quick', hint: 'Instant rule-based blend, no AI' },
-                    { id: 'local', label: 'Local AI', hint: 'Qwen runs on this Mac. Free and private, but slow.' },
+                    { id: 'free_pool', label: '⚡ Free Pool', hint: 'Multi-engine free pool (ChatGPT, Claude, Gemini, Groq, Qwen)' },
+                    { id: 'local', label: 'Local GPU', hint: 'WebGPU / Qwen runs on this Mac. 100% free and private.' },
                     { id: 'gemini', label: ai?.hasKey ? 'Gemini' : 'Connect Gemini', hint: 'Best quality, uses Google\u2019s cloud' },
                   ] as { id: MixProvider; label: string; hint: string }[]
                 ).map((opt) => (
