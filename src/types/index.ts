@@ -1,5 +1,8 @@
 export type FrameworkType = 'html-css' | 'react' | 'web-component';
 
+export type { ExtractionTarget, PullTarget } from '../mixer/styleExtraction';
+import type { ExtractionTarget, PullTarget } from '../mixer/styleExtraction';
+
 export type VariationType = 'original' | 'refined' | 'reimagined' | 'experimental';
 
 export interface ComponentPackage {
@@ -24,10 +27,35 @@ export interface ComponentPackage {
   parentIds?: string[];
   versionHash?: string;
   previewThumbnail?: string;
+  /** For mixed components: what was pulled from which source, and where it went. */
+  mixTrace?: MixTraceEntry[];
+}
+
+/** One line of "what was taken from what, and where it was put". */
+export interface MixTraceEntry {
+  from: string;
+  what: string;
+  to: string;
+  detail: string;
+  count: number;
+}
+
+/** What to pull from one source component, and where to put it in the destination. */
+export interface MixPull {
+  fromId: string;
+  categories: ExtractionTarget[];
+  /** Style lines the user unchecked: "<selector>|<property>". */
+  excludedItems: string[];
+  target: PullTarget;
 }
 
 export interface MixRequest {
+  /** Every component in the tray. */
   sourceComponents: ComponentPackage[];
+  /** The component that receives the pulled traits. Defaults to the last one in the tray. */
+  destinationId?: string;
+  /** Per-source choices. Sources without an entry use the default selection. */
+  pulls?: MixPull[];
   creativeFreedom: number; // 0 (strict/faithful) to 1 (wild/experimental)
   prompt?: string;
   mode: 'three_variations' | 'single_economical';
@@ -39,6 +67,10 @@ export interface MixVariationResult {
   title: string;
   conceptSummary: string;
   component: ComponentPackage;
+  /** What was pulled from what. */
+  trace?: MixTraceEntry[];
+  /** "applied" = done by the rule-based mixer; "requested" = what the AI was asked to do. */
+  traceMode?: 'applied' | 'requested';
   diagnostics: {
     passed: boolean;
     scopedClass: string;
@@ -47,6 +79,7 @@ export interface MixVariationResult {
     autoRepaired: boolean;
   };
 }
+
 
 export type ProductPreset = 'beverage_can' | 'device_case' | 'bottle' | 'product_box';
 export type LightingPreset = 'studio' | 'neon' | 'daylight' | 'dramatic_rim';
@@ -90,6 +123,8 @@ export interface Product3DProject {
     rotationActive: boolean;
     rotationSpeed: number;
     lighting: LightingPreset;
+    /** Multiplier on the lighting rig's base reflection strength (1 = default). */
+    reflectionStrength?: number;
     showWireframe: boolean;
   };
   savedAt: number;

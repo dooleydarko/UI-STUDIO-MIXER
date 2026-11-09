@@ -121,11 +121,13 @@ export function buildSandboxedDocument(
   options: {
     theme?: 'obsidian' | 'frost';
     scopeClass?: string;
+    /** Let the host surface show through (used by canvas cards so they read as one solid color). */
+    transparent?: boolean;
   } = {}
 ): string {
-  const { theme = 'obsidian', scopeClass } = options;
+  const { theme = 'obsidian', scopeClass, transparent = false } = options;
   const processedCss = scopeClass ? scopeCss(css, scopeClass) : css;
-  const bg = theme === 'frost' ? '#f8fafc' : '#000000';
+  const bg = transparent ? 'transparent' : theme === 'frost' ? '#f8fafc' : '#000000';
   const fg = theme === 'frost' ? '#0f172a' : '#ffffff';
 
   return `<!DOCTYPE html>

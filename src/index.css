@@ -24,3 +24,73 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/*
+ * Canvas card, copied from Uiverse "tasty-falcon-38" by kennyotsu.
+ * Values are the original .card-id567 / .blurry-splash rules; the pulse keyframes use the
+ * individual `scale` property so they don't override the card's translate3d positioning.
+ */
+.cm-card {
+  background: rgb(22, 22, 22);
+  color: white;
+  border-radius: 1rem;
+  transition: 300ms ease;
+  animation: 8s thumb-thumb infinite;
+  /* hairline edge + soft drop shadow so the gray card separates from the black canvas */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 18px 40px -18px rgba(0, 0, 0, 0.9);
+}
+
+.cm-card-frost {
+  background: rgb(244, 245, 248);
+  color: rgb(30, 41, 59);
+}
+
+
+@keyframes thumb-thumb {
+  0%, 10%, 100% {
+    scale: 100%;
+  }
+
+  5% {
+    scale: 103%;
+  }
+
+  7% {
+    scale: 97%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-card {
+    animation: none;
+  }
+}
+
+/*
+ * Card glow. Colors (--g1..--g3, as "r g b") are extracted from the component's own CSS
+ * (see glowPalette.ts), and the layers are anchored to the card's edges and corners so the
+ * light follows the card's structure: a bloom rising from the bottom edge plus corner washes.
+ */
+.cm-card {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 0 46px -14px rgb(var(--g1, 167 139 250) / 0.35),
+    0 18px 40px -18px rgba(0, 0, 0, 0.9);
+}
+
+.cm-card-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 300ms ease;
+  background:
+    radial-gradient(120% 70% at 50% 108%, rgb(var(--g1, 167 139 250) / 0.38), transparent 62%),
+    radial-gradient(70% 55% at 0% 0%, rgb(var(--g2, 129 140 248) / 0.22), transparent 70%),
+    radial-gradient(70% 55% at 100% 0%, rgb(var(--g3, 192 132 252) / 0.18), transparent 70%);
+}
+
+.cm-card:hover .cm-card-glow {
+  opacity: 1;
+}

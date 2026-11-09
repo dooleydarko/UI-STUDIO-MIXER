@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { ComponentPackage, Product3DProject, MixVariationResult } from './types';
+import type { StartMixOptions } from './components/MixerTray';
+import { mixWithAI } from './ai/aiMixer';
 import { StorageManager } from './storage/storageManager';
 import { CodeMixerEngine } from './mixer/mixerEngine';
 import { InfiniteCanvas } from './components/InfiniteCanvas';
@@ -8,7 +10,10 @@ import { PackRevealModal } from './components/PackRevealModal';
 import { PopoutPreview } from './components/PopoutPreview';
 import { AddUIModal } from './components/AddUIModal';
 import { DiscoveryRoom } from './discovery/DiscoveryRoom';
-import { Studio3DWorkstation } from './studio3d/Studio3DWorkstation';
+// Loaded on demand so three.js stays out of the initial bundle
+const Studio3DWorkstation = lazy(() =>
+  import('./studio3d/Studio3DWorkstation').then((m) => ({ default: m.Studio3DWorkstation }))
+);
 import { BuildProgressModal } from './components/BuildProgressModal';
 import { 
   Sparkles, 
@@ -38,6 +43,7 @@ export const App: React.FC = () => {
   const [supervisorStep, setSupervisorStep] = useState('idle');
   const [supervisorMessage, setSupervisorMessage] = useState('');
   const [currentVariations, setCurrentVariations] = useState<MixVariationResult[] | null>(null);
+  const [mixNotice, setMixNotice] = useState<string | null>(null);
 
   // Modals state
   const [popoutComp, setPopoutComp] = useState<ComponentPackage | null>(null);
@@ -98,24 +104,43 @@ export const App: React.FC = () => {
     setPopoutComp(updated);
   };
 
-  const handleStartMix = async (userPrompt: string, freedom: number) => {
-    const staged = components.filter((c) => mixerTrayIds.includes(c.id));
+  const handleStartMix = async (options: StartMixOptions) => {
+    const { prompt: userPrompt, freedom, destinationId, pulls, provider } = options;
+    // Tray order is preserved; the destination and per-source choices come from the tray
+    const staged = mixerTrayIds
+      .map((id) => components.find((c) => c.id === id))
+      .filter((c): c is ComponentPackage => !!c);
     if (staged.length === 0) return;
 
     setIsMixing(true);
+    setMixNotice(null);
+    const request = {
+      sourceComponents: staged,
+      destinationId,
+      pulls,
+      creativeFreedom: freedom,
+      prompt: userPrompt,
+      mode: 'three_variations' as const,
+    };
+    const onProgress = (step: string, msg: string) => {
+      setSupervisorStep(step);
+      setSupervisorMessage(msg);
+    };
     try {
-      const results = await mixerEngine.mixComponents(
-        {
-          sourceComponents: staged,
-          creativeFreedom: freedom,
-          prompt: userPrompt,
-          mode: 'three_variations',
-        },
-        (step, msg) => {
-          setSupervisorStep(step);
-          setSupervisorMessage(msg);
+      let results: MixVariationResult[];
+      if (provider !== 'builtin') {
+        try {
+          results = await mixWithAI(request, provider, onProgress);
+        } catch (aiErr) {
+          // Fall back to the built-in blend so the mix still produces something
+          const reason = aiErr instanceof Error ? aiErr.message : 'AI mix failed.';
+          console.error('AI mix failed, using built-in blend:', aiErr);
+          setMixNotice(`AI mix failed: ${reason} Used the quick built-in blend instead.`);
+          results = await mixerEngine.mixComponents(request, onProgress);
         }
-      );
+      } else {
+        results = await mixerEngine.mixComponents(request, onProgress);
+      }
 
       // Save results atomically BEFORE opening reveal animation (requirement from Section 5 & 10)
       results.forEach((r) => {
@@ -125,6 +150,7 @@ export const App: React.FC = () => {
       setCurrentVariations(results);
     } catch (err) {
       console.error('Mix failed:', err);
+      setMixNotice(err instanceof Error ? err.message : 'Mix failed.');
     } finally {
       setIsMixing(false);
     }
@@ -148,7 +174,9 @@ export const App: React.FC = () => {
     storage.save3DProject(proj);
   };
 
-  const stagedComps = components.filter((c) => mixerTrayIds.includes(c.id));
+  const stagedComps = mixerTrayIds
+    .map((id) => components.find((c) => c.id === id))
+    .filter((c): c is ComponentPackage => !!c);
   const isFrost = theme === 'frost';
 
   return (
@@ -292,6 +320,7 @@ export const App: React.FC = () => {
               isMixing={isMixing}
               supervisorStep={supervisorStep}
               supervisorMessage={supervisorMessage}
+              notice={mixNotice}
               onRemoveFromTray={(id) => setMixerTrayIds((prev) => prev.filter((i) => i !== id))}
               onClearTray={() => setMixerTrayIds([])}
               onStartMix={handleStartMix}
@@ -300,11 +329,19 @@ export const App: React.FC = () => {
         )}
 
         {activeWorkspace === '3d_studio' && (
-          <Studio3DWorkstation
-            projects={projects3D}
-            theme={theme}
-            onSaveProject={handleSave3DProject}
-          />
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center text-xs font-mono text-neutral-500">
+                Loading 3D engine…
+              </div>
+            }
+          >
+            <Studio3DWorkstation
+              projects={projects3D}
+              theme={theme}
+              onSaveProject={handleSave3DProject}
+            />
+          </Suspense>
         )}
 
         {activeWorkspace === 'discovery' && (

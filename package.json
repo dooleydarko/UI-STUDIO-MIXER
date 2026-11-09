@@ -3,13 +3,17 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node tests/runner.js"
+    "test": "node tests/runner.js",
+    "electron:dev": "node electron/dev.cjs",
+    "electron:start": "npm run build && electron ."
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.474.0",
     "react": "^18.3.1",
@@ -23,6 +27,7 @@
     "@types/three": "^0.173.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "electron": "^45.2.3",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",

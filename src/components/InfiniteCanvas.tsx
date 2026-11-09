@@ -51,21 +51,55 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
 
   const isFrost = theme === 'frost';
 
-  // Wheel zoom and pan
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      // Zoom
+  // Latest pan/zoom for the native wheel handler (updated synchronously so several
+  // wheel events inside one frame accumulate instead of overwriting each other).
+  const viewRef = useRef({ pan, zoom });
+  viewRef.current = { pan, zoom };
+
+  // Wheel / trackpad: scroll pans, pinch (Ctrl/Cmd + wheel) zooms around the cursor.
+  // This must be a native non-passive listener: React's onWheel is passive, so its
+  // preventDefault() is ignored and the browser would pinch-zoom the whole page instead.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const zoomFactor = -e.deltaY * 0.0015;
-      setZoom((prev) => Math.min(Math.max(prev + zoomFactor, 0.3), 2.2));
-    } else {
-      // Pan
-      setPan((prev) => ({
-        x: prev.x - e.deltaX * 0.9,
-        y: prev.y - e.deltaY * 0.9,
-      }));
-    }
-  };
+      const { pan: p, zoom: z } = viewRef.current;
+      if (e.ctrlKey || e.metaKey) {
+        const rect = el.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const nextZoom = Math.min(Math.max(z * Math.exp(-e.deltaY * 0.01), 0.3), 2.2);
+        const k = nextZoom / z;
+        const nextPan = { x: cx - (cx - p.x) * k, y: cy - (cy - p.y) * k };
+        viewRef.current = { pan: nextPan, zoom: nextZoom };
+        setPan(nextPan);
+        setZoom(nextZoom);
+      } else {
+        const nextPan = { x: p.x - e.deltaX, y: p.y - e.deltaY };
+        viewRef.current = { pan: nextPan, zoom: z };
+        setPan(nextPan);
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Always end a pan/drag when the button is released or the window loses focus, even
+  // if that happens outside the canvas or over a component preview. Otherwise the canvas
+  // keeps following the cursor after you leave it.
+  useEffect(() => {
+    const stop = () => {
+      setIsPanning(false);
+      setDraggingCompId(null);
+    };
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('blur', stop);
+    return () => {
+      window.removeEventListener('mouseup', stop);
+      window.removeEventListener('blur', stop);
+    };
+  }, []);
 
   // Background pointer pan
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -128,7 +162,6 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

@@ -1,8 +1,13 @@
 import { ComponentPackage, MixRequest, MixVariationResult } from '../types';
 import { generateScopeId, scopeCss } from './scopeEngine';
+import { pullStyles } from './styleExtraction';
+import { ResolvedMix, buildMixTrace, resolveMix } from './mixPlan';
 
 export class CodeMixerEngine {
   private static instance: CodeMixerEngine;
+
+  /** Destination and per-source choices for the mix in progress (mixes run one at a time). */
+  private mix!: ResolvedMix;
 
   private constructor() {}
 
@@ -25,6 +30,7 @@ export class CodeMixerEngine {
     if (sourceComponents.length === 0) {
       throw new Error('At least one source component must be provided to mix.');
     }
+    this.mix = resolveMix(request);
 
     // Step 1: Analyzing / Planning
     onProgress?.('planning', `Analyzing AST, layout structure, and DOM hierarchies of ${sourceComponents.length} sources...`);
@@ -38,10 +44,11 @@ export class CodeMixerEngine {
     onProgress?.('combining', `Generating three distinct creative synthesis variations...`);
     await this.delay(450);
 
-    // Produce the 3 distinct variations
-    const primary = sourceComponents[0];
-    const secondary = sourceComponents[1] || sourceComponents[0];
-    const tertiary = sourceComponents[2] || primary;
+    // Produce the 3 distinct variations. The destination is the base; the first
+    // source supplies the second layout slot, and everything pulled lands on the base.
+    const primary = this.mix.base;
+    const secondary = this.mix.sources[0]?.comp ?? primary;
+    const tertiary = this.mix.sources[1]?.comp ?? primary;
 
     const refined = this.synthesizeRefined(primary, secondary, prompt);
     const reimagined = this.synthesizeReimagined(primary, secondary, prompt, creativeFreedom);
@@ -58,11 +65,20 @@ export class CodeMixerEngine {
     // Step 6: Ready
     onProgress?.('ready', `Three creative variations verified and ready for collectible pack reveal!`);
 
-    return [refined, reimagined, experimental];
+    // Record what was pulled from what, so the result can explain itself
+    const trace = buildMixTrace(this.mix);
+    return [refined, reimagined, experimental].map((r) => ({
+      ...r,
+      trace,
+      traceMode: 'applied' as const,
+      component: { ...r.component, mixTrace: trace },
+    }));
   }
 
   private synthesizeRefined(compA: ComponentPackage, compB: ComponentPackage, prompt?: string): MixVariationResult {
     const scopeClass = generateScopeId(`${compA.id}_${compB.id}_refined`);
+    const pa = this.part(compA, `${scopeClass}_a`);
+    const pb = this.donor(compB, `${scopeClass}_b`, `${scopeClass}_a`);
     const blendedHtml = `
 <div class="refined-hybrid-wrapper">
   <div class="refined-glass-card">
@@ -71,10 +87,10 @@ export class CodeMixerEngine {
       <div class="status-indicator"></div>
     </div>
     <div class="refined-body">
-      ${compA.html}
+      ${pa.html}
     </div>
     <div class="refined-controls">
-      ${compB.html}
+      ${pb.html}
     </div>
   </div>
 </div>`.trim();
@@ -131,17 +147,17 @@ export class CodeMixerEngine {
   border-top: 1px solid rgba(255,255,255,0.08);
   padding-top: 14px;
 }
-${scopeCss(compA.css, scopeClass)}
-${scopeCss(compB.css, scopeClass)}
+${pa.css}
+${pb.css}
 `;
 
     const blendedJs = `
 // Refined blend script encapsulation
 try {
-  ${compA.js}
+  ${pa.js}
 } catch(e) { console.warn('Script A caught:', e); }
 try {
-  ${compB.js}
+  ${pb.js}
 } catch(e) { console.warn('Script B caught:', e); }
 `;
 
@@ -171,8 +187,8 @@ try {
         tags: ['mixed', 'refined', ...compA.tags, ...compB.tags],
         canvasX: compA.canvasX + 40,
         canvasY: compA.canvasY + 60,
-        width: 320,
-        height: 380,
+        width: 400,
+        height: 470,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         variationType: 'refined',
@@ -188,6 +204,8 @@ try {
     creativeFreedom: number = 0.7
   ): MixVariationResult {
     const scopeClass = generateScopeId(`${compA.id}_${compB.id}_reimagined`);
+    const pa = this.part(compA, `${scopeClass}_a`);
+    const pb = this.donor(compB, `${scopeClass}_b`, `${scopeClass}_a`);
     const blendedHtml = `
 <div class="reimagined-terminal">
   <div class="reimagined-topbar">
@@ -195,9 +213,9 @@ try {
     <span class="reimagined-title">REIMAGINED // STUDIO BLEND</span>
   </div>
   <div class="reimagined-core">
-    <div class="stage-a">${compA.html}</div>
+    <div class="stage-a">${pa.html}</div>
     <div class="stage-divider"></div>
-    <div class="stage-b">${compB.html}</div>
+    <div class="stage-b">${pb.html}</div>
   </div>
 </div>`.trim();
 
@@ -256,16 +274,16 @@ try {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(56,189,248,0.3), transparent);
 }
-${scopeCss(compA.css, scopeClass)}
-${scopeCss(compB.css, scopeClass)}
+${pa.css}
+${pb.css}
 `;
 
     const blendedJs = `
 try {
-  ${compA.js}
+  ${pa.js}
 } catch(e) {}
 try {
-  ${compB.js}
+  ${pb.js}
 } catch(e) {}
 `;
 
@@ -295,8 +313,8 @@ try {
         tags: ['mixed', 'reimagined', ...compA.tags],
         canvasX: compA.canvasX + 80,
         canvasY: compA.canvasY + 90,
-        width: 320,
-        height: 380,
+        width: 400,
+        height: 470,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         variationType: 'reimagined',
@@ -313,15 +331,17 @@ try {
     creativeFreedom: number = 0.9
   ): MixVariationResult {
     const scopeClass = generateScopeId(`${compA.id}_${compB.id}_${compC.id}_experimental`);
+    const pa = this.part(compA, `${scopeClass}_a`);
+    const pb = this.donor(compB, `${scopeClass}_b`, `${scopeClass}_a`);
     const blendedHtml = `
 <div class="exp-viewport-shell">
   <div class="exp-glow-orb"></div>
   <div class="exp-3d-stage">
     <div class="exp-surface-front">
-      ${compA.html}
+      ${pa.html}
     </div>
     <div class="exp-surface-widget">
-      ${compB.html}
+      ${pb.html}
     </div>
   </div>
 </div>`.trim();
@@ -373,16 +393,16 @@ try {
 .exp-surface-widget {
   transform: translateZ(35px);
 }
-${scopeCss(compA.css, scopeClass)}
-${scopeCss(compB.css, scopeClass)}
+${pa.css}
+${pb.css}
 `;
 
     const blendedJs = `
 try {
-  ${compA.js}
+  ${pa.js}
 } catch(e) {}
 try {
-  ${compB.js}
+  ${pb.js}
 } catch(e) {}
 `;
 
@@ -412,13 +432,50 @@ try {
         tags: ['mixed', 'experimental', '3d', ...compA.tags],
         canvasX: compA.canvasX + 120,
         canvasY: compA.canvasY + 120,
-        width: 320,
-        height: 380,
+        width: 400,
+        height: 470,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         variationType: 'experimental',
         parentIds: [compA.id, compB.id, compC.id],
       },
+    };
+  }
+
+  /**
+   * Prepares one source component for blending. Its CSS is scoped to its own class AND the
+   * HTML is wrapped in an element carrying that class. (Previously the CSS was scoped to a
+   * class that no element had, so every source component lost its styling in the mix.)
+   * Each component gets its own scope so same-named classes in two components can't collide.
+   */
+  private part(comp: ComponentPackage, scope: string): { html: string; css: string; js: string } {
+    const css = `${scopeCss(comp.css, scope)}
+/* source pages often size themselves to the whole viewport; inside a blend they must not */
+.${scope} { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }`;
+    return {
+      html: `<div class="${scope}">${comp.html}</div>`,
+      css,
+      js: comp.js ? `(function () {\n  try {\n${comp.js}\n  } catch (e) { console.warn('Component script error:', e); }\n})();` : '',
+    };
+  }
+
+
+  /**
+   * Prepares the layout slot filled by a source component. Its markup and script appear only
+   * if that source's choices include "structure" / "behavior". Separately, the style traits
+   * chosen from EVERY source are re-targeted onto the destination, to the element the user picked.
+   */
+  private donor(comp: ComponentPackage, scope: string, baseScope: string): { html: string; css: string; js: string } {
+    const source = this.mix.sources.find((s) => s.comp.id === comp.id);
+    const full = this.part(comp, scope);
+    const pulled = this.mix.sources
+      .map((s) => pullStyles(s.comp.css, baseScope, s.categories, s.excluded, s.target).css)
+      .join('\n');
+    const withStructure = !!source && source.categories.includes('structure');
+    return {
+      html: withStructure ? full.html : '',
+      css: `${withStructure ? full.css : ''}\n${pulled}`,
+      js: source && source.categories.includes('behavior') ? full.js : '',
     };
   }
 

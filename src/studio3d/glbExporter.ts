@@ -4,10 +4,21 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 export async function exportSceneToGlb(sceneOrGroup: THREE.Object3D, fileName: string = 'product_model.glb'): Promise<void> {
   const exporter = new GLTFExporter();
 
+  // Hide viewport-only effects (e.g. the LED glow halo) so they stay out of the file
+  const hidden: THREE.Object3D[] = [];
+  sceneOrGroup.traverse((obj) => {
+    if (obj.userData.exportExclude && obj.visible) {
+      obj.visible = false;
+      hidden.push(obj);
+    }
+  });
+  const restore = () => hidden.forEach((obj) => (obj.visible = true));
+
   return new Promise((resolve, reject) => {
     exporter.parse(
       sceneOrGroup,
       (gltf) => {
+        restore();
         try {
           const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
           const link = document.createElement('a');
@@ -23,9 +34,10 @@ export async function exportSceneToGlb(sceneOrGroup: THREE.Object3D, fileName: s
         }
       },
       (error) => {
+        restore();
         reject(error);
       },
-      { binary: true }
+      { binary: true, onlyVisible: true }
     );
   });
 }

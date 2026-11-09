@@ -24,8 +24,6 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
   onSaveComponent,
 }) => {
   const [name, setName] = useState('');
-  const [author, setAuthor] = useState('Community / User');
-  const [license, setLicense] = useState('MIT');
   const [sourceUrl, setSourceUrl] = useState('');
   const [tags, setTags] = useState('card, custom');
   const [html, setHtml] = useState('<div class="my-component">\n  <h2>Hello World</h2>\n  <button>Click me</button>\n</div>');
@@ -96,8 +94,10 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
       id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: name.trim(),
       description: 'Imported user component',
-      author: author.trim() || 'Anonymous',
-      license: license.trim() || 'MIT',
+      // Author and license are no longer collected: components come from free public sources,
+      // and the source URL is the reference. The fields stay on the type for older saved data.
+      author: 'Community',
+      license: 'Free / public',
       sourceUrl: sourceUrl.trim() || 'Direct Paste',
       framework: 'html-css',
       html,
@@ -106,8 +106,8 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       canvasX: 200 + Math.random() * 200,
       canvasY: 200 + Math.random() * 200,
-      width: 320,
-      height: 380,
+      width: 400,
+      height: 470,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       variationType: 'original',
@@ -196,39 +196,6 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
                   }`}
                 />
               </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1">
-                  Author / Credit
-                </label>
-                <input
-                  type="text"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  placeholder="e.g. Smit-Prajapati"
-                  className={`w-full px-3 py-2 rounded-lg text-xs border focus:outline-none ${
-                    isFrost ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-neutral-900 border-white/10 text-white'
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1">
-                  License
-                </label>
-                <input
-                  type="text"
-                  value={license}
-                  onChange={(e) => setLicense(e.target.value)}
-                  placeholder="MIT"
-                  className={`w-full px-3 py-2 rounded-lg text-xs border focus:outline-none ${
-                    isFrost ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-neutral-900 border-white/10 text-white'
-                  }`}
-                />
-              </div>
-
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1">
                   Source Reference URL

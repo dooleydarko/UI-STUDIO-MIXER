@@ -1,8 +1,13 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Product3DProject } from '../types';
 import { createProductMeshGroup } from './proceduralModels';
+import { disposeObject3D } from './disposal';
+import { createStudioLights, applyLightingRig, StudioLights } from './lightingRigs';
+import { createLabelTexture } from './labelTexture';
+import { StorageManager } from '../storage/storageManager';
 
 interface Viewport3DProps {
   project: Product3DProject;
@@ -21,6 +26,20 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const animFrameRef = useRef<number | null>(null);
+  const projectRef = useRef<Product3DProject>(project);
+  const lightsRef = useRef<StudioLights | null>(null);
+
+  const onSceneReadyRef = useRef(onSceneReady);
+  const decalImageRef = useRef<{ url: string; image: HTMLImageElement | null } | null>(null);
+  const [imageVersion, setImageVersion] = useState(0);
+
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
+
+  useEffect(() => {
+    onSceneReadyRef.current = onSceneReady;
+  }, [onSceneReady]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -60,26 +79,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     controlsRef.current = controls;
 
     // 5. Lighting setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
+    // Procedural studio environment (no downloaded HDRI) so metals have something to reflect
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTexture;
+    pmrem.dispose();
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.4);
-    mainLight.position.set(5, 8, 5);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 1024;
-    mainLight.shadow.mapSize.height = 1024;
-    mainLight.shadow.camera.near = 0.5;
-    mainLight.shadow.camera.far = 25;
-    mainLight.shadow.bias = -0.001;
-    scene.add(mainLight);
-
-    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.9);
-    rimLight.position.set(-6, 4, -5);
-    scene.add(rimLight);
-
-    const fillLight = new THREE.DirectionalLight(0xf59e0b, 0.3);
-    fillLight.position.set(0, -2, 4);
-    scene.add(fillLight);
+    // Full studio set: key/rim directionals, hemisphere fill, two softboxes.
+    // Colors, intensities and backdrop are applied by the lighting effect below.
+    lightsRef.current = createStudioLights(scene);
 
     // 6. Contact Shadow Floor Grid
     const floorGeo = new THREE.PlaneGeometry(20, 20);
@@ -115,8 +123,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const animate = () => {
       controls.update();
 
-      if (productGroupRef.current && project.state.rotationActive) {
-        productGroupRef.current.rotation.y += 0.006 * project.state.rotationSpeed;
+      const liveState = projectRef.current.state;
+      if (productGroupRef.current && liveState.rotationActive) {
+        productGroupRef.current.rotation.y += 0.006 * (liveState.rotationSpeed || 1);
       }
 
       renderer.render(scene, camera);
@@ -128,6 +137,16 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       window.removeEventListener('resize', handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       controls.dispose();
+      if (productGroupRef.current) {
+        scene.remove(productGroupRef.current);
+        disposeObject3D(productGroupRef.current);
+        productGroupRef.current = null;
+      }
+      disposeObject3D(floor);
+      disposeObject3D(disk);
+      decalImageRef.current = null;
+      envTexture.dispose();
+      if (scene.background instanceof THREE.Texture) scene.background.dispose();
       renderer.dispose();
       if (mount && renderer.domElement) {
         mount.removeChild(renderer.domElement);
@@ -135,31 +154,70 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     };
   }, []);
 
+  // Update lighting rig when project.state.lighting changes
+  useEffect(() => {
+    const lights = lightsRef.current;
+    const scene = sceneRef.current;
+    if (!lights || !scene) return;
+
+    // Softboxes are the GPU-heavy part; eco quality leaves them off.
+    const softboxesEnabled = StorageManager.getInstance().getSettings().performanceMode !== 'eco';
+    applyLightingRig(scene, lights, {
+      preset: project.state.lighting || 'studio',
+      reflectionStrength: project.state.reflectionStrength ?? 1,
+      softboxesEnabled,
+    });
+  }, [project.state.lighting, project.state.reflectionStrength]);
+
   // Update product mesh when project or decal changes
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    // Preserve turntable angle across rebuilds
+    let previousRotationY = 0;
     if (productGroupRef.current) {
+      previousRotationY = productGroupRef.current.rotation.y;
       scene.remove(productGroupRef.current);
+      disposeObject3D(productGroupRef.current);
+      productGroupRef.current = null;
     }
 
-    let decalTex: THREE.Texture | null = null;
-    if (decalDataUrl) {
-      const loader = new THREE.TextureLoader();
-      decalTex = loader.load(decalDataUrl);
-      decalTex.wrapS = THREE.RepeatWrapping;
-      decalTex.wrapT = THREE.ClampToEdgeWrapping;
+    // Load the artwork once per image, then compose a fresh canvas label texture
+    // each rebuild so scale/rotation/position/wrap edits apply live.
+    let labelTexture: THREE.Texture | null = null;
+    if (decalDataUrl && project.decal) {
+      const cached = decalImageRef.current;
+      if (!cached || cached.url !== decalDataUrl) {
+        const image = new Image();
+        decalImageRef.current = { url: decalDataUrl, image: null };
+        image.onload = () => {
+          if (decalImageRef.current?.url === decalDataUrl) {
+            decalImageRef.current = { url: decalDataUrl, image };
+            setImageVersion((v) => v + 1); // rebuild now that the artwork is decoded
+          }
+        };
+        image.src = decalDataUrl;
+      } else if (cached.image) {
+        labelTexture = createLabelTexture({
+          baseColor: project.material.baseColor,
+          image: cached.image,
+          decal: project.decal,
+        });
+      }
+    } else {
+      decalImageRef.current = null;
     }
 
-    const newGroup = createProductMeshGroup(project, decalTex);
+    const newGroup = createProductMeshGroup(project, labelTexture);
+    newGroup.rotation.y = previousRotationY;
     productGroupRef.current = newGroup;
     scene.add(newGroup);
 
-    if (onSceneReady) {
-      onSceneReady(newGroup);
-    }
-  }, [project, decalDataUrl, onSceneReady]);
+    // Read via ref: an inline callback prop changes every render and would
+    // otherwise retrigger this effect in a rebuild loop.
+    onSceneReadyRef.current?.(newGroup);
+  }, [project, decalDataUrl, imageVersion]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">

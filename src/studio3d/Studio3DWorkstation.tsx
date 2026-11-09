@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { Product3DProject, ProductPreset, LightingPreset } from '../types';
 import { Viewport3D } from './Viewport3D';
 import { exportSceneToGlb } from './glbExporter';
+import { useUndoableState } from '../state/useUndoableState';
+import { LIGHTING_RIGS } from './lightingRigs';
 import { 
   Box, 
   RotateCw, 
@@ -15,7 +17,9 @@ import {
   Power, 
   Check, 
   Sparkles,
-  Maximize2
+  Maximize2,
+  Undo2,
+  Redo2
 } from 'lucide-react';
 
 interface Studio3DWorkstationProps {
@@ -29,19 +33,66 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
   theme,
   onSaveProject,
 }) => {
-  const [activeProject, setActiveProject] = useState<Product3DProject>(projects[0]);
+  const history = useUndoableState<Product3DProject>(() => projects[0]);
+  const activeProject = history.state;
+  // Rapid edits (e.g. dragging a slider) merge into a single undo step.
+  const setActiveProject = (updater: (prev: Product3DProject) => Product3DProject) =>
+    history.set(updater, { coalesceKey: 'edit' });
   const [decalUrl, setDecalUrl] = useState<string | null>(activeProject.decal?.imageUrl || null);
   const [activeSceneGroup, setActiveSceneGroup] = useState<THREE.Group | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [autosavedAt, setAutosavedAt] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFirstRender = useRef(true);
+  const handleSceneReady = useCallback((group: THREE.Group) => setActiveSceneGroup(group), []);
 
   const isFrost = theme === 'frost';
+
+  // Keep the decal preview in sync when undo/redo changes the decal
+  useEffect(() => {
+    setDecalUrl(activeProject.decal?.imageUrl || null);
+  }, [activeProject.decal?.imageUrl]);
+
+  // Debounced autosave
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      const stamped = { ...activeProject, savedAt: Date.now() };
+      onSaveProject(stamped);
+      setAutosavedAt(stamped.savedAt);
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProject]);
+
+  // Undo / redo keyboard shortcuts (Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z, Ctrl+Y)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'range')) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        history.undo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        history.redo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [history.undo, history.redo]);
 
   const handlePresetChange = (preset: ProductPreset) => {
     const existing = projects.find((p) => p.preset === preset);
     if (existing) {
-      setActiveProject(existing);
+      history.reset(existing);
       setDecalUrl(existing.decal?.imageUrl || null);
     } else {
       setActiveProject((prev) => ({
@@ -145,6 +196,56 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2.5">
+          {/* Undo / Redo */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={history.undo}
+              disabled={!history.canUndo}
+              title="Undo (Cmd+Z)"
+              className={`p-1.5 rounded-lg border transition-colors disabled:opacity-30 ${
+                isFrost ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
+              }`}
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={history.redo}
+              disabled={!history.canRedo}
+              title="Redo (Shift+Cmd+Z)"
+              className={`p-1.5 rounded-lg border transition-colors disabled:opacity-30 ${
+                isFrost ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
+              }`}
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {autosavedAt && (
+            <span className="text-[10px] text-neutral-500 font-mono" title="Changes are saved automatically">
+              Autosaved {new Date(autosavedAt).toLocaleTimeString()}
+            </span>
+          )}
+          {/* Wireframe Toggle */}
+          <button
+            type="button"
+            onClick={() =>
+              setActiveProject((prev) => ({
+                ...prev,
+                state: { ...prev.state, showWireframe: !prev.state.showWireframe },
+              }))
+            }
+            className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              activeProject.state.showWireframe
+                ? 'bg-purple-500/20 border-purple-500/40 text-purple-400'
+                : isFrost ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-neutral-400'
+            }`}
+            title="Toggle mesh wireframe overlay"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Wireframe</span>
+          </button>
+
           {/* Turntable Auto-Rotate Toggle */}
           <button
             type="button"
@@ -280,6 +381,86 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
               />
             </div>
           )}
+
+          {/* Studio Lighting Rig Selector */}
+          <div className="border-t border-white/[0.08] pt-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5 mb-2">
+              <Sun className="w-3 h-3 text-amber-400" />
+              <span>Studio Lighting Rig</span>
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(Object.entries(LIGHTING_RIGS) as [LightingPreset, { label: string }][]).map(([id, rig]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() =>
+                    setActiveProject((prev) => ({
+                      ...prev,
+                      state: { ...prev.state, lighting: id },
+                    }))
+                  }
+                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${
+                    activeProject.state.lighting === id
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                      : isFrost
+                      ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      : 'bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10'
+                  }`}
+                >
+                  {rig.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Reflection strength (scene environment intensity multiplier) */}
+            <div className="mt-3">
+              <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                <span>Reflection Strength</span>
+                <span className="font-mono">{(activeProject.state.reflectionStrength ?? 1).toFixed(2)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value={activeProject.state.reflectionStrength ?? 1}
+                onChange={(e) => {
+                  const strength = parseFloat(e.target.value);
+                  setActiveProject((prev) => ({
+                    ...prev,
+                    state: { ...prev.state, reflectionStrength: strength },
+                  }));
+                }}
+                className="w-full accent-amber-500 cursor-pointer h-1.5 bg-neutral-800 rounded-lg"
+              />
+              <span className="text-[10px] text-neutral-600 block mt-1">
+                Each rig has its own base level; this scales it. Softboxes turn off in Eco mode.
+              </span>
+            </div>
+          </div>
+
+          {/* Turntable Rotation Speed */}
+          <div>
+            <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+              <span>Turntable Speed</span>
+              <span className="font-mono">{activeProject.state.rotationSpeed.toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.2"
+              max="3.0"
+              step="0.2"
+              value={activeProject.state.rotationSpeed}
+              onChange={(e) => {
+                const speed = parseFloat(e.target.value);
+                setActiveProject((prev) => ({
+                  ...prev,
+                  state: { ...prev.state, rotationSpeed: speed },
+                }));
+              }}
+              className="w-full accent-sky-500 cursor-pointer h-1.5 bg-neutral-800 rounded-lg"
+            />
+          </div>
         </div>
 
         {/* Center High-Fidelity 3D Viewport */}
@@ -287,7 +468,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
           <Viewport3D
             project={activeProject}
             decalDataUrl={decalUrl}
-            onSceneReady={(group) => setActiveSceneGroup(group)}
+            onSceneReady={handleSceneReady}
           />
 
           {/* Viewport Overlay Controls (Bottom Center) */}
@@ -428,20 +609,133 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-neutral-400">Wrap Method:</span>
-                <span className="font-mono text-[11px] text-sky-400">Cylindrical UV</span>
+                <span className="text-neutral-400">Label Mapping:</span>
+                <span className="font-mono text-[11px] text-sky-400">Canvas texture (UV)</span>
               </div>
-              {decalUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDecalUrl(null);
-                    setActiveProject((prev) => ({ ...prev, decal: undefined }));
-                  }}
-                  className="text-red-400 hover:text-red-300 text-left text-[11px] mt-1"
-                >
-                  Remove Decal
-                </button>
+              {decalUrl && activeProject.decal && (
+                <div className="mt-2 pt-2 border-t border-white/10 flex flex-col gap-2">
+                  <div className="grid grid-cols-3 gap-1">
+                    {([
+                      { id: 'cylindrical', label: 'Single' },
+                      { id: 'repeat', label: 'Tile' },
+                      { id: 'clamp', label: 'Stretch' },
+                    ] as { id: 'cylindrical' | 'repeat' | 'clamp'; label: string }[]).map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() =>
+                          setActiveProject((prev) =>
+                            prev.decal ? { ...prev, decal: { ...prev.decal, wrapMode: mode.id } } : prev
+                          )
+                        }
+                        className={`px-2 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                          activeProject.decal?.wrapMode === mode.id
+                            ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
+                            : 'bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10'
+                        }`}
+                        title={
+                          mode.id === 'cylindrical'
+                            ? 'One label centred on the front'
+                            : mode.id === 'repeat'
+                            ? 'Tile the label across the surface'
+                            : 'Stretch the artwork over the whole surface'
+                        }
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[11px] text-neutral-400 mb-0.5">
+                      <span>Position X (around)</span>
+                      <span className="font-mono">{activeProject.decal.positionX.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-0.5"
+                      max="0.5"
+                      step="0.01"
+                      value={activeProject.decal.positionX}
+                      onChange={(e) => {
+                        const x = parseFloat(e.target.value);
+                        setActiveProject((prev) =>
+                          prev.decal ? { ...prev, decal: { ...prev.decal, positionX: x } } : prev
+                        );
+                      }}
+                      className="w-full accent-sky-500 cursor-pointer h-1 bg-neutral-800 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[11px] text-neutral-400 mb-0.5">
+                      <span>Position Y (height)</span>
+                      <span className="font-mono">{activeProject.decal.positionY.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-0.5"
+                      max="0.5"
+                      step="0.01"
+                      value={activeProject.decal.positionY}
+                      onChange={(e) => {
+                        const y = parseFloat(e.target.value);
+                        setActiveProject((prev) =>
+                          prev.decal ? { ...prev, decal: { ...prev.decal, positionY: y } } : prev
+                        );
+                      }}
+                      className="w-full accent-sky-500 cursor-pointer h-1 bg-neutral-800 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[11px] text-neutral-400 mb-0.5">
+                      <span>Decal Scale</span>
+                      <span className="font-mono">{activeProject.decal.scaleX.toFixed(1)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.2"
+                      max="3.0"
+                      step="0.1"
+                      value={activeProject.decal.scaleX}
+                      onChange={(e) => {
+                        const s = parseFloat(e.target.value);
+                        setActiveProject((prev) =>
+                          prev.decal ? { ...prev, decal: { ...prev.decal, scaleX: s, scaleY: s } } : prev
+                        );
+                      }}
+                      className="w-full accent-sky-500 cursor-pointer h-1 bg-neutral-800 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[11px] text-neutral-400 mb-0.5">
+                      <span>Rotation</span>
+                      <span className="font-mono">{activeProject.decal.rotation}°</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-180"
+                      max="180"
+                      step="5"
+                      value={activeProject.decal.rotation}
+                      onChange={(e) => {
+                        const r = parseInt(e.target.value);
+                        setActiveProject((prev) =>
+                          prev.decal ? { ...prev, decal: { ...prev.decal, rotation: r } } : prev
+                        );
+                      }}
+                      className="w-full accent-sky-500 cursor-pointer h-1 bg-neutral-800 rounded-lg"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDecalUrl(null);
+                      setActiveProject((prev) => ({ ...prev, decal: undefined }));
+                    }}
+                    className="text-red-400 hover:text-red-300 text-left text-[11px] mt-1"
+                  >
+                    Remove Decal
+                  </button>
+                </div>
               )}
             </div>
           </div>

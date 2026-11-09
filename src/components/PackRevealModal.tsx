@@ -182,6 +182,19 @@ export const PackRevealModal: React.FC<PackRevealModalProps> = ({
                   <div>
                     <h4 className="text-sm font-bold tracking-tight">{currentResult.title}</h4>
                     <p className="text-[11px] text-neutral-400">{currentResult.conceptSummary}</p>
+                    {currentResult.trace && currentResult.trace.length > 0 && (
+                      <div className="mt-1.5 max-h-16 overflow-y-auto text-[10px] leading-snug text-neutral-400">
+                        <span className="font-semibold uppercase tracking-wider text-sky-400">
+                          {currentResult.traceMode === 'requested' ? 'The AI was asked to pull' : 'Pulled'}
+                        </span>
+                        {currentResult.trace.map((t, i) => (
+                          <div key={i}>
+                            <span className="text-neutral-200">{t.from}</span> {t.what.toLowerCase()}
+                            {t.detail ? ` (${t.detail})` : ''} {'\u2192'} <span className="text-neutral-200">{t.to}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">

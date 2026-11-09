@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { buildSandboxedDocument } from '../mixer/scopeEngine';
 
 interface SandboxedPreviewProps {
@@ -7,6 +7,7 @@ interface SandboxedPreviewProps {
   js: string;
   theme?: 'obsidian' | 'frost';
   scopeClass?: string;
+  transparent?: boolean;
   interactive?: boolean;
   paused?: boolean;
   className?: string;
@@ -19,19 +20,19 @@ export const SandboxedPreview: React.FC<SandboxedPreviewProps> = ({
   js,
   theme = 'obsidian',
   scopeClass,
+  transparent = false,
   interactive = true,
   paused = false,
   className = '',
   onError,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [docContent, setDocContent] = useState<string>('');
 
-  useEffect(() => {
-    if (paused) return;
-    const doc = buildSandboxedDocument(html, css, js, { theme, scopeClass });
-    setDocContent(doc);
-  }, [html, css, js, theme, scopeClass, paused]);
+  // Built synchronously so the iframe never mounts empty and then fills in later
+  const docContent = useMemo(
+    () => (paused ? '' : buildSandboxedDocument(html, css, js, { theme, scopeClass, transparent })),
+    [html, css, js, theme, scopeClass, transparent, paused]
+  );
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -60,7 +61,6 @@ export const SandboxedPreview: React.FC<SandboxedPreviewProps> = ({
         sandbox="allow-scripts"
         title="Sandboxed Component Preview"
         className="w-full h-full border-0 pointer-events-auto"
-        loading="lazy"
         tabIndex={interactive ? 0 : -1}
       />
       {!interactive && (

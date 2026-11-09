@@ -1,6 +1,39 @@
 import * as THREE from 'three';
 import { Product3DProject, DecalTransform } from '../types';
 
+/** Soft radial halo billboard used as a cheap, LED-only bloom. */
+function createGlowSprite(color: string, strength: number): THREE.Sprite {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const c = new THREE.Color(color);
+  const rgb = `${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}`;
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, `rgba(${rgb}, 1)`);
+  gradient.addColorStop(0.25, `rgba(${rgb}, 0.45)`);
+  gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    opacity: Math.min(1, strength * 2.5),
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.name = 'led_glow';
+  sprite.scale.setScalar(0.38);
+  sprite.userData.exportExclude = true; // viewport-only effect, not part of the model
+  return sprite;
+}
+
 /**
  * Procedurally generates a physically accurate 3D model with PBR materials
  * for the selected product preset.
@@ -14,18 +47,22 @@ export function createProductMeshGroup(
 
   const { material: matProps, state, preset } = project;
 
-  // Base PBR material
-  const bodyMaterial = new THREE.MeshStandardMaterial({
+  // Base PBR physical material (supports clearcoat & physical reflections)
+  const bodyMaterial = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(matProps.baseColor),
     roughness: matProps.roughness,
     metalness: matProps.metalness,
+    clearcoat: matProps.clearcoat ?? 0,
+    clearcoatRoughness: 0.1,
     wireframe: state.showWireframe,
   });
 
-  const chromeMaterial = new THREE.MeshStandardMaterial({
+  const chromeMaterial = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(matProps.secondaryColor || '#cccccc'),
     roughness: 0.15,
     metalness: 0.95,
+    clearcoat: 0.5,
+    wireframe: state.showWireframe,
   });
 
   const emissiveMaterial = new THREE.MeshStandardMaterial({
@@ -33,10 +70,13 @@ export function createProductMeshGroup(
     emissive: state.powerOn ? new THREE.Color(matProps.emissiveColor || '#10b981') : new THREE.Color('#000000'),
     emissiveIntensity: state.powerOn ? matProps.emissiveIntensity || 1.5 : 0,
     roughness: 0.2,
+    wireframe: state.showWireframe,
   });
 
-  // If a decal texture is loaded, apply to body material map
+  // The label texture is a canvas that already contains the base color plus the
+  // artwork, so the material color goes white to avoid tinting it.
   if (decalTexture) {
+    bodyMaterial.color.set('#ffffff');
     bodyMaterial.map = decalTexture;
     bodyMaterial.needsUpdate = true;
   }
@@ -122,6 +162,15 @@ export function createProductMeshGroup(
     const ledMesh = new THREE.Mesh(ledGeo, emissiveMaterial);
     ledMesh.position.set(0, caseHeight * 0.325, caseDepth / 2 + 0.01);
     group.add(ledMesh);
+
+    // LED bloom: a soft additive halo around the lit LED. Far cheaper than a
+    // full-screen bloom pass and only ever affects the LED, which suits an 8 GB Intel Mac.
+    if (state.powerOn) {
+      const glowColor = matProps.emissiveColor || '#10b981';
+      const glow = createGlowSprite(glowColor, (matProps.emissiveIntensity || 1.5) * 0.18);
+      glow.position.copy(ledMesh.position);
+      group.add(glow);
+    }
 
   } else if (preset === 'bottle') {
     // 3. Perfume / Beverage Bottle

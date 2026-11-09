@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { extractGlowPalette } from './glowPalette';
 import { ComponentPackage } from '../types';
 import { SandboxedPreview } from './SandboxedPreview';
 import { 
@@ -51,110 +52,104 @@ export const UICard: React.FC<UICardProps> = ({
 
   const isFrost = theme === 'frost';
 
+  // Glow colors come from the component itself, so the card glows in the UI's own palette
+  const glowPalette = useMemo(() => extractGlowPalette(component.css, component.html), [component.css, component.html]);
+
+  // Card surface copied from Uiverse "tasty-falcon-38" (kennyotsu): rgb(22,22,22) background,
+  // 1rem radius, 300ms transition and the "thumb-thumb" pulse. The glow is derived from the
+  // component's own colors and follows the card's shape. See .cm-card* in index.css.
+  const [g1, g2, g3] = glowPalette;
+  const rgbVar = (c: [number, number, number]) => c.join(' ');
+
   return (
     <div
       style={{
         transform: `translate3d(${component.canvasX}px, ${component.canvasY}px, 0)`,
         width: `${component.width}px`,
         height: `${component.height}px`,
+        ['--g1' as string]: rgbVar(g1),
+        ['--g2' as string]: rgbVar(g2),
+        ['--g3' as string]: rgbVar(g3),
+        boxShadow: isSelected
+          ? `0 0 0 2px rgb(${rgbVar(g1)} / 0.85), 0 0 60px -10px rgb(${rgbVar(g1)} / 0.55)`
+          : undefined,
       }}
-      className={`absolute select-none rounded-2xl transition-shadow duration-300 flex flex-col group ${
-        isFrost
-          ? 'bg-white/95 border border-slate-200/80 shadow-xl text-slate-800'
-          : 'bg-[#080808] border border-white/[0.08] shadow-[0_12px_36px_rgba(0,0,0,0.85)] text-neutral-100'
-      } ${
-        isSelected
-          ? 'ring-2 ring-sky-500/80 shadow-[0_0_24px_rgba(56,189,248,0.25)]'
-          : 'hover:border-white/[0.18]'
-      }`}
+      className={`cm-card absolute select-none flex flex-col group ${isFrost ? 'cm-card-frost' : ''}`}
       onClick={() => onSelect(component)}
     >
+      {/* Glow tinted by the component's own colors, shaped to the card */}
+      <div aria-hidden className="cm-card-glow" />
       {/* Top Header / Drag Bar */}
       <div 
-        className={`px-3.5 py-2.5 rounded-t-2xl flex items-center justify-between border-b cursor-grab active:cursor-grabbing ${
-          isFrost ? 'border-slate-100 bg-slate-50/70' : 'border-white/[0.05] bg-black/40 backdrop-blur-md'
+        className={`relative px-4 py-3 rounded-t-2xl flex items-center justify-between border-b cursor-grab active:cursor-grabbing ${
+          isFrost ? 'border-slate-200/60' : 'border-white/[0.06]'
         }`}
         onMouseDown={(e) => onDragStart(e, component)}
       >
         <div className="flex items-center gap-2 overflow-hidden">
           <Move className={`w-3.5 h-3.5 shrink-0 ${isFrost ? 'text-slate-400' : 'text-neutral-500'}`} />
-          <span className="text-xs font-semibold tracking-wide truncate max-w-[130px]">
+          <span className="text-xs font-semibold tracking-wide truncate max-w-[190px]">
             {component.name}
           </span>
-          {component.variationType && component.variationType !== 'original' && (
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase font-bold tracking-wider ${
-              component.variationType === 'refined'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : component.variationType === 'reimagined'
-                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-            }`}>
-              {component.variationType}
-            </span>
-          )}
         </div>
 
-        {/* Interaction / Drag Mode Toggle */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setInteractMode(!interactMode);
-            }}
-            className={`p-1 rounded-md transition-colors ${
-              interactMode 
-                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' 
-                : isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-400'
-            }`}
-            title={interactMode ? "Interaction Mode active (click to enable Drag)" : "Drag Mode active (click to interact)"}
-          >
-            <MousePointer className="w-3 h-3" />
-          </button>
+        {/* Header actions: Mix and Edit always visible; the rest appear on hover */}
+        <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setInteractMode(!interactMode);
+              }}
+              className={`p-1 rounded-md transition-colors ${
+                interactMode
+                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                  : isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-400'
+              }`}
+              title={interactMode ? 'Interaction Mode active (click to enable Drag)' : 'Drag Mode active (click to interact)'}
+            >
+              <MousePointer className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPreviewPopout(component);
+              }}
+              className={`p-1 rounded-md transition-colors ${
+                isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-400'
+              }`}
+              title="Open dedicated preview window"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyCode}
+              className={`p-1 rounded-md transition-colors ${
+                isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-400'
+              }`}
+              title="Copy component code"
+            >
+              {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(component.id);
+              }}
+              className={`p-1 rounded-md transition-colors hover:text-red-400 ${
+                isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-500'
+              }`}
+              title="Delete from canvas"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPreviewPopout(component);
-            }}
-            className={`p-1 rounded-md transition-colors ${
-              isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-400'
-            }`}
-            title="Open dedicated preview window"
-          >
-            <Maximize2 className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Preview Container */}
-      <div className="flex-1 relative overflow-hidden bg-transparent">
-        <SandboxedPreview
-          html={component.html}
-          css={component.css}
-          js={component.js}
-          theme={theme}
-          interactive={interactMode}
-          className="w-full h-full"
-        />
-      </div>
-
-      {/* Bottom Footer Controls */}
-      <div className={`px-3 py-2 rounded-b-2xl flex items-center justify-between border-t text-xs ${
-        isFrost ? 'border-slate-100 bg-slate-50/70' : 'border-white/[0.05] bg-black/30'
-      }`}>
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <span className={`text-[10px] truncate max-w-[80px] ${isFrost ? 'text-slate-400' : 'text-neutral-500'}`}>
-            by {component.author}
-          </span>
-          <span className={`text-[9px] px-1 rounded ${isFrost ? 'bg-slate-200 text-slate-600' : 'bg-neutral-800 text-neutral-400'}`}>
-            {component.license}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {/* Mix Button */}
+          {/* Mix */}
           <button
             type="button"
             onClick={(e) => {
@@ -174,19 +169,7 @@ export const UICard: React.FC<UICardProps> = ({
             <span>{isInMixer ? 'In Tray' : 'Mix'}</span>
           </button>
 
-          {/* Copy Code */}
-          <button
-            type="button"
-            onClick={handleCopyCode}
-            className={`p-1.5 rounded-md transition-colors ${
-              isFrost ? 'hover:bg-slate-200 text-slate-600' : 'hover:bg-white/10 text-neutral-300'
-            }`}
-            title="Copy component code"
-          >
-            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-          </button>
-
-          {/* Edit */}
+          {/* Edit code */}
           <button
             type="button"
             onClick={(e) => {
@@ -198,24 +181,22 @@ export const UICard: React.FC<UICardProps> = ({
             }`}
             title="Edit component source"
           >
-            <Code className="w-3 h-3" />
-          </button>
-
-          {/* Delete */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(component.id);
-            }}
-            className={`p-1.5 rounded-md transition-colors hover:text-red-400 ${
-              isFrost ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-neutral-500'
-            }`}
-            title="Delete from canvas"
-          >
-            <Trash2 className="w-3 h-3" />
+            <Code className="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* Main Preview Container */}
+      <div className="flex-1 relative overflow-hidden bg-transparent p-4">
+        <SandboxedPreview
+          html={component.html}
+          css={component.css}
+          js={component.js}
+          theme={theme}
+          transparent
+          interactive={interactMode}
+          className="w-full h-full"
+        />
       </div>
     </div>
   );

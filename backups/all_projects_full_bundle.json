@@ -1,0 +1,997 @@
+{
+  "timestamp": "2026-11-09T15:59:13.586Z",
+  "files": {
+    "antigravity_cm_3d_projects_v1.bak.json": {
+      "schemaVersion": 3,
+      "savedAt": 1794228300746,
+      "data": [
+        {
+          "id": "proj-device-case",
+          "name": "BOTTLE Prototype",
+          "preset": "bottle",
+          "dimensions": {
+            "width": 60,
+            "height": 45,
+            "depth": 24,
+            "unit": "mm"
+          },
+          "material": {
+            "baseColor": "#121212",
+            "secondaryColor": "#252525",
+            "roughness": 0.35,
+            "metalness": 0.15,
+            "clearcoat": 0.4,
+            "emissiveColor": "#10b981",
+            "emissiveIntensity": 1.2
+          },
+          "decal": {
+            "imageUrl": "",
+            "imageName": "None",
+            "scaleX": 1,
+            "scaleY": 1,
+            "positionX": 0,
+            "positionY": 0,
+            "rotation": 0,
+            "opacity": 1,
+            "wrapMode": "clamp"
+          },
+          "state": {
+            "powerOn": true,
+            "lidAngle": 0,
+            "rotationActive": false,
+            "rotationSpeed": 0.5,
+            "lighting": "neon",
+            "showWireframe": false
+          },
+          "savedAt": 1794228300745
+        },
+        {
+          "id": "proj-beverage-can",
+          "name": "Sleek Matte & Aluminum Beverage Can (330ml)",
+          "preset": "beverage_can",
+          "dimensions": {
+            "width": 66,
+            "height": 122,
+            "depth": 66,
+            "unit": "mm"
+          },
+          "material": {
+            "baseColor": "#0a0a0a",
+            "secondaryColor": "#d1d5db",
+            "roughness": 0.22,
+            "metalness": 0.85,
+            "clearcoat": 0.6,
+            "emissiveColor": "#000000",
+            "emissiveIntensity": 0
+          },
+          "decal": {
+            "imageUrl": "",
+            "imageName": "None (Add Decal / Label)",
+            "scaleX": 1,
+            "scaleY": 1,
+            "positionX": 0,
+            "positionY": 0,
+            "rotation": 0,
+            "opacity": 1,
+            "wrapMode": "cylindrical"
+          },
+          "state": {
+            "powerOn": true,
+            "lidAngle": 0,
+            "rotationActive": true,
+            "rotationSpeed": 0.8,
+            "lighting": "studio",
+            "showWireframe": false
+          },
+          "savedAt": 1794225838337
+        },
+        {
+          "id": "proj-packaging-box",
+          "name": "Minimalist Matte Product Presentation Box",
+          "preset": "product_box",
+          "dimensions": {
+            "width": 100,
+            "height": 140,
+            "depth": 50,
+            "unit": "mm"
+          },
+          "material": {
+            "baseColor": "#0c0c0c",
+            "secondaryColor": "#1f1f1f",
+            "roughness": 0.65,
+            "metalness": 0.05,
+            "clearcoat": 0.1,
+            "emissiveColor": "#000000",
+            "emissiveIntensity": 0
+          },
+          "state": {
+            "powerOn": false,
+            "lidAngle": 0,
+            "rotationActive": true,
+            "rotationSpeed": 0.4,
+            "lighting": "dramatic_rim",
+            "showWireframe": false
+          },
+          "savedAt": 1731100000000
+        }
+      ]
+    },
+    "antigravity_cm_3d_projects_v1.json": {
+      "schemaVersion": 3,
+      "savedAt": 1794228414981,
+      "data": [
+        {
+          "id": "proj-device-case",
+          "name": "BOTTLE Prototype",
+          "preset": "bottle",
+          "dimensions": {
+            "width": 60,
+            "height": 45,
+            "depth": 24,
+            "unit": "mm"
+          },
+          "material": {
+            "baseColor": "#121212",
+            "secondaryColor": "#252525",
+            "roughness": 0.35,
+            "metalness": 0.15,
+            "clearcoat": 0.4,
+            "emissiveColor": "#10b981",
+            "emissiveIntensity": 1.2
+          },
+          "decal": {
+            "imageUrl": "",
+            "imageName": "None",
+            "scaleX": 1,
+            "scaleY": 1,
+            "positionX": 0,
+            "positionY": 0,
+            "rotation": 0,
+            "opacity": 1,
+            "wrapMode": "clamp"
+          },
+          "state": {
+            "powerOn": true,
+            "lidAngle": 0,
+            "rotationActive": false,
+            "rotationSpeed": 0.5,
+            "lighting": "neon",
+            "showWireframe": false
+          },
+          "savedAt": 1794228414980
+        },
+        {
+          "id": "proj-beverage-can",
+          "name": "Sleek Matte & Aluminum Beverage Can (330ml)",
+          "preset": "beverage_can",
+          "dimensions": {
+            "width": 66,
+            "height": 122,
+            "depth": 66,
+            "unit": "mm"
+          },
+          "material": {
+            "baseColor": "#0a0a0a",
+            "secondaryColor": "#d1d5db",
+            "roughness": 0.22,
+            "metalness": 0.85,
+            "clearcoat": 0.6,
+            "emissiveColor": "#000000",
+            "emissiveIntensity": 0
+          },
+          "decal": {
+            "imageUrl": "",
+            "imageName": "None (Add Decal / Label)",
+            "scaleX": 1,
+            "scaleY": 1,
+            "positionX": 0,
+            "positionY": 0,
+            "rotation": 0,
+            "opacity": 1,
+            "wrapMode": "cylindrical"
+          },
+          "state": {
+            "powerOn": true,
+            "lidAngle": 0,
+            "rotationActive": true,
+            "rotationSpeed": 0.8,
+            "lighting": "studio",
+            "showWireframe": false
+          },
+          "savedAt": 1794225838337
+        },
+        {
+          "id": "proj-packaging-box",
+          "name": "Minimalist Matte Product Presentation Box",
+          "preset": "product_box",
+          "dimensions": {
+            "width": 100,
+            "height": 140,
+            "depth": 50,
+            "unit": "mm"
+          },
+          "material": {
+            "baseColor": "#0c0c0c",
+            "secondaryColor": "#1f1f1f",
+            "roughness": 0.65,
+            "metalness": 0.05,
+            "clearcoat": 0.1,
+            "emissiveColor": "#000000",
+            "emissiveIntensity": 0
+          },
+          "state": {
+            "powerOn": false,
+            "lidAngle": 0,
+            "rotationActive": true,
+            "rotationSpeed": 0.4,
+            "lighting": "dramatic_rim",
+            "showWireframe": false
+          },
+          "savedAt": 1731100000000
+        }
+      ]
+    },
+    "antigravity_cm_components_v1.bak.json": {
+      "schemaVersion": 3,
+      "savedAt": 1794239080331,
+      "data": [
+        {
+          "id": "gen-experimental-1794238990466",
+          "name": "Exp 3D: Wet Goose Ve",
+          "description": "Ambitious 3D spatial stage variation with layered depth",
+          "author": "Code Mixer Engine",
+          "license": "MIT",
+          "sourceUrl": "Code Mixer Synthesis",
+          "framework": "html-css",
+          "html": "<div class=\"exp-viewport-shell\">\n  <div class=\"exp-glow-orb\"></div>\n  <div class=\"exp-3d-stage\">\n    <div class=\"exp-surface-front\">\n      <div class=\"scope_e3dhot_a\"><div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div></div>\n    </div>\n    <div class=\"exp-surface-widget\">\n      \n    </div>\n  </div>\n</div>",
+          "css": "\n.exp-viewport-shell {\n  position: relative;\n  width: 90%;\n  max-width: 310px;\n  margin: auto;\n  min-height: 280px;\n  border-radius: 24px;\n  background: #030303;\n  border: 1px solid rgba(168, 85, 247, 0.35);\n  box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 35px rgba(168, 85, 247, 0.2);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  overflow: hidden;\n  perspective: 1200px;\n}\n.exp-glow-orb {\n  position: absolute;\n  top: -50px;\n  left: -50px;\n  width: 140px;\n  height: 140px;\n  border-radius: 50%;\n  background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, transparent 70%);\n  filter: blur(25px);\n  pointer-events: none;\n}\n.exp-3d-stage {\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 16px;\n  z-index: 2;\n  transform-style: preserve-3d;\n  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);\n}\n.exp-viewport-shell:hover .exp-3d-stage {\n  transform: rotateX(8deg) rotateY(-6deg) scale(1.04);\n}\n.exp-surface-front {\n  transform: translateZ(20px);\n}\n.exp-surface-widget {\n  transform: translateZ(35px);\n}\n.scope_e3dhot_a {\n box-sizing: border-box; margin: 0; padding: 0; \n}\n.scope_e3dhot_a {\n\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\n}\n.scope_e3dhot_a .gauge-card {\n\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n\n}\n.scope_e3dhot_a .gauge-card:hover {\n\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n\n}\n.scope_e3dhot_a .hud-header {\n\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n\n}\n.scope_e3dhot_a .status-dot {\n\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n\n}\n.scope_e3dhot_a .hud-mode {\n\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n\n}\n.scope_e3dhot_a .speedo-container {\n\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n\n}\n.scope_e3dhot_a .speed-value {\n\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n\n}\n.scope_e3dhot_a .speed-unit {\n\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n\n}\n.scope_e3dhot_a .bar-meter {\n\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n\n}\n.scope_e3dhot_a .bar-fill {\n\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n\n}\n.scope_e3dhot_a .hud-metrics {\n\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n\n}\n.scope_e3dhot_a .hud-metrics div {\n\n  display: flex;\n  flex-direction: column;\n\n}\n.scope_e3dhot_a .hud-metrics span {\n\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n\n}\n.scope_e3dhot_a .hud-metrics strong {\n\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n\n}\n\n/* source pages often size themselves to the whole viewport; inside a blend they must not */\n.scope_e3dhot_a { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }\n\n\n",
+          "js": "\ntry {\n  (function () {\n  try {\n// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);\n  } catch (e) { console.warn('Component script error:', e); }\n})();\n} catch(e) {}\ntry {\n  \n} catch(e) {}\n",
+          "tags": [
+            "mixed",
+            "experimental",
+            "3d",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 720,
+          "canvasY": 245,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794238990466,
+          "updatedAt": 1794238990466,
+          "variationType": "experimental",
+          "parentIds": [
+            "uiverse-wet-goose",
+            "uiverse-wet-goose",
+            "uiverse-wet-goose"
+          ],
+          "mixTrace": []
+        },
+        {
+          "id": "gen-reimagined-1794238990464",
+          "name": "Reimagined: Wet Goose Vehi",
+          "description": "Reimagined composition with bold typography and cyber accents",
+          "author": "Code Mixer Engine",
+          "license": "MIT",
+          "sourceUrl": "Code Mixer Synthesis",
+          "framework": "html-css",
+          "html": "<div class=\"reimagined-terminal\">\n  <div class=\"reimagined-topbar\">\n    <div class=\"dots\"><span class=\"r-dot\"></span><span class=\"y-dot\"></span><span class=\"g-dot\"></span></div>\n    <span class=\"reimagined-title\">REIMAGINED // STUDIO BLEND</span>\n  </div>\n  <div class=\"reimagined-core\">\n    <div class=\"stage-a\"><div class=\"scope_gtoveb_a\"><div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div></div></div>\n    <div class=\"stage-divider\"></div>\n    <div class=\"stage-b\"></div>\n  </div>\n</div>",
+          "css": "\n.reimagined-terminal {\n  width: 92%;\n  max-width: 310px;\n  margin: auto;\n  border-radius: 18px;\n  background: #050505;\n  border: 1px solid rgba(56, 189, 248, 0.25);\n  box-shadow: 0 16px 40px rgba(0,0,0,0.9), 0 0 20px rgba(56, 189, 248, 0.15);\n  overflow: hidden;\n  transition: transform 0.3s ease;\n}\n.reimagined-terminal:hover {\n  transform: translateY(-4px) scale(1.02);\n  border-color: rgba(56, 189, 248, 0.45);\n}\n.reimagined-topbar {\n  background: #0c0c0c;\n  padding: 10px 14px;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  border-bottom: 1px solid rgba(255,255,255,0.06);\n}\n.dots {\n  display: flex;\n  gap: 5px;\n}\n.dots span {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n}\n.r-dot { background: #ef4444; }\n.y-dot { background: #f59e0b; }\n.g-dot { background: #10b981; }\n.reimagined-title {\n  font-size: 8px;\n  letter-spacing: 1.5px;\n  color: #38bdf8;\n  font-family: monospace;\n  font-weight: 700;\n}\n.reimagined-core {\n  padding: 18px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 14px;\n}\n.stage-divider {\n  width: 100%;\n  height: 1px;\n  background: linear-gradient(90deg, transparent, rgba(56,189,248,0.3), transparent);\n}\n.scope_gtoveb_a {\n box-sizing: border-box; margin: 0; padding: 0; \n}\n.scope_gtoveb_a {\n\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\n}\n.scope_gtoveb_a .gauge-card {\n\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n\n}\n.scope_gtoveb_a .gauge-card:hover {\n\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n\n}\n.scope_gtoveb_a .hud-header {\n\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n\n}\n.scope_gtoveb_a .status-dot {\n\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n\n}\n.scope_gtoveb_a .hud-mode {\n\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n\n}\n.scope_gtoveb_a .speedo-container {\n\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n\n}\n.scope_gtoveb_a .speed-value {\n\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n\n}\n.scope_gtoveb_a .speed-unit {\n\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n\n}\n.scope_gtoveb_a .bar-meter {\n\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n\n}\n.scope_gtoveb_a .bar-fill {\n\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n\n}\n.scope_gtoveb_a .hud-metrics {\n\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n\n}\n.scope_gtoveb_a .hud-metrics div {\n\n  display: flex;\n  flex-direction: column;\n\n}\n.scope_gtoveb_a .hud-metrics span {\n\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n\n}\n.scope_gtoveb_a .hud-metrics strong {\n\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n\n}\n\n/* source pages often size themselves to the whole viewport; inside a blend they must not */\n.scope_gtoveb_a { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }\n\n\n",
+          "js": "\ntry {\n  (function () {\n  try {\n// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);\n  } catch (e) { console.warn('Component script error:', e); }\n})();\n} catch(e) {}\ntry {\n  \n} catch(e) {}\n",
+          "tags": [
+            "mixed",
+            "reimagined",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 2103,
+          "canvasY": 988,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794238990464,
+          "updatedAt": 1794239080331,
+          "variationType": "reimagined",
+          "parentIds": [
+            "uiverse-wet-goose",
+            "uiverse-wet-goose"
+          ],
+          "mixTrace": []
+        },
+        {
+          "id": "gen-refined-1794238990462",
+          "name": "Refined: Wet Goose Vehi × Wet Goose Vehi",
+          "description": "Faithfully synthesized blend of Wet Goose Vehicle Card and Wet Goose Vehicle Card",
+          "author": "Code Mixer Engine",
+          "license": "MIT",
+          "sourceUrl": "Code Mixer Synthesis",
+          "framework": "html-css",
+          "html": "<div class=\"refined-hybrid-wrapper\">\n  <div class=\"refined-glass-card\">\n    <div class=\"refined-header\">\n      <div class=\"refined-badge\">REFINED SYNTHESIS</div>\n      <div class=\"status-indicator\"></div>\n    </div>\n    <div class=\"refined-body\">\n      <div class=\"scope_rooxzv_a\"><div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div></div>\n    </div>\n    <div class=\"refined-controls\">\n      \n    </div>\n  </div>\n</div>",
+          "css": "\n.refined-hybrid-wrapper {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  padding: 16px;\n  background: radial-gradient(circle at center, rgba(30,41,59,0.3) 0%, rgba(5,5,5,0.95) 100%);\n}\n.refined-glass-card {\n  width: 100%;\n  max-width: 320px;\n  background: rgba(14, 14, 14, 0.85);\n  backdrop-filter: blur(20px);\n  border: 1px solid rgba(255, 255, 255, 0.12);\n  border-radius: 20px;\n  padding: 20px;\n  box-shadow: 0 20px 50px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.15);\n  display: flex;\n  flex-direction: column;\n  gap: 16px;\n}\n.refined-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  border-bottom: 1px solid rgba(255,255,255,0.08);\n  padding-bottom: 10px;\n}\n.refined-badge {\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 1.5px;\n  color: #10b981;\n}\n.status-indicator {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #10b981;\n  box-shadow: 0 0 8px #10b981;\n}\n.refined-body {\n  display: flex;\n  justify-content: center;\n}\n.refined-controls {\n  display: flex;\n  justify-content: center;\n  border-top: 1px solid rgba(255,255,255,0.08);\n  padding-top: 14px;\n}\n.scope_rooxzv_a {\n box-sizing: border-box; margin: 0; padding: 0; \n}\n.scope_rooxzv_a {\n\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\n}\n.scope_rooxzv_a .gauge-card {\n\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n\n}\n.scope_rooxzv_a .gauge-card:hover {\n\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n\n}\n.scope_rooxzv_a .hud-header {\n\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n\n}\n.scope_rooxzv_a .status-dot {\n\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n\n}\n.scope_rooxzv_a .hud-mode {\n\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n\n}\n.scope_rooxzv_a .speedo-container {\n\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n\n}\n.scope_rooxzv_a .speed-value {\n\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n\n}\n.scope_rooxzv_a .speed-unit {\n\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n\n}\n.scope_rooxzv_a .bar-meter {\n\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n\n}\n.scope_rooxzv_a .bar-fill {\n\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n\n}\n.scope_rooxzv_a .hud-metrics {\n\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n\n}\n.scope_rooxzv_a .hud-metrics div {\n\n  display: flex;\n  flex-direction: column;\n\n}\n.scope_rooxzv_a .hud-metrics span {\n\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n\n}\n.scope_rooxzv_a .hud-metrics strong {\n\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n\n}\n\n/* source pages often size themselves to the whole viewport; inside a blend they must not */\n.scope_rooxzv_a { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }\n\n\n",
+          "js": "\n// Refined blend script encapsulation\ntry {\n  (function () {\n  try {\n// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);\n  } catch (e) { console.warn('Component script error:', e); }\n})();\n} catch(e) { console.warn('Script A caught:', e); }\ntry {\n  \n} catch(e) { console.warn('Script B caught:', e); }\n",
+          "tags": [
+            "mixed",
+            "refined",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 640,
+          "canvasY": 185,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794238990462,
+          "updatedAt": 1794238990462,
+          "variationType": "refined",
+          "parentIds": [
+            "uiverse-wet-goose",
+            "uiverse-wet-goose"
+          ],
+          "mixTrace": []
+        },
+        {
+          "id": "comp-1794234889656-feb7",
+          "name": "DARKO",
+          "description": "Imported user component",
+          "author": "Community",
+          "license": "Free / public",
+          "sourceUrl": "Direct Paste",
+          "framework": "html-css",
+          "html": "<div class=\"dock-stage\">\n  <div class=\"dock\" role=\"toolbar\" aria-label=\"Portfolio navigation\">\n    <div class=\"dock__row\">\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" checked=\"\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"Home\">\n          <defs>\n            <linearGradient id=\"dock-home\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n              <stop offset=\"0\" stop-color=\"#5ec8ff\"></stop>\n              <stop offset=\"1\" stop-color=\"#2878f0\"></stop>\n            </linearGradient>\n          </defs>\n\n          <rect width=\"64\" height=\"64\" rx=\"14\" fill=\"url(#dock-home)\"></rect>\n\n          <path\n            d=\"M14 31.5L32 16l18 15.5v19a3.5 3.5 0 0 1-3.5 3.5h-29A3.5 3.5 0 0 1 14 50.5z\"\n            fill=\"#ffffff\"\n          ></path>\n\n          <path\n            d=\"M10.5 31.5L30 14.8a3 3 0 0 1 4 0l19.5 16.7\"\n            fill=\"none\"\n            stroke=\"#ffffff\"\n            stroke-width=\"5\"\n            stroke-linecap=\"round\"\n            stroke-linejoin=\"round\"\n          ></path>\n\n          <rect\n            x=\"27\"\n            y=\"37\"\n            width=\"10\"\n            height=\"17\"\n            rx=\"2\"\n            fill=\"#2878f0\"\n          ></rect>\n\n          <circle cx=\"34.5\" cy=\"45.5\" r=\"1.2\" fill=\"#ffffff\"></circle>\n        </svg>\n\n        <span class=\"dock__tooltip\">Home</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"Projects\">\n          <defs>\n            <linearGradient id=\"dock-projects\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n              <stop offset=\"0\" stop-color=\"#ffd86b\"></stop>\n              <stop offset=\"1\" stop-color=\"#f59e0b\"></stop>\n            </linearGradient>\n          </defs>\n\n          <rect\n            width=\"64\"\n            height=\"64\"\n            rx=\"14\"\n            fill=\"url(#dock-projects)\"\n          ></rect>\n\n          <path\n            d=\"M9 20a5 5 0 0 1 5-5h14l5 6h21a4 4 0 0 1 4 4v4H9z\"\n            fill=\"#ffe8a3\"\n          ></path>\n\n          <path\n            d=\"M9 27h49l-4 23a5 5 0 0 1-4.9 4H14a5 5 0 0 1-4.9-4z\"\n            fill=\"#fff5cf\"\n          ></path>\n\n          <rect\n            x=\"18\"\n            y=\"34\"\n            width=\"11\"\n            height=\"10\"\n            rx=\"2\"\n            fill=\"#f5ad17\"\n          ></rect>\n\n          <rect\n            x=\"34\"\n            y=\"34\"\n            width=\"11\"\n            height=\"10\"\n            rx=\"2\"\n            fill=\"#f5ad17\"\n          ></rect>\n\n          <rect\n            x=\"18\"\n            y=\"47\"\n            width=\"27\"\n            height=\"3\"\n            rx=\"1.5\"\n            fill=\"#e7b94d\"\n          ></rect>\n        </svg>\n\n        <span class=\"dock__tooltip\">Projects</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"GitHub\">\n          <rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#18181b\"></rect>\n\n          <path\n            d=\"M32 11\n              C20.4 11 11 20.4 11 32\n              C11 41.35 17.05 49.27 25.43 52.06\n              C26.48 52.25 26.86 51.61 26.86 51.06\n              C26.86 50.55 26.84 49.08 26.81 47.13\n              C20.1 48.58 18.82 43.9 18.82 43.9\n              C17.87 41.49 16.49 40.86 16.49 40.86\n              C14.3 39.36 16.66 39.39 16.66 39.39\n              C19.08 39.56 20.35 41.88 20.35 41.88\n              C22.51 45.56 25.96 44.54 27.05 43.84\n              C27.27 42.31 27.89 41.24 28.57 40.63\n              C23.22 40.02 17.57 37.95 17.57 31.12\n              C17.57 29.17 18.27 27.55 19.43 26.28\n              C19.23 25.77 18.62 23.74 19.66 21.1\n              C19.66 21.1 21.59 20.48 25.95 23.42\n              C27.79 22.92 29.76 22.66 31.71 22.65\n              C33.66 22.66 35.63 22.92 37.47 23.42\n              C41.83 20.48 43.76 21.1 43.76 21.1\n              C44.8 23.74 44.19 25.77 43.99 26.28\n              C45.15 27.55 45.85 29.17 45.85 31.12\n              C45.85 37.97 40.19 40 34.83 40.61\n              C35.57 41.25 36.24 42.51 36.24 44.47\n              C36.24 47.28 36.22 49.54 36.22 50.14\n              C36.22 50.73 36.6 51.38 37.68 51.14\n              C46.04 48.34 52.99 40.39 52.99 32\n              C52.99 20.4 43.6 11 32 11Z\"\n            fill=\"#ffffff\"\n          ></path>\n        </svg>\n\n        <span class=\"dock__tooltip\">GitHub</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"Contact\">\n          <defs>\n            <linearGradient id=\"dock-contact\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n              <stop offset=\"0\" stop-color=\"#5de0ff\"></stop>\n              <stop offset=\"1\" stop-color=\"#2774e8\"></stop>\n            </linearGradient>\n          </defs>\n\n          <rect width=\"64\" height=\"64\" rx=\"14\" fill=\"url(#dock-contact)\"></rect>\n\n          <rect\n            x=\"9\"\n            y=\"17\"\n            width=\"46\"\n            height=\"32\"\n            rx=\"5\"\n            fill=\"#ffffff\"\n          ></rect>\n\n          <path\n            d=\"M10 21l22 17 22-17\"\n            fill=\"none\"\n            stroke=\"#b9d9f8\"\n            stroke-width=\"3\"\n            stroke-linecap=\"round\"\n            stroke-linejoin=\"round\"\n          ></path>\n\n          <path\n            d=\"M11 46l14-11\"\n            fill=\"none\"\n            stroke=\"#d7e9fa\"\n            stroke-width=\"2\"\n            stroke-linecap=\"round\"\n          ></path>\n\n          <path\n            d=\"M53 46L39 35\"\n            fill=\"none\"\n            stroke=\"#d7e9fa\"\n            stroke-width=\"2\"\n            stroke-linecap=\"round\"\n          ></path>\n        </svg>\n\n        <span class=\"dock__tooltip\">Contact</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n    </div>\n  </div>\n</div>\n.dock-stage {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  width: 100%;\n  overflow: hidden;\n  margin: 0;\n}\n\n.dock,\n.dock * {\n  box-sizing: border-box;\n}\n\n.dock {\n  --s: 64px;\n  --max: 1.8;\n  --gap: max(4px, calc(var(--s) * 0.08));\n  --pad: max(8px, calc(var(--s) * 0.12));\n\n  display: inline-flex;\n\n  padding: var(--pad) calc(var(--pad) - var(--gap) / 2);\n\n  background: linear-gradient(\n      180deg,\n      rgba(255, 255, 255, 0.13),\n      rgba(255, 255, 255, 0.05)\n    ),\n    rgba(45, 45, 45, 0.75);\n\n  -webkit-backdrop-filter: blur(20px) saturate(150%);\n  backdrop-filter: blur(20px) saturate(150%);\n\n  border: 1px solid rgba(255, 255, 255, 0.15);\n\n  border-radius: max(12px, calc(var(--s) * 0.4));\n\n  box-shadow:\n    0 max(4px, calc(var(--s) * 0.1)) max(16px, calc(var(--s) * 0.4))\n      rgba(0, 0, 0, 0.4),\n    0 max(2px, calc(var(--s) * 0.05)) max(8px, calc(var(--s) * 0.2))\n      rgba(0, 0, 0, 0.3),\n    inset 0 1px 0 rgba(255, 255, 255, 0.15),\n    inset 0 -1px 0 rgba(0, 0, 0, 0.2);\n\n  isolation: isolate;\n}\n\n.dock::before {\n  content: \"\";\n\n  position: absolute;\n\n  top: 1px;\n  left: 1px;\n  right: 1px;\n\n  height: 45%;\n\n  border-radius: max(11px, calc(var(--s) * 0.38))\n    max(11px, calc(var(--s) * 0.38)) 45% 45%;\n\n  background: linear-gradient(\n    180deg,\n    rgba(255, 255, 255, 0.12),\n    rgba(255, 255, 255, 0)\n  );\n\n  pointer-events: none;\n  z-index: -1;\n}\n\n.dock__row {\n  display: flex;\n  align-items: flex-end;\n\n  height: var(--s);\n  width: 100%;\n}\n\n.dock__item {\n  --k: 1;\n\n  --shadow-y: max(1px, calc(var(--s) * 0.03));\n\n  --shadow-b: max(2px, calc(var(--s) * 0.06));\n\n  position: relative;\n\n  flex: none;\n\n  display: flex;\n  align-items: flex-end;\n  justify-content: center;\n\n  width: calc(var(--s) * var(--k) + var(--gap));\n\n  height: calc(var(--s) * var(--k));\n\n  padding: 0 calc(var(--gap) / 2);\n\n  cursor: pointer;\n\n  z-index: 10;\n\n  transform-origin: bottom center;\n\n  transition:\n    width 0.2s ease-out,\n    height 0.2s ease-out,\n    transform 0.2s ease-out;\n}\n\n.dock__item input {\n  display: none;\n}\n\n.dock__item svg {\n  display: block;\n\n  width: 100%;\n  height: 100%;\n\n  padding: 10%;\n\n  filter: drop-shadow(\n    0 var(--shadow-y) var(--shadow-b)\n      rgba(0, 0, 0, calc(0.2 + (var(--k) - 1) * 0.15))\n  );\n\n  transition: filter 0.2s ease-out;\n}\n\n.dock__item:hover {\n  --k: var(--max);\n\n  z-index: 18;\n}\n\n.dock__item:hover + .dock__item,\n.dock__item:has(+ .dock__item:hover) {\n  --k: calc(1 + (var(--max) - 1) * 0.56);\n\n  z-index: 15;\n}\n\n.dock__item:hover + .dock__item + .dock__item,\n.dock__item:has(+ .dock__item + .dock__item:hover) {\n  --k: calc(1 + (var(--max) - 1) * 0.05);\n}\n\n.dock__item:hover,\n.dock__item:hover + .dock__item,\n.dock__item:has(+ .dock__item:hover) {\n  --shadow-y: max(2px, calc(var(--s) * 0.05));\n\n  --shadow-b: max(4px, calc(var(--s) * 0.1));\n}\n\n.dock__item:active {\n  transform: translateY(max(-8px, calc(var(--s) * -0.15)));\n\n  transition-duration: 0.2s;\n}\n\n.dock__dot {\n  display: none;\n\n  position: absolute;\n\n  bottom: max(-2px, calc(var(--s) * -0.05));\n\n  left: 50%;\n\n  transform: translateX(-50%);\n\n  width: max(3px, calc(var(--s) * 0.06));\n\n  height: max(3px, calc(var(--s) * 0.06));\n\n  border-radius: 50%;\n\n  background-color: rgba(255, 255, 255, 0.95);\n\n  box-shadow:\n    0 0 5px rgba(255, 255, 255, 0.55),\n    0 1px 3px rgba(0, 0, 0, 0.35);\n}\n\n.dock__item input:checked ~ .dock__dot {\n  display: block;\n}\n\n.dock__item input:checked ~ svg {\n  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2))\n    drop-shadow(0 8px 12px rgba(0, 0, 0, 0.12));\n}\n\n.dock__tooltip {\n  position: absolute;\n\n  left: 50%;\n  bottom: calc(100% + 14px);\n\n  min-width: max-content;\n\n  transform: translateX(-50%) translateY(6px) scale(0.92);\n\n  transform-origin: bottom center;\n\n  padding: 8px 11px;\n\n  border: 1px solid rgba(255, 255, 255, 0.18);\n\n  border-radius: 9px;\n\n  background: linear-gradient(\n      180deg,\n      rgba(255, 255, 255, 0.12),\n      rgba(255, 255, 255, 0.04)\n    ),\n    rgba(20, 20, 23, 0.88);\n\n  color: rgba(255, 255, 255, 0.97);\n\n  font-family: -apple-system, BlinkMacSystemFont, \"SF Pro Display\",\n    \"SF Pro Text\", \"Segoe UI\", sans-serif;\n\n  font-size: 12px;\n  font-weight: 600;\n\n  letter-spacing: 0.01em;\n  line-height: 1;\n\n  white-space: nowrap;\n\n  opacity: 0;\n\n  visibility: hidden;\n\n  pointer-events: none;\n\n  box-shadow:\n    0 10px 25px rgba(0, 0, 0, 0.28),\n    0 2px 8px rgba(0, 0, 0, 0.18),\n    inset 0 1px 0 rgba(255, 255, 255, 0.1);\n\n  -webkit-backdrop-filter: blur(18px) saturate(160%);\n\n  backdrop-filter: blur(18px) saturate(160%);\n\n  transition:\n    opacity 160ms ease,\n    visibility 160ms ease,\n    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);\n\n  z-index: 100;\n}\n\n.dock__item:hover .dock__tooltip {\n  opacity: 1;\n\n  visibility: visible;\n\n  transform: translateX(-50%) translateY(0) scale(1);\n}\n\n.dock__item:has(input:focus-visible) {\n  outline: 2px solid rgba(255, 255, 255, 0.85);\n\n  outline-offset: 3px;\n\n  border-radius: 15px;\n}\n\n@media (max-width: 1023px), (max-height: 1023px) {\n  .dock {\n    --s: 56px;\n    --max: 1.6;\n  }\n}\n\n@media (max-width: 767px), (max-height: 767px) {\n  .dock {\n    --s: 48px;\n    --max: 1.5;\n  }\n}\n\n@media (max-width: 479px), (max-height: 479px) {\n  .dock {\n    --s: 40px;\n    --max: 1.4;\n  }\n}\n\n@media (max-width: 767px), (hover: none) {\n  .dock__item:hover {\n    --k: 1;\n  }\n\n  .dock__item:hover + .dock__item,\n  .dock__item:has(+ .dock__item:hover) {\n    --k: 1;\n  }\n\n  .dock__item:hover + .dock__item + .dock__item,\n  .dock__item:has(+ .dock__item + .dock__item:hover) {\n    --k: 1;\n  }\n\n  .dock__tooltip {\n    display: none;\n  }\n}\n\n@media (max-width: 479px) {\n  .dock__item svg {\n    padding: 8%;\n  }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .dock,\n  .dock__item,\n  .dock__item svg,\n  .dock__tooltip {\n    transition: none !important;\n  }\n}",
+          "css": ".my-component {\n  padding: 24px;\n  border-radius: 12px;\n  background: #111;\n  color: #fff;\n  border: 1px solid #333;\n  text-align: center;\n}\nbutton {\n  margin-top: 12px;\n  padding: 8px 16px;\n  border-radius: 6px;\n  background: #38bdf8;\n  color: #000;\n  border: none;\n  font-weight: 600;\n  cursor: pointer;\n}",
+          "js": "const btn = document.querySelector(\".my-component button\");\nif (btn) {\n  btn.addEventListener(\"click\", () => alert(\"Component Interactive!\"));\n}",
+          "tags": [
+            "card",
+            "custom"
+          ],
+          "canvasX": -84,
+          "canvasY": -765,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794234889656,
+          "updatedAt": 1794234905259,
+          "variationType": "original"
+        },
+        {
+          "id": "disc-comp-dial",
+          "name": "Audio Volume Dial",
+          "description": "Physical rotary potentiometer with notched detents and LED indicator",
+          "author": "sound_craft",
+          "license": "MIT",
+          "sourceUrl": "https://codepen.io",
+          "framework": "html-css",
+          "tags": [
+            "audio",
+            "rotary",
+            "dial",
+            "controls"
+          ],
+          "canvasX": 969,
+          "canvasY": -427,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794230224227,
+          "updatedAt": 1794230837176,
+          "html": "<div class=\"rotary-dial\"><div class=\"dial-marker\"></div></div>",
+          "css": "body { background: transparent; display: flex; align-items: center; justify-content: center; min-height: 100vh; }\n.rotary-dial {\n  width: 90px; height: 90px; border-radius: 50%;\n  background: radial-gradient(circle at 35% 35%, #2a2a2a, #0d0d0d);\n  border: 2px solid rgba(255, 255, 255, 0.12);\n  box-shadow: 0 16px 32px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.2);\n  display: flex; justify-content: center; padding-top: 10px; cursor: pointer;\n  transition: transform 0.2s ease;\n}\n.rotary-dial:hover { transform: rotate(45deg); }\n.dial-marker { width: 4px; height: 16px; border-radius: 2px; background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }",
+          "js": ""
+        },
+        {
+          "id": "disc-comp-liquid",
+          "name": "Liquid Glass Progress Bar",
+          "description": "Frosted liquid glass bar with soft refraction edge and specular gradient",
+          "author": "kwlck",
+          "license": "MIT",
+          "sourceUrl": "https://github.com/kwlck/liquid-glass-web",
+          "framework": "html-css",
+          "tags": [
+            "progress",
+            "liquid-glass",
+            "minimal"
+          ],
+          "canvasX": 481,
+          "canvasY": -431,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794225801550,
+          "updatedAt": 1794226019012,
+          "html": "<div class=\"glass-progress-wrap\"><div class=\"glass-fill\" style=\"width: 68%;\"></div></div>",
+          "css": "body { background: transparent; display: flex; align-items: center; justify-content: center; min-height: 100vh; }\n.glass-progress-wrap {\n  width: 240px; height: 16px; border-radius: 12px;\n  background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px);\n  border: 1px solid rgba(255, 255, 255, 0.12); padding: 2px;\n  box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 8px 24px rgba(0,0,0,0.5);\n}\n.glass-fill {\n  height: 100%; border-radius: 10px;\n  background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);\n  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);\n}",
+          "js": ""
+        },
+        {
+          "id": "uiverse-smart-liger",
+          "name": "Smart Liger 3D Card",
+          "description": "Stacked 3D card layout with layered depth, subtle perspective, and glow accent.",
+          "author": "Smit-Prajapati",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/Smit-Prajapati/smart-liger-5",
+          "framework": "html-css",
+          "tags": [
+            "card",
+            "3d",
+            "depth",
+            "obsidian"
+          ],
+          "canvasX": 150,
+          "canvasY": 125,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"card-container\">\n  <div class=\"card\">\n    <div class=\"card-layer-back\"></div>\n    <div class=\"card-layer-mid\"></div>\n    <div class=\"card-content\">\n      <div class=\"chip\"></div>\n      <div class=\"card-title\">ANTIGRAVITY PRIME</div>\n      <div class=\"card-num\">•••• 8842</div>\n      <div class=\"card-footer\">\n        <span>EXECUTIVE</span>\n        <span>11/29</span>\n      </div>\n    </div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n  perspective: 1000px;\n}\n.card-container {\n  width: 270px;\n  height: 170px;\n  position: relative;\n  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);\n  transform-style: preserve-3d;\n  cursor: pointer;\n}\n.card-container:hover {\n  transform: rotateY(14deg) rotateX(8deg) translateY(-8px);\n}\n.card {\n  width: 100%;\n  height: 100%;\n  position: relative;\n  border-radius: 18px;\n  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%), #0a0a0a;\n  border: 1px solid rgba(255, 255, 255, 0.12);\n  box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.2);\n  padding: 22px;\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n  overflow: hidden;\n}\n.card-layer-back {\n  position: absolute;\n  top: -40px;\n  right: -40px;\n  width: 120px;\n  height: 120px;\n  border-radius: 50%;\n  background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, transparent 70%);\n  filter: blur(20px);\n  pointer-events: none;\n}\n.chip {\n  width: 34px;\n  height: 24px;\n  border-radius: 5px;\n  background: linear-gradient(135deg, #d4af37, #aa820a);\n  box-shadow: inset 0 1px 2px rgba(255,255,255,0.4);\n}\n.card-title {\n  color: #888;\n  font-size: 10px;\n  letter-spacing: 2px;\n  font-weight: 600;\n}\n.card-num {\n  color: #fff;\n  font-size: 16px;\n  letter-spacing: 3px;\n  font-family: monospace;\n}\n.card-footer {\n  display: flex;\n  justify-content: space-between;\n  color: #aaa;\n  font-size: 11px;\n  letter-spacing: 1.5px;\n}",
+          "js": "// Interactive card tilt sensitivity\nconst card = document.querySelector('.card-container');\nif (card) {\n  card.addEventListener('mousemove', (e) => {\n    const rect = card.getBoundingClientRect();\n    const x = e.clientX - rect.left - rect.width / 2;\n    const y = e.clientY - rect.top - rect.height / 2;\n    card.style.transform = `rotateY(${x * 0.12}deg) rotateX(${-y * 0.12}deg) translateY(-6px)`;\n  });\n  card.addEventListener('mouseleave', () => {\n    card.style.transform = '';\n  });\n}"
+        },
+        {
+          "id": "uiverse-wet-goose",
+          "name": "Wet Goose Vehicle Card",
+          "description": "Ultra-dark performance automotive telemetry card with carbon fiber tactile theme.",
+          "author": "vikas7754",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/vikas7754/wet-goose-61",
+          "framework": "html-css",
+          "tags": [
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 600,
+          "canvasY": 125,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.gauge-card {\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n}\n.gauge-card:hover {\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n}\n.hud-header {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n}\n.status-dot {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n}\n.hud-mode {\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n}\n.speedo-container {\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n}\n.speed-value {\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n}\n.speed-unit {\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n}\n.bar-meter {\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n}\n.bar-fill {\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n}\n.hud-metrics {\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n}\n.hud-metrics div {\n  display: flex;\n  flex-direction: column;\n}\n.hud-metrics span {\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n}\n.hud-metrics strong {\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n}",
+          "js": "// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);"
+        },
+        {
+          "id": "uiverse-honest-earwig",
+          "name": "Honest Earwig Product Case",
+          "description": "Sleek AirPods-style device case representation with openable lid and magnetic latch.",
+          "author": "mahiatlinux",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/mahiatlinux/honest-earwig-11",
+          "framework": "html-css",
+          "tags": [
+            "hardware",
+            "case",
+            "airpods",
+            "device"
+          ],
+          "canvasX": 1050,
+          "canvasY": 125,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"case-wrapper\">\n  <div class=\"pod-case\">\n    <div class=\"case-lid\"></div>\n    <div class=\"case-body\">\n      <div class=\"led-light\"></div>\n      <div class=\"brand-emboss\">ANTIGRAVITY AUDIO</div>\n    </div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.case-wrapper {\n  perspective: 600px;\n}\n.pod-case {\n  width: 140px;\n  height: 170px;\n  cursor: pointer;\n  position: relative;\n  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);\n}\n.pod-case:hover {\n  transform: translateY(-8px) scale(1.03);\n}\n.case-lid {\n  width: 140px;\n  height: 48px;\n  background: linear-gradient(180deg, #222 0%, #151515 100%);\n  border-radius: 36px 36px 8px 8px;\n  border: 1px solid rgba(255,255,255,0.12);\n  border-bottom: 2px solid #000;\n  box-shadow: inset 0 2px 3px rgba(255,255,255,0.25);\n  transform-origin: top center;\n  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);\n}\n.pod-case.open .case-lid {\n  transform: rotateX(110deg) translateY(-10px);\n}\n.case-body {\n  width: 140px;\n  height: 118px;\n  background: linear-gradient(180deg, #181818 0%, #0d0d0d 100%);\n  border-radius: 8px 8px 36px 36px;\n  border: 1px solid rgba(255,255,255,0.1);\n  box-shadow: 0 24px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.15);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 20px;\n  position: relative;\n}\n.led-light {\n  width: 7px;\n  height: 7px;\n  border-radius: 50%;\n  background: #10b981;\n  box-shadow: 0 0 10px #10b981;\n  transition: background 0.3s;\n}\n.brand-emboss {\n  color: #444;\n  font-size: 8px;\n  letter-spacing: 2px;\n  font-weight: 700;\n}",
+          "js": "const podCase = document.querySelector('.pod-case');\nif (podCase) {\n  podCase.addEventListener('click', () => {\n    podCase.classList.toggle('open');\n  });\n}"
+        },
+        {
+          "id": "uiverse-moody-falcon",
+          "name": "Moody Falcon Pip-Boy",
+          "description": "Retro-futuristic terminal HUD with monochrome green phosphor display.",
+          "author": "Gidarx",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/Gidarx/moody-falcon-73",
+          "framework": "html-css",
+          "tags": [
+            "terminal",
+            "crt",
+            "retro",
+            "pip-boy"
+          ],
+          "canvasX": 150,
+          "canvasY": 650,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"crt-screen\">\n  <div class=\"crt-scanline\"></div>\n  <div class=\"terminal-header\">\n    <span>AGY-OS v4.2 // RUN</span>\n    <span class=\"blinking-pill\">ONLINE</span>\n  </div>\n  <div class=\"terminal-body\">\n    <p>> MEM: 8192 MB OK</p>\n    <p>> DISK_EXT: MOUNTED (860 GB)</p>\n    <p>> WORKSPACE: READY</p>\n    <p class=\"prompt\">> MIXER_ENG: LISTENING_<span class=\"cursor\">█</span></p>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: monospace;\n}\n.crt-screen {\n  width: 270px;\n  background: #020c04;\n  border: 2px solid #00ff66;\n  border-radius: 12px;\n  padding: 16px;\n  color: #00ff66;\n  position: relative;\n  overflow: hidden;\n  box-shadow: 0 0 25px rgba(0,255,102,0.2), inset 0 0 15px rgba(0,255,102,0.15);\n}\n.crt-scanline {\n  position: absolute;\n  top: 0; left: 0; right: 0; bottom: 0;\n  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);\n  background-size: 100% 4px;\n  pointer-events: none;\n}\n.terminal-header {\n  display: flex;\n  justify-content: space-between;\n  font-size: 10px;\n  border-bottom: 1px solid #00ff66;\n  padding-bottom: 8px;\n  margin-bottom: 12px;\n}\n.blinking-pill {\n  animation: pulse 1.2s infinite;\n}\n.terminal-body {\n  font-size: 11px;\n  line-height: 1.6;\n}\n.cursor {\n  animation: blink 0.8s infinite;\n}\n@keyframes pulse {\n  0%, 100% { opacity: 1; }\n  50% { opacity: 0.3; }\n}\n@keyframes blink {\n  0%, 50% { opacity: 1; }\n  51%, 100% { opacity: 0; }\n}",
+          "js": "console.log('Moody Falcon CRT active');"
+        },
+        {
+          "id": "uiverse-massive-dodo",
+          "name": "Massive Dodo Animated Switch",
+          "description": "Smooth tactile toggle switch with fluid thumb slide and active state lighting.",
+          "author": "Admin12121",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/Admin12121/massive-dodo-67",
+          "framework": "html-css",
+          "tags": [
+            "toggle",
+            "switch",
+            "interaction",
+            "controls"
+          ],
+          "canvasX": 600,
+          "canvasY": 649,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1794225929650,
+          "html": "<div class=\"switch-box\">\n  <label class=\"switch\">\n    <input type=\"checkbox\" checked id=\"dodo-input\">\n    <span class=\"slider\">\n      <span class=\"icon-on\">POWER</span>\n    </span>\n  </label>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.switch-box {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n.switch {\n  position: relative;\n  display: inline-block;\n  width: 84px;\n  height: 44px;\n}\n.switch input {\n  opacity: 0;\n  width: 0;\n  height: 0;\n}\n.slider {\n  position: absolute;\n  cursor: pointer;\n  top: 0; left: 0; right: 0; bottom: 0;\n  background: #111;\n  border: 1px solid rgba(255,255,255,0.12);\n  border-radius: 24px;\n  transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);\n  box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);\n}\n.slider:before {\n  position: absolute;\n  content: \"\";\n  height: 34px;\n  width: 34px;\n  left: 4px;\n  bottom: 4px;\n  background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);\n  border-radius: 50%;\n  border: 1px solid rgba(255,255,255,0.2);\n  transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);\n  box-shadow: 0 4px 10px rgba(0,0,0,0.6);\n}\ninput:checked + .slider {\n  background: #064e3b;\n  border-color: #10b981;\n}\ninput:checked + .slider:before {\n  transform: translateX(40px);\n  background: linear-gradient(135deg, #10b981 0%, #059669 100%);\n  box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);\n}\n.icon-on {\n  position: absolute;\n  right: 12px;\n  top: 15px;\n  font-size: 8px;\n  font-weight: 700;\n  color: #10b981;\n  letter-spacing: 1px;\n  opacity: 0;\n  transition: 0.3s;\n}\ninput:checked + .slider .icon-on {\n  opacity: 1;\n  left: 12px;\n  right: auto;\n}",
+          "js": "// Switch event propagation\nconst input = document.getElementById('dodo-input');\nif (input) {\n  input.addEventListener('change', (e) => {\n    console.log('Power state:', e.target.checked);\n  });\n}"
+        },
+        {
+          "id": "uiverse-great-rat",
+          "name": "Great Rat Metallic Button",
+          "description": "Circular tactile knurled metallic push button with brushed edge and physical press depth.",
+          "author": "GreyD097",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/GreyD097/great-rat-93",
+          "framework": "html-css",
+          "tags": [
+            "button",
+            "metallic",
+            "tactile",
+            "skeuomorphic"
+          ],
+          "canvasX": 1050,
+          "canvasY": 650,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1794226087397,
+          "html": "<div class=\"metallic-holder\">\n  <button class=\"metallic-btn\">\n    <div class=\"inner-core\">\n      <span class=\"btn-glyph\">✦</span>\n    </div>\n  </button>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n}\n.metallic-holder {\n  padding: 10px;\n}\n.metallic-btn {\n  width: 90px;\n  height: 90px;\n  border-radius: 50%;\n  border: none;\n  cursor: pointer;\n  background: conic-gradient(from 180deg at 50% 50%, #444 0deg, #111 60deg, #666 120deg, #111 180deg, #555 240deg, #111 300deg, #444 360deg);\n  box-shadow: 0 12px 28px rgba(0,0,0,0.8), inset 0 2px 3px rgba(255,255,255,0.4);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 6px;\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n.metallic-btn:active {\n  transform: scale(0.94);\n  box-shadow: 0 4px 12px rgba(0,0,0,0.9), inset 0 2px 4px rgba(0,0,0,0.8);\n}\n.inner-core {\n  width: 100%;\n  height: 100%;\n  border-radius: 50%;\n  background: linear-gradient(135deg, #1f1f1f 0%, #0d0d0d 100%);\n  border: 1px solid rgba(255,255,255,0.1);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: #fff;\n  font-size: 20px;\n  box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);\n}\n.btn-glyph {\n  color: #38bdf8;\n  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));\n}",
+          "js": "// Button click audio feedback placeholder\nconst btn = document.querySelector('.metallic-btn');\nif (btn) {\n  btn.addEventListener('click', () => {\n    btn.style.transform = 'scale(0.92)';\n    setTimeout(() => { btn.style.transform = ''; }, 150);\n  });\n}"
+        },
+        {
+          "id": "uiverse-smooth-bird",
+          "name": "Smooth Bird Checkbox",
+          "description": "Custom fluid-fill interactive checkbox with elastic path animation.",
+          "author": "byllzz",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/byllzz/smooth-bird-47",
+          "framework": "html-css",
+          "tags": [
+            "checkbox",
+            "micro-interaction",
+            "form"
+          ],
+          "canvasX": 150,
+          "canvasY": 1175,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"checkbox-container\">\n  <label class=\"custom-chk\">\n    <input type=\"checkbox\" checked>\n    <span class=\"chk-box\">\n      <svg viewBox=\"0 0 12 10\" height=\"10px\" width=\"12px\">\n        <polyline points=\"1.5 6 4.5 9 10.5 1\"></polyline>\n      </svg>\n    </span>\n    <span class=\"chk-text\">ENABLE ACCELERATION</span>\n  </label>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.custom-chk {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  cursor: pointer;\n  user-select: none;\n}\n.custom-chk input {\n  display: none;\n}\n.chk-box {\n  width: 24px;\n  height: 24px;\n  border-radius: 7px;\n  background: #111;\n  border: 1px solid rgba(255,255,255,0.18);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  transition: all 0.25s ease;\n  box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);\n}\n.custom-chk input:checked + .chk-box {\n  background: #38bdf8;\n  border-color: #38bdf8;\n  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);\n}\n.chk-box svg {\n  fill: none;\n  stroke: #000;\n  stroke-width: 2;\n  stroke-linecap: round;\n  stroke-linejoin: round;\n  stroke-dasharray: 16px;\n  stroke-dashoffset: 16px;\n  transition: all 0.3s ease;\n}\n.custom-chk input:checked + .chk-box svg {\n  stroke-dashoffset: 0;\n}\n.chk-text {\n  color: #ccc;\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 1px;\n}",
+          "js": "// Checkbox interaction\nconst chk = document.querySelector('.custom-chk input');\nif (chk) {\n  chk.addEventListener('change', (e) => {\n    console.log('Checked:', e.target.checked);\n  });\n}"
+        },
+        {
+          "id": "uiverse-tough-stingray",
+          "name": "Tough Stingray Reverse Card",
+          "description": "Interactive 3D dual-sided flip card with metallic foil reverse face.",
+          "author": "SelfMadeSystem",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/SelfMadeSystem/tough-stingray-70",
+          "framework": "html-css",
+          "tags": [
+            "card",
+            "3d",
+            "flip",
+            "reverse"
+          ],
+          "canvasX": 600,
+          "canvasY": 1175,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"flip-wrapper\">\n  <div class=\"flip-card\">\n    <div class=\"card-face face-front\">\n      <div class=\"badge\">SPEC // 01</div>\n      <h3>SURFACE MATTE</h3>\n      <p>Hover or click to inspect inverse structure.</p>\n    </div>\n    <div class=\"card-face face-back\">\n      <div class=\"badge\">REVERSE</div>\n      <h3>TEXTURE FOIL</h3>\n      <p>High-reflectivity physical layer.</p>\n    </div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.flip-wrapper {\n  perspective: 900px;\n}\n.flip-card {\n  width: 250px;\n  height: 180px;\n  position: relative;\n  transform-style: preserve-3d;\n  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);\n  cursor: pointer;\n}\n.flip-wrapper:hover .flip-card, .flip-card.flipped {\n  transform: rotateY(180deg);\n}\n.card-face {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  border-radius: 16px;\n  padding: 20px;\n  backface-visibility: hidden;\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n}\n.face-front {\n  background: #0a0a0a;\n  border: 1px solid rgba(255,255,255,0.12);\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.8);\n}\n.face-back {\n  background: linear-gradient(135deg, #1c1917, #0c0a09);\n  border: 1px solid rgba(245, 158, 11, 0.3);\n  color: #f59e0b;\n  transform: rotateY(180deg);\n  box-shadow: 0 16px 36px rgba(0,0,0,0.8);\n}\n.badge {\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 1.5px;\n  opacity: 0.6;\n}\nh3 {\n  font-size: 16px;\n  letter-spacing: 1px;\n}\np {\n  font-size: 11px;\n  opacity: 0.7;\n}",
+          "js": "const fCard = document.querySelector('.flip-card');\nif (fCard) {\n  fCard.addEventListener('click', () => {\n    fCard.classList.toggle('flipped');\n  });\n}"
+        }
+      ]
+    },
+    "antigravity_cm_components_v1.json": {
+      "schemaVersion": 3,
+      "savedAt": 1794239080746,
+      "data": [
+        {
+          "id": "gen-experimental-1794238990466",
+          "name": "Exp 3D: Wet Goose Ve",
+          "description": "Ambitious 3D spatial stage variation with layered depth",
+          "author": "Code Mixer Engine",
+          "license": "MIT",
+          "sourceUrl": "Code Mixer Synthesis",
+          "framework": "html-css",
+          "html": "<div class=\"exp-viewport-shell\">\n  <div class=\"exp-glow-orb\"></div>\n  <div class=\"exp-3d-stage\">\n    <div class=\"exp-surface-front\">\n      <div class=\"scope_e3dhot_a\"><div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div></div>\n    </div>\n    <div class=\"exp-surface-widget\">\n      \n    </div>\n  </div>\n</div>",
+          "css": "\n.exp-viewport-shell {\n  position: relative;\n  width: 90%;\n  max-width: 310px;\n  margin: auto;\n  min-height: 280px;\n  border-radius: 24px;\n  background: #030303;\n  border: 1px solid rgba(168, 85, 247, 0.35);\n  box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 35px rgba(168, 85, 247, 0.2);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  overflow: hidden;\n  perspective: 1200px;\n}\n.exp-glow-orb {\n  position: absolute;\n  top: -50px;\n  left: -50px;\n  width: 140px;\n  height: 140px;\n  border-radius: 50%;\n  background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, transparent 70%);\n  filter: blur(25px);\n  pointer-events: none;\n}\n.exp-3d-stage {\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 16px;\n  z-index: 2;\n  transform-style: preserve-3d;\n  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);\n}\n.exp-viewport-shell:hover .exp-3d-stage {\n  transform: rotateX(8deg) rotateY(-6deg) scale(1.04);\n}\n.exp-surface-front {\n  transform: translateZ(20px);\n}\n.exp-surface-widget {\n  transform: translateZ(35px);\n}\n.scope_e3dhot_a {\n box-sizing: border-box; margin: 0; padding: 0; \n}\n.scope_e3dhot_a {\n\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\n}\n.scope_e3dhot_a .gauge-card {\n\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n\n}\n.scope_e3dhot_a .gauge-card:hover {\n\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n\n}\n.scope_e3dhot_a .hud-header {\n\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n\n}\n.scope_e3dhot_a .status-dot {\n\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n\n}\n.scope_e3dhot_a .hud-mode {\n\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n\n}\n.scope_e3dhot_a .speedo-container {\n\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n\n}\n.scope_e3dhot_a .speed-value {\n\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n\n}\n.scope_e3dhot_a .speed-unit {\n\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n\n}\n.scope_e3dhot_a .bar-meter {\n\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n\n}\n.scope_e3dhot_a .bar-fill {\n\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n\n}\n.scope_e3dhot_a .hud-metrics {\n\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n\n}\n.scope_e3dhot_a .hud-metrics div {\n\n  display: flex;\n  flex-direction: column;\n\n}\n.scope_e3dhot_a .hud-metrics span {\n\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n\n}\n.scope_e3dhot_a .hud-metrics strong {\n\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n\n}\n\n/* source pages often size themselves to the whole viewport; inside a blend they must not */\n.scope_e3dhot_a { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }\n\n\n",
+          "js": "\ntry {\n  (function () {\n  try {\n// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);\n  } catch (e) { console.warn('Component script error:', e); }\n})();\n} catch(e) {}\ntry {\n  \n} catch(e) {}\n",
+          "tags": [
+            "mixed",
+            "experimental",
+            "3d",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 720,
+          "canvasY": 245,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794238990466,
+          "updatedAt": 1794238990466,
+          "variationType": "experimental",
+          "parentIds": [
+            "uiverse-wet-goose",
+            "uiverse-wet-goose",
+            "uiverse-wet-goose"
+          ],
+          "mixTrace": []
+        },
+        {
+          "id": "gen-reimagined-1794238990464",
+          "name": "Reimagined: Wet Goose Vehi",
+          "description": "Reimagined composition with bold typography and cyber accents",
+          "author": "Code Mixer Engine",
+          "license": "MIT",
+          "sourceUrl": "Code Mixer Synthesis",
+          "framework": "html-css",
+          "html": "<div class=\"reimagined-terminal\">\n  <div class=\"reimagined-topbar\">\n    <div class=\"dots\"><span class=\"r-dot\"></span><span class=\"y-dot\"></span><span class=\"g-dot\"></span></div>\n    <span class=\"reimagined-title\">REIMAGINED // STUDIO BLEND</span>\n  </div>\n  <div class=\"reimagined-core\">\n    <div class=\"stage-a\"><div class=\"scope_gtoveb_a\"><div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div></div></div>\n    <div class=\"stage-divider\"></div>\n    <div class=\"stage-b\"></div>\n  </div>\n</div>",
+          "css": "\n.reimagined-terminal {\n  width: 92%;\n  max-width: 310px;\n  margin: auto;\n  border-radius: 18px;\n  background: #050505;\n  border: 1px solid rgba(56, 189, 248, 0.25);\n  box-shadow: 0 16px 40px rgba(0,0,0,0.9), 0 0 20px rgba(56, 189, 248, 0.15);\n  overflow: hidden;\n  transition: transform 0.3s ease;\n}\n.reimagined-terminal:hover {\n  transform: translateY(-4px) scale(1.02);\n  border-color: rgba(56, 189, 248, 0.45);\n}\n.reimagined-topbar {\n  background: #0c0c0c;\n  padding: 10px 14px;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  border-bottom: 1px solid rgba(255,255,255,0.06);\n}\n.dots {\n  display: flex;\n  gap: 5px;\n}\n.dots span {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n}\n.r-dot { background: #ef4444; }\n.y-dot { background: #f59e0b; }\n.g-dot { background: #10b981; }\n.reimagined-title {\n  font-size: 8px;\n  letter-spacing: 1.5px;\n  color: #38bdf8;\n  font-family: monospace;\n  font-weight: 700;\n}\n.reimagined-core {\n  padding: 18px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 14px;\n}\n.stage-divider {\n  width: 100%;\n  height: 1px;\n  background: linear-gradient(90deg, transparent, rgba(56,189,248,0.3), transparent);\n}\n.scope_gtoveb_a {\n box-sizing: border-box; margin: 0; padding: 0; \n}\n.scope_gtoveb_a {\n\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\n}\n.scope_gtoveb_a .gauge-card {\n\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n\n}\n.scope_gtoveb_a .gauge-card:hover {\n\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n\n}\n.scope_gtoveb_a .hud-header {\n\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n\n}\n.scope_gtoveb_a .status-dot {\n\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n\n}\n.scope_gtoveb_a .hud-mode {\n\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n\n}\n.scope_gtoveb_a .speedo-container {\n\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n\n}\n.scope_gtoveb_a .speed-value {\n\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n\n}\n.scope_gtoveb_a .speed-unit {\n\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n\n}\n.scope_gtoveb_a .bar-meter {\n\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n\n}\n.scope_gtoveb_a .bar-fill {\n\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n\n}\n.scope_gtoveb_a .hud-metrics {\n\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n\n}\n.scope_gtoveb_a .hud-metrics div {\n\n  display: flex;\n  flex-direction: column;\n\n}\n.scope_gtoveb_a .hud-metrics span {\n\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n\n}\n.scope_gtoveb_a .hud-metrics strong {\n\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n\n}\n\n/* source pages often size themselves to the whole viewport; inside a blend they must not */\n.scope_gtoveb_a { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }\n\n\n",
+          "js": "\ntry {\n  (function () {\n  try {\n// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);\n  } catch (e) { console.warn('Component script error:', e); }\n})();\n} catch(e) {}\ntry {\n  \n} catch(e) {}\n",
+          "tags": [
+            "mixed",
+            "reimagined",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 2157,
+          "canvasY": 1035,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794238990464,
+          "updatedAt": 1794239080746,
+          "variationType": "reimagined",
+          "parentIds": [
+            "uiverse-wet-goose",
+            "uiverse-wet-goose"
+          ],
+          "mixTrace": []
+        },
+        {
+          "id": "gen-refined-1794238990462",
+          "name": "Refined: Wet Goose Vehi × Wet Goose Vehi",
+          "description": "Faithfully synthesized blend of Wet Goose Vehicle Card and Wet Goose Vehicle Card",
+          "author": "Code Mixer Engine",
+          "license": "MIT",
+          "sourceUrl": "Code Mixer Synthesis",
+          "framework": "html-css",
+          "html": "<div class=\"refined-hybrid-wrapper\">\n  <div class=\"refined-glass-card\">\n    <div class=\"refined-header\">\n      <div class=\"refined-badge\">REFINED SYNTHESIS</div>\n      <div class=\"status-indicator\"></div>\n    </div>\n    <div class=\"refined-body\">\n      <div class=\"scope_rooxzv_a\"><div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div></div>\n    </div>\n    <div class=\"refined-controls\">\n      \n    </div>\n  </div>\n</div>",
+          "css": "\n.refined-hybrid-wrapper {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  padding: 16px;\n  background: radial-gradient(circle at center, rgba(30,41,59,0.3) 0%, rgba(5,5,5,0.95) 100%);\n}\n.refined-glass-card {\n  width: 100%;\n  max-width: 320px;\n  background: rgba(14, 14, 14, 0.85);\n  backdrop-filter: blur(20px);\n  border: 1px solid rgba(255, 255, 255, 0.12);\n  border-radius: 20px;\n  padding: 20px;\n  box-shadow: 0 20px 50px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.15);\n  display: flex;\n  flex-direction: column;\n  gap: 16px;\n}\n.refined-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  border-bottom: 1px solid rgba(255,255,255,0.08);\n  padding-bottom: 10px;\n}\n.refined-badge {\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 1.5px;\n  color: #10b981;\n}\n.status-indicator {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #10b981;\n  box-shadow: 0 0 8px #10b981;\n}\n.refined-body {\n  display: flex;\n  justify-content: center;\n}\n.refined-controls {\n  display: flex;\n  justify-content: center;\n  border-top: 1px solid rgba(255,255,255,0.08);\n  padding-top: 14px;\n}\n.scope_rooxzv_a {\n box-sizing: border-box; margin: 0; padding: 0; \n}\n.scope_rooxzv_a {\n\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\n}\n.scope_rooxzv_a .gauge-card {\n\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n\n}\n.scope_rooxzv_a .gauge-card:hover {\n\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n\n}\n.scope_rooxzv_a .hud-header {\n\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n\n}\n.scope_rooxzv_a .status-dot {\n\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n\n}\n.scope_rooxzv_a .hud-mode {\n\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n\n}\n.scope_rooxzv_a .speedo-container {\n\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n\n}\n.scope_rooxzv_a .speed-value {\n\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n\n}\n.scope_rooxzv_a .speed-unit {\n\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n\n}\n.scope_rooxzv_a .bar-meter {\n\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n\n}\n.scope_rooxzv_a .bar-fill {\n\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n\n}\n.scope_rooxzv_a .hud-metrics {\n\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n\n}\n.scope_rooxzv_a .hud-metrics div {\n\n  display: flex;\n  flex-direction: column;\n\n}\n.scope_rooxzv_a .hud-metrics span {\n\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n\n}\n.scope_rooxzv_a .hud-metrics strong {\n\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n\n}\n\n/* source pages often size themselves to the whole viewport; inside a blend they must not */\n.scope_rooxzv_a { min-height: 0 !important; height: auto !important; width: auto; max-width: 100%; background: transparent !important; box-sizing: border-box; }\n\n\n",
+          "js": "\n// Refined blend script encapsulation\ntry {\n  (function () {\n  try {\n// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);\n  } catch (e) { console.warn('Component script error:', e); }\n})();\n} catch(e) { console.warn('Script A caught:', e); }\ntry {\n  \n} catch(e) { console.warn('Script B caught:', e); }\n",
+          "tags": [
+            "mixed",
+            "refined",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud",
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 640,
+          "canvasY": 185,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794238990462,
+          "updatedAt": 1794238990462,
+          "variationType": "refined",
+          "parentIds": [
+            "uiverse-wet-goose",
+            "uiverse-wet-goose"
+          ],
+          "mixTrace": []
+        },
+        {
+          "id": "comp-1794234889656-feb7",
+          "name": "DARKO",
+          "description": "Imported user component",
+          "author": "Community",
+          "license": "Free / public",
+          "sourceUrl": "Direct Paste",
+          "framework": "html-css",
+          "html": "<div class=\"dock-stage\">\n  <div class=\"dock\" role=\"toolbar\" aria-label=\"Portfolio navigation\">\n    <div class=\"dock__row\">\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" checked=\"\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"Home\">\n          <defs>\n            <linearGradient id=\"dock-home\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n              <stop offset=\"0\" stop-color=\"#5ec8ff\"></stop>\n              <stop offset=\"1\" stop-color=\"#2878f0\"></stop>\n            </linearGradient>\n          </defs>\n\n          <rect width=\"64\" height=\"64\" rx=\"14\" fill=\"url(#dock-home)\"></rect>\n\n          <path\n            d=\"M14 31.5L32 16l18 15.5v19a3.5 3.5 0 0 1-3.5 3.5h-29A3.5 3.5 0 0 1 14 50.5z\"\n            fill=\"#ffffff\"\n          ></path>\n\n          <path\n            d=\"M10.5 31.5L30 14.8a3 3 0 0 1 4 0l19.5 16.7\"\n            fill=\"none\"\n            stroke=\"#ffffff\"\n            stroke-width=\"5\"\n            stroke-linecap=\"round\"\n            stroke-linejoin=\"round\"\n          ></path>\n\n          <rect\n            x=\"27\"\n            y=\"37\"\n            width=\"10\"\n            height=\"17\"\n            rx=\"2\"\n            fill=\"#2878f0\"\n          ></rect>\n\n          <circle cx=\"34.5\" cy=\"45.5\" r=\"1.2\" fill=\"#ffffff\"></circle>\n        </svg>\n\n        <span class=\"dock__tooltip\">Home</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"Projects\">\n          <defs>\n            <linearGradient id=\"dock-projects\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n              <stop offset=\"0\" stop-color=\"#ffd86b\"></stop>\n              <stop offset=\"1\" stop-color=\"#f59e0b\"></stop>\n            </linearGradient>\n          </defs>\n\n          <rect\n            width=\"64\"\n            height=\"64\"\n            rx=\"14\"\n            fill=\"url(#dock-projects)\"\n          ></rect>\n\n          <path\n            d=\"M9 20a5 5 0 0 1 5-5h14l5 6h21a4 4 0 0 1 4 4v4H9z\"\n            fill=\"#ffe8a3\"\n          ></path>\n\n          <path\n            d=\"M9 27h49l-4 23a5 5 0 0 1-4.9 4H14a5 5 0 0 1-4.9-4z\"\n            fill=\"#fff5cf\"\n          ></path>\n\n          <rect\n            x=\"18\"\n            y=\"34\"\n            width=\"11\"\n            height=\"10\"\n            rx=\"2\"\n            fill=\"#f5ad17\"\n          ></rect>\n\n          <rect\n            x=\"34\"\n            y=\"34\"\n            width=\"11\"\n            height=\"10\"\n            rx=\"2\"\n            fill=\"#f5ad17\"\n          ></rect>\n\n          <rect\n            x=\"18\"\n            y=\"47\"\n            width=\"27\"\n            height=\"3\"\n            rx=\"1.5\"\n            fill=\"#e7b94d\"\n          ></rect>\n        </svg>\n\n        <span class=\"dock__tooltip\">Projects</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"GitHub\">\n          <rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#18181b\"></rect>\n\n          <path\n            d=\"M32 11\n              C20.4 11 11 20.4 11 32\n              C11 41.35 17.05 49.27 25.43 52.06\n              C26.48 52.25 26.86 51.61 26.86 51.06\n              C26.86 50.55 26.84 49.08 26.81 47.13\n              C20.1 48.58 18.82 43.9 18.82 43.9\n              C17.87 41.49 16.49 40.86 16.49 40.86\n              C14.3 39.36 16.66 39.39 16.66 39.39\n              C19.08 39.56 20.35 41.88 20.35 41.88\n              C22.51 45.56 25.96 44.54 27.05 43.84\n              C27.27 42.31 27.89 41.24 28.57 40.63\n              C23.22 40.02 17.57 37.95 17.57 31.12\n              C17.57 29.17 18.27 27.55 19.43 26.28\n              C19.23 25.77 18.62 23.74 19.66 21.1\n              C19.66 21.1 21.59 20.48 25.95 23.42\n              C27.79 22.92 29.76 22.66 31.71 22.65\n              C33.66 22.66 35.63 22.92 37.47 23.42\n              C41.83 20.48 43.76 21.1 43.76 21.1\n              C44.8 23.74 44.19 25.77 43.99 26.28\n              C45.15 27.55 45.85 29.17 45.85 31.12\n              C45.85 37.97 40.19 40 34.83 40.61\n              C35.57 41.25 36.24 42.51 36.24 44.47\n              C36.24 47.28 36.22 49.54 36.22 50.14\n              C36.22 50.73 36.6 51.38 37.68 51.14\n              C46.04 48.34 52.99 40.39 52.99 32\n              C52.99 20.4 43.6 11 32 11Z\"\n            fill=\"#ffffff\"\n          ></path>\n        </svg>\n\n        <span class=\"dock__tooltip\">GitHub</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n\n      <label class=\"dock__item\">\n        <input type=\"radio\" name=\"dock-navigation\" />\n\n        <svg viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"Contact\">\n          <defs>\n            <linearGradient id=\"dock-contact\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\n              <stop offset=\"0\" stop-color=\"#5de0ff\"></stop>\n              <stop offset=\"1\" stop-color=\"#2774e8\"></stop>\n            </linearGradient>\n          </defs>\n\n          <rect width=\"64\" height=\"64\" rx=\"14\" fill=\"url(#dock-contact)\"></rect>\n\n          <rect\n            x=\"9\"\n            y=\"17\"\n            width=\"46\"\n            height=\"32\"\n            rx=\"5\"\n            fill=\"#ffffff\"\n          ></rect>\n\n          <path\n            d=\"M10 21l22 17 22-17\"\n            fill=\"none\"\n            stroke=\"#b9d9f8\"\n            stroke-width=\"3\"\n            stroke-linecap=\"round\"\n            stroke-linejoin=\"round\"\n          ></path>\n\n          <path\n            d=\"M11 46l14-11\"\n            fill=\"none\"\n            stroke=\"#d7e9fa\"\n            stroke-width=\"2\"\n            stroke-linecap=\"round\"\n          ></path>\n\n          <path\n            d=\"M53 46L39 35\"\n            fill=\"none\"\n            stroke=\"#d7e9fa\"\n            stroke-width=\"2\"\n            stroke-linecap=\"round\"\n          ></path>\n        </svg>\n\n        <span class=\"dock__tooltip\">Contact</span>\n        <span class=\"dock__dot\"></span>\n      </label>\n    </div>\n  </div>\n</div>\n.dock-stage {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  width: 100%;\n  overflow: hidden;\n  margin: 0;\n}\n\n.dock,\n.dock * {\n  box-sizing: border-box;\n}\n\n.dock {\n  --s: 64px;\n  --max: 1.8;\n  --gap: max(4px, calc(var(--s) * 0.08));\n  --pad: max(8px, calc(var(--s) * 0.12));\n\n  display: inline-flex;\n\n  padding: var(--pad) calc(var(--pad) - var(--gap) / 2);\n\n  background: linear-gradient(\n      180deg,\n      rgba(255, 255, 255, 0.13),\n      rgba(255, 255, 255, 0.05)\n    ),\n    rgba(45, 45, 45, 0.75);\n\n  -webkit-backdrop-filter: blur(20px) saturate(150%);\n  backdrop-filter: blur(20px) saturate(150%);\n\n  border: 1px solid rgba(255, 255, 255, 0.15);\n\n  border-radius: max(12px, calc(var(--s) * 0.4));\n\n  box-shadow:\n    0 max(4px, calc(var(--s) * 0.1)) max(16px, calc(var(--s) * 0.4))\n      rgba(0, 0, 0, 0.4),\n    0 max(2px, calc(var(--s) * 0.05)) max(8px, calc(var(--s) * 0.2))\n      rgba(0, 0, 0, 0.3),\n    inset 0 1px 0 rgba(255, 255, 255, 0.15),\n    inset 0 -1px 0 rgba(0, 0, 0, 0.2);\n\n  isolation: isolate;\n}\n\n.dock::before {\n  content: \"\";\n\n  position: absolute;\n\n  top: 1px;\n  left: 1px;\n  right: 1px;\n\n  height: 45%;\n\n  border-radius: max(11px, calc(var(--s) * 0.38))\n    max(11px, calc(var(--s) * 0.38)) 45% 45%;\n\n  background: linear-gradient(\n    180deg,\n    rgba(255, 255, 255, 0.12),\n    rgba(255, 255, 255, 0)\n  );\n\n  pointer-events: none;\n  z-index: -1;\n}\n\n.dock__row {\n  display: flex;\n  align-items: flex-end;\n\n  height: var(--s);\n  width: 100%;\n}\n\n.dock__item {\n  --k: 1;\n\n  --shadow-y: max(1px, calc(var(--s) * 0.03));\n\n  --shadow-b: max(2px, calc(var(--s) * 0.06));\n\n  position: relative;\n\n  flex: none;\n\n  display: flex;\n  align-items: flex-end;\n  justify-content: center;\n\n  width: calc(var(--s) * var(--k) + var(--gap));\n\n  height: calc(var(--s) * var(--k));\n\n  padding: 0 calc(var(--gap) / 2);\n\n  cursor: pointer;\n\n  z-index: 10;\n\n  transform-origin: bottom center;\n\n  transition:\n    width 0.2s ease-out,\n    height 0.2s ease-out,\n    transform 0.2s ease-out;\n}\n\n.dock__item input {\n  display: none;\n}\n\n.dock__item svg {\n  display: block;\n\n  width: 100%;\n  height: 100%;\n\n  padding: 10%;\n\n  filter: drop-shadow(\n    0 var(--shadow-y) var(--shadow-b)\n      rgba(0, 0, 0, calc(0.2 + (var(--k) - 1) * 0.15))\n  );\n\n  transition: filter 0.2s ease-out;\n}\n\n.dock__item:hover {\n  --k: var(--max);\n\n  z-index: 18;\n}\n\n.dock__item:hover + .dock__item,\n.dock__item:has(+ .dock__item:hover) {\n  --k: calc(1 + (var(--max) - 1) * 0.56);\n\n  z-index: 15;\n}\n\n.dock__item:hover + .dock__item + .dock__item,\n.dock__item:has(+ .dock__item + .dock__item:hover) {\n  --k: calc(1 + (var(--max) - 1) * 0.05);\n}\n\n.dock__item:hover,\n.dock__item:hover + .dock__item,\n.dock__item:has(+ .dock__item:hover) {\n  --shadow-y: max(2px, calc(var(--s) * 0.05));\n\n  --shadow-b: max(4px, calc(var(--s) * 0.1));\n}\n\n.dock__item:active {\n  transform: translateY(max(-8px, calc(var(--s) * -0.15)));\n\n  transition-duration: 0.2s;\n}\n\n.dock__dot {\n  display: none;\n\n  position: absolute;\n\n  bottom: max(-2px, calc(var(--s) * -0.05));\n\n  left: 50%;\n\n  transform: translateX(-50%);\n\n  width: max(3px, calc(var(--s) * 0.06));\n\n  height: max(3px, calc(var(--s) * 0.06));\n\n  border-radius: 50%;\n\n  background-color: rgba(255, 255, 255, 0.95);\n\n  box-shadow:\n    0 0 5px rgba(255, 255, 255, 0.55),\n    0 1px 3px rgba(0, 0, 0, 0.35);\n}\n\n.dock__item input:checked ~ .dock__dot {\n  display: block;\n}\n\n.dock__item input:checked ~ svg {\n  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2))\n    drop-shadow(0 8px 12px rgba(0, 0, 0, 0.12));\n}\n\n.dock__tooltip {\n  position: absolute;\n\n  left: 50%;\n  bottom: calc(100% + 14px);\n\n  min-width: max-content;\n\n  transform: translateX(-50%) translateY(6px) scale(0.92);\n\n  transform-origin: bottom center;\n\n  padding: 8px 11px;\n\n  border: 1px solid rgba(255, 255, 255, 0.18);\n\n  border-radius: 9px;\n\n  background: linear-gradient(\n      180deg,\n      rgba(255, 255, 255, 0.12),\n      rgba(255, 255, 255, 0.04)\n    ),\n    rgba(20, 20, 23, 0.88);\n\n  color: rgba(255, 255, 255, 0.97);\n\n  font-family: -apple-system, BlinkMacSystemFont, \"SF Pro Display\",\n    \"SF Pro Text\", \"Segoe UI\", sans-serif;\n\n  font-size: 12px;\n  font-weight: 600;\n\n  letter-spacing: 0.01em;\n  line-height: 1;\n\n  white-space: nowrap;\n\n  opacity: 0;\n\n  visibility: hidden;\n\n  pointer-events: none;\n\n  box-shadow:\n    0 10px 25px rgba(0, 0, 0, 0.28),\n    0 2px 8px rgba(0, 0, 0, 0.18),\n    inset 0 1px 0 rgba(255, 255, 255, 0.1);\n\n  -webkit-backdrop-filter: blur(18px) saturate(160%);\n\n  backdrop-filter: blur(18px) saturate(160%);\n\n  transition:\n    opacity 160ms ease,\n    visibility 160ms ease,\n    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);\n\n  z-index: 100;\n}\n\n.dock__item:hover .dock__tooltip {\n  opacity: 1;\n\n  visibility: visible;\n\n  transform: translateX(-50%) translateY(0) scale(1);\n}\n\n.dock__item:has(input:focus-visible) {\n  outline: 2px solid rgba(255, 255, 255, 0.85);\n\n  outline-offset: 3px;\n\n  border-radius: 15px;\n}\n\n@media (max-width: 1023px), (max-height: 1023px) {\n  .dock {\n    --s: 56px;\n    --max: 1.6;\n  }\n}\n\n@media (max-width: 767px), (max-height: 767px) {\n  .dock {\n    --s: 48px;\n    --max: 1.5;\n  }\n}\n\n@media (max-width: 479px), (max-height: 479px) {\n  .dock {\n    --s: 40px;\n    --max: 1.4;\n  }\n}\n\n@media (max-width: 767px), (hover: none) {\n  .dock__item:hover {\n    --k: 1;\n  }\n\n  .dock__item:hover + .dock__item,\n  .dock__item:has(+ .dock__item:hover) {\n    --k: 1;\n  }\n\n  .dock__item:hover + .dock__item + .dock__item,\n  .dock__item:has(+ .dock__item + .dock__item:hover) {\n    --k: 1;\n  }\n\n  .dock__tooltip {\n    display: none;\n  }\n}\n\n@media (max-width: 479px) {\n  .dock__item svg {\n    padding: 8%;\n  }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .dock,\n  .dock__item,\n  .dock__item svg,\n  .dock__tooltip {\n    transition: none !important;\n  }\n}",
+          "css": ".my-component {\n  padding: 24px;\n  border-radius: 12px;\n  background: #111;\n  color: #fff;\n  border: 1px solid #333;\n  text-align: center;\n}\nbutton {\n  margin-top: 12px;\n  padding: 8px 16px;\n  border-radius: 6px;\n  background: #38bdf8;\n  color: #000;\n  border: none;\n  font-weight: 600;\n  cursor: pointer;\n}",
+          "js": "const btn = document.querySelector(\".my-component button\");\nif (btn) {\n  btn.addEventListener(\"click\", () => alert(\"Component Interactive!\"));\n}",
+          "tags": [
+            "card",
+            "custom"
+          ],
+          "canvasX": -84,
+          "canvasY": -765,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794234889656,
+          "updatedAt": 1794234905259,
+          "variationType": "original"
+        },
+        {
+          "id": "disc-comp-dial",
+          "name": "Audio Volume Dial",
+          "description": "Physical rotary potentiometer with notched detents and LED indicator",
+          "author": "sound_craft",
+          "license": "MIT",
+          "sourceUrl": "https://codepen.io",
+          "framework": "html-css",
+          "tags": [
+            "audio",
+            "rotary",
+            "dial",
+            "controls"
+          ],
+          "canvasX": 969,
+          "canvasY": -427,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794230224227,
+          "updatedAt": 1794230837176,
+          "html": "<div class=\"rotary-dial\"><div class=\"dial-marker\"></div></div>",
+          "css": "body { background: transparent; display: flex; align-items: center; justify-content: center; min-height: 100vh; }\n.rotary-dial {\n  width: 90px; height: 90px; border-radius: 50%;\n  background: radial-gradient(circle at 35% 35%, #2a2a2a, #0d0d0d);\n  border: 2px solid rgba(255, 255, 255, 0.12);\n  box-shadow: 0 16px 32px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.2);\n  display: flex; justify-content: center; padding-top: 10px; cursor: pointer;\n  transition: transform 0.2s ease;\n}\n.rotary-dial:hover { transform: rotate(45deg); }\n.dial-marker { width: 4px; height: 16px; border-radius: 2px; background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }",
+          "js": ""
+        },
+        {
+          "id": "disc-comp-liquid",
+          "name": "Liquid Glass Progress Bar",
+          "description": "Frosted liquid glass bar with soft refraction edge and specular gradient",
+          "author": "kwlck",
+          "license": "MIT",
+          "sourceUrl": "https://github.com/kwlck/liquid-glass-web",
+          "framework": "html-css",
+          "tags": [
+            "progress",
+            "liquid-glass",
+            "minimal"
+          ],
+          "canvasX": 481,
+          "canvasY": -431,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1794225801550,
+          "updatedAt": 1794226019012,
+          "html": "<div class=\"glass-progress-wrap\"><div class=\"glass-fill\" style=\"width: 68%;\"></div></div>",
+          "css": "body { background: transparent; display: flex; align-items: center; justify-content: center; min-height: 100vh; }\n.glass-progress-wrap {\n  width: 240px; height: 16px; border-radius: 12px;\n  background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px);\n  border: 1px solid rgba(255, 255, 255, 0.12); padding: 2px;\n  box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 8px 24px rgba(0,0,0,0.5);\n}\n.glass-fill {\n  height: 100%; border-radius: 10px;\n  background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);\n  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);\n}",
+          "js": ""
+        },
+        {
+          "id": "uiverse-smart-liger",
+          "name": "Smart Liger 3D Card",
+          "description": "Stacked 3D card layout with layered depth, subtle perspective, and glow accent.",
+          "author": "Smit-Prajapati",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/Smit-Prajapati/smart-liger-5",
+          "framework": "html-css",
+          "tags": [
+            "card",
+            "3d",
+            "depth",
+            "obsidian"
+          ],
+          "canvasX": 150,
+          "canvasY": 125,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"card-container\">\n  <div class=\"card\">\n    <div class=\"card-layer-back\"></div>\n    <div class=\"card-layer-mid\"></div>\n    <div class=\"card-content\">\n      <div class=\"chip\"></div>\n      <div class=\"card-title\">ANTIGRAVITY PRIME</div>\n      <div class=\"card-num\">•••• 8842</div>\n      <div class=\"card-footer\">\n        <span>EXECUTIVE</span>\n        <span>11/29</span>\n      </div>\n    </div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n  perspective: 1000px;\n}\n.card-container {\n  width: 270px;\n  height: 170px;\n  position: relative;\n  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);\n  transform-style: preserve-3d;\n  cursor: pointer;\n}\n.card-container:hover {\n  transform: rotateY(14deg) rotateX(8deg) translateY(-8px);\n}\n.card {\n  width: 100%;\n  height: 100%;\n  position: relative;\n  border-radius: 18px;\n  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%), #0a0a0a;\n  border: 1px solid rgba(255, 255, 255, 0.12);\n  box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.2);\n  padding: 22px;\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n  overflow: hidden;\n}\n.card-layer-back {\n  position: absolute;\n  top: -40px;\n  right: -40px;\n  width: 120px;\n  height: 120px;\n  border-radius: 50%;\n  background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, transparent 70%);\n  filter: blur(20px);\n  pointer-events: none;\n}\n.chip {\n  width: 34px;\n  height: 24px;\n  border-radius: 5px;\n  background: linear-gradient(135deg, #d4af37, #aa820a);\n  box-shadow: inset 0 1px 2px rgba(255,255,255,0.4);\n}\n.card-title {\n  color: #888;\n  font-size: 10px;\n  letter-spacing: 2px;\n  font-weight: 600;\n}\n.card-num {\n  color: #fff;\n  font-size: 16px;\n  letter-spacing: 3px;\n  font-family: monospace;\n}\n.card-footer {\n  display: flex;\n  justify-content: space-between;\n  color: #aaa;\n  font-size: 11px;\n  letter-spacing: 1.5px;\n}",
+          "js": "// Interactive card tilt sensitivity\nconst card = document.querySelector('.card-container');\nif (card) {\n  card.addEventListener('mousemove', (e) => {\n    const rect = card.getBoundingClientRect();\n    const x = e.clientX - rect.left - rect.width / 2;\n    const y = e.clientY - rect.top - rect.height / 2;\n    card.style.transform = `rotateY(${x * 0.12}deg) rotateX(${-y * 0.12}deg) translateY(-6px)`;\n  });\n  card.addEventListener('mouseleave', () => {\n    card.style.transform = '';\n  });\n}"
+        },
+        {
+          "id": "uiverse-wet-goose",
+          "name": "Wet Goose Vehicle Card",
+          "description": "Ultra-dark performance automotive telemetry card with carbon fiber tactile theme.",
+          "author": "vikas7754",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/vikas7754/wet-goose-61",
+          "framework": "html-css",
+          "tags": [
+            "automotive",
+            "telemetry",
+            "dark",
+            "hud"
+          ],
+          "canvasX": 600,
+          "canvasY": 125,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"gauge-card\">\n  <div class=\"hud-header\">\n    <span class=\"status-dot\"></span>\n    <span class=\"hud-label\">APEX GT // HYPER-DRIVE</span>\n    <span class=\"hud-mode\">SPORT+</span>\n  </div>\n  <div class=\"speedo-container\">\n    <div class=\"speed-value\">168</div>\n    <div class=\"speed-unit\">MPH</div>\n  </div>\n  <div class=\"bar-meter\">\n    <div class=\"bar-fill\" style=\"width: 78%;\"></div>\n  </div>\n  <div class=\"hud-metrics\">\n    <div><span>TORQUE</span><strong>890 Nm</strong></div>\n    <div><span>G-FORCE</span><strong>1.42 G</strong></div>\n    <div><span>BATTERY</span><strong>92%</strong></div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.gauge-card {\n  width: 270px;\n  background: #080808;\n  border: 1px solid rgba(255,255,255,0.09);\n  border-radius: 16px;\n  padding: 20px;\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);\n  transition: all 0.3s ease;\n}\n.gauge-card:hover {\n  border-color: rgba(239, 68, 68, 0.4);\n  box-shadow: 0 20px 45px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.15);\n}\n.hud-header {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 9px;\n  letter-spacing: 1px;\n  color: #777;\n  margin-bottom: 16px;\n}\n.status-dot {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #ef4444;\n  box-shadow: 0 0 8px #ef4444;\n}\n.hud-mode {\n  margin-left: auto;\n  color: #ef4444;\n  font-weight: 700;\n}\n.speedo-container {\n  display: flex;\n  align-items: baseline;\n  justify-content: center;\n  margin: 10px 0;\n}\n.speed-value {\n  font-size: 52px;\n  font-weight: 900;\n  letter-spacing: -2px;\n  line-height: 1;\n}\n.speed-unit {\n  font-size: 13px;\n  color: #888;\n  margin-left: 6px;\n  font-weight: 600;\n}\n.bar-meter {\n  height: 6px;\n  background: #181818;\n  border-radius: 3px;\n  overflow: hidden;\n  margin: 16px 0;\n}\n.bar-fill {\n  height: 100%;\n  background: linear-gradient(90deg, #ef4444, #f97316);\n  border-radius: 3px;\n  transition: width 0.5s ease;\n}\n.hud-metrics {\n  display: flex;\n  justify-content: space-between;\n  border-top: 1px solid #1a1a1a;\n  padding-top: 14px;\n}\n.hud-metrics div {\n  display: flex;\n  flex-direction: column;\n}\n.hud-metrics span {\n  font-size: 8px;\n  color: #666;\n  letter-spacing: 1px;\n}\n.hud-metrics strong {\n  font-size: 12px;\n  color: #eee;\n  margin-top: 2px;\n}",
+          "js": "// Random simulated telemetry fluctuation\nsetInterval(() => {\n  const speedElem = document.querySelector('.speed-value');\n  const barElem = document.querySelector('.bar-fill');\n  if (speedElem && barElem) {\n    const nextSpeed = Math.floor(160 + Math.random() * 14);\n    speedElem.innerText = nextSpeed;\n    barElem.style.width = `${(nextSpeed / 200) * 100}%`;\n  }\n}, 1800);"
+        },
+        {
+          "id": "uiverse-honest-earwig",
+          "name": "Honest Earwig Product Case",
+          "description": "Sleek AirPods-style device case representation with openable lid and magnetic latch.",
+          "author": "mahiatlinux",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/mahiatlinux/honest-earwig-11",
+          "framework": "html-css",
+          "tags": [
+            "hardware",
+            "case",
+            "airpods",
+            "device"
+          ],
+          "canvasX": 1050,
+          "canvasY": 125,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"case-wrapper\">\n  <div class=\"pod-case\">\n    <div class=\"case-lid\"></div>\n    <div class=\"case-body\">\n      <div class=\"led-light\"></div>\n      <div class=\"brand-emboss\">ANTIGRAVITY AUDIO</div>\n    </div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.case-wrapper {\n  perspective: 600px;\n}\n.pod-case {\n  width: 140px;\n  height: 170px;\n  cursor: pointer;\n  position: relative;\n  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);\n}\n.pod-case:hover {\n  transform: translateY(-8px) scale(1.03);\n}\n.case-lid {\n  width: 140px;\n  height: 48px;\n  background: linear-gradient(180deg, #222 0%, #151515 100%);\n  border-radius: 36px 36px 8px 8px;\n  border: 1px solid rgba(255,255,255,0.12);\n  border-bottom: 2px solid #000;\n  box-shadow: inset 0 2px 3px rgba(255,255,255,0.25);\n  transform-origin: top center;\n  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);\n}\n.pod-case.open .case-lid {\n  transform: rotateX(110deg) translateY(-10px);\n}\n.case-body {\n  width: 140px;\n  height: 118px;\n  background: linear-gradient(180deg, #181818 0%, #0d0d0d 100%);\n  border-radius: 8px 8px 36px 36px;\n  border: 1px solid rgba(255,255,255,0.1);\n  box-shadow: 0 24px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.15);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 20px;\n  position: relative;\n}\n.led-light {\n  width: 7px;\n  height: 7px;\n  border-radius: 50%;\n  background: #10b981;\n  box-shadow: 0 0 10px #10b981;\n  transition: background 0.3s;\n}\n.brand-emboss {\n  color: #444;\n  font-size: 8px;\n  letter-spacing: 2px;\n  font-weight: 700;\n}",
+          "js": "const podCase = document.querySelector('.pod-case');\nif (podCase) {\n  podCase.addEventListener('click', () => {\n    podCase.classList.toggle('open');\n  });\n}"
+        },
+        {
+          "id": "uiverse-moody-falcon",
+          "name": "Moody Falcon Pip-Boy",
+          "description": "Retro-futuristic terminal HUD with monochrome green phosphor display.",
+          "author": "Gidarx",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/Gidarx/moody-falcon-73",
+          "framework": "html-css",
+          "tags": [
+            "terminal",
+            "crt",
+            "retro",
+            "pip-boy"
+          ],
+          "canvasX": 150,
+          "canvasY": 650,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"crt-screen\">\n  <div class=\"crt-scanline\"></div>\n  <div class=\"terminal-header\">\n    <span>AGY-OS v4.2 // RUN</span>\n    <span class=\"blinking-pill\">ONLINE</span>\n  </div>\n  <div class=\"terminal-body\">\n    <p>> MEM: 8192 MB OK</p>\n    <p>> DISK_EXT: MOUNTED (860 GB)</p>\n    <p>> WORKSPACE: READY</p>\n    <p class=\"prompt\">> MIXER_ENG: LISTENING_<span class=\"cursor\">█</span></p>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: monospace;\n}\n.crt-screen {\n  width: 270px;\n  background: #020c04;\n  border: 2px solid #00ff66;\n  border-radius: 12px;\n  padding: 16px;\n  color: #00ff66;\n  position: relative;\n  overflow: hidden;\n  box-shadow: 0 0 25px rgba(0,255,102,0.2), inset 0 0 15px rgba(0,255,102,0.15);\n}\n.crt-scanline {\n  position: absolute;\n  top: 0; left: 0; right: 0; bottom: 0;\n  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);\n  background-size: 100% 4px;\n  pointer-events: none;\n}\n.terminal-header {\n  display: flex;\n  justify-content: space-between;\n  font-size: 10px;\n  border-bottom: 1px solid #00ff66;\n  padding-bottom: 8px;\n  margin-bottom: 12px;\n}\n.blinking-pill {\n  animation: pulse 1.2s infinite;\n}\n.terminal-body {\n  font-size: 11px;\n  line-height: 1.6;\n}\n.cursor {\n  animation: blink 0.8s infinite;\n}\n@keyframes pulse {\n  0%, 100% { opacity: 1; }\n  50% { opacity: 0.3; }\n}\n@keyframes blink {\n  0%, 50% { opacity: 1; }\n  51%, 100% { opacity: 0; }\n}",
+          "js": "console.log('Moody Falcon CRT active');"
+        },
+        {
+          "id": "uiverse-massive-dodo",
+          "name": "Massive Dodo Animated Switch",
+          "description": "Smooth tactile toggle switch with fluid thumb slide and active state lighting.",
+          "author": "Admin12121",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/Admin12121/massive-dodo-67",
+          "framework": "html-css",
+          "tags": [
+            "toggle",
+            "switch",
+            "interaction",
+            "controls"
+          ],
+          "canvasX": 600,
+          "canvasY": 649,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1794225929650,
+          "html": "<div class=\"switch-box\">\n  <label class=\"switch\">\n    <input type=\"checkbox\" checked id=\"dodo-input\">\n    <span class=\"slider\">\n      <span class=\"icon-on\">POWER</span>\n    </span>\n  </label>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.switch-box {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n.switch {\n  position: relative;\n  display: inline-block;\n  width: 84px;\n  height: 44px;\n}\n.switch input {\n  opacity: 0;\n  width: 0;\n  height: 0;\n}\n.slider {\n  position: absolute;\n  cursor: pointer;\n  top: 0; left: 0; right: 0; bottom: 0;\n  background: #111;\n  border: 1px solid rgba(255,255,255,0.12);\n  border-radius: 24px;\n  transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);\n  box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);\n}\n.slider:before {\n  position: absolute;\n  content: \"\";\n  height: 34px;\n  width: 34px;\n  left: 4px;\n  bottom: 4px;\n  background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);\n  border-radius: 50%;\n  border: 1px solid rgba(255,255,255,0.2);\n  transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);\n  box-shadow: 0 4px 10px rgba(0,0,0,0.6);\n}\ninput:checked + .slider {\n  background: #064e3b;\n  border-color: #10b981;\n}\ninput:checked + .slider:before {\n  transform: translateX(40px);\n  background: linear-gradient(135deg, #10b981 0%, #059669 100%);\n  box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);\n}\n.icon-on {\n  position: absolute;\n  right: 12px;\n  top: 15px;\n  font-size: 8px;\n  font-weight: 700;\n  color: #10b981;\n  letter-spacing: 1px;\n  opacity: 0;\n  transition: 0.3s;\n}\ninput:checked + .slider .icon-on {\n  opacity: 1;\n  left: 12px;\n  right: auto;\n}",
+          "js": "// Switch event propagation\nconst input = document.getElementById('dodo-input');\nif (input) {\n  input.addEventListener('change', (e) => {\n    console.log('Power state:', e.target.checked);\n  });\n}"
+        },
+        {
+          "id": "uiverse-great-rat",
+          "name": "Great Rat Metallic Button",
+          "description": "Circular tactile knurled metallic push button with brushed edge and physical press depth.",
+          "author": "GreyD097",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/GreyD097/great-rat-93",
+          "framework": "html-css",
+          "tags": [
+            "button",
+            "metallic",
+            "tactile",
+            "skeuomorphic"
+          ],
+          "canvasX": 1050,
+          "canvasY": 650,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1794226087397,
+          "html": "<div class=\"metallic-holder\">\n  <button class=\"metallic-btn\">\n    <div class=\"inner-core\">\n      <span class=\"btn-glyph\">✦</span>\n    </div>\n  </button>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n}\n.metallic-holder {\n  padding: 10px;\n}\n.metallic-btn {\n  width: 90px;\n  height: 90px;\n  border-radius: 50%;\n  border: none;\n  cursor: pointer;\n  background: conic-gradient(from 180deg at 50% 50%, #444 0deg, #111 60deg, #666 120deg, #111 180deg, #555 240deg, #111 300deg, #444 360deg);\n  box-shadow: 0 12px 28px rgba(0,0,0,0.8), inset 0 2px 3px rgba(255,255,255,0.4);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 6px;\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n.metallic-btn:active {\n  transform: scale(0.94);\n  box-shadow: 0 4px 12px rgba(0,0,0,0.9), inset 0 2px 4px rgba(0,0,0,0.8);\n}\n.inner-core {\n  width: 100%;\n  height: 100%;\n  border-radius: 50%;\n  background: linear-gradient(135deg, #1f1f1f 0%, #0d0d0d 100%);\n  border: 1px solid rgba(255,255,255,0.1);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: #fff;\n  font-size: 20px;\n  box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);\n}\n.btn-glyph {\n  color: #38bdf8;\n  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));\n}",
+          "js": "// Button click audio feedback placeholder\nconst btn = document.querySelector('.metallic-btn');\nif (btn) {\n  btn.addEventListener('click', () => {\n    btn.style.transform = 'scale(0.92)';\n    setTimeout(() => { btn.style.transform = ''; }, 150);\n  });\n}"
+        },
+        {
+          "id": "uiverse-smooth-bird",
+          "name": "Smooth Bird Checkbox",
+          "description": "Custom fluid-fill interactive checkbox with elastic path animation.",
+          "author": "byllzz",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/byllzz/smooth-bird-47",
+          "framework": "html-css",
+          "tags": [
+            "checkbox",
+            "micro-interaction",
+            "form"
+          ],
+          "canvasX": 150,
+          "canvasY": 1175,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"checkbox-container\">\n  <label class=\"custom-chk\">\n    <input type=\"checkbox\" checked>\n    <span class=\"chk-box\">\n      <svg viewBox=\"0 0 12 10\" height=\"10px\" width=\"12px\">\n        <polyline points=\"1.5 6 4.5 9 10.5 1\"></polyline>\n      </svg>\n    </span>\n    <span class=\"chk-text\">ENABLE ACCELERATION</span>\n  </label>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.custom-chk {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  cursor: pointer;\n  user-select: none;\n}\n.custom-chk input {\n  display: none;\n}\n.chk-box {\n  width: 24px;\n  height: 24px;\n  border-radius: 7px;\n  background: #111;\n  border: 1px solid rgba(255,255,255,0.18);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  transition: all 0.25s ease;\n  box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);\n}\n.custom-chk input:checked + .chk-box {\n  background: #38bdf8;\n  border-color: #38bdf8;\n  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);\n}\n.chk-box svg {\n  fill: none;\n  stroke: #000;\n  stroke-width: 2;\n  stroke-linecap: round;\n  stroke-linejoin: round;\n  stroke-dasharray: 16px;\n  stroke-dashoffset: 16px;\n  transition: all 0.3s ease;\n}\n.custom-chk input:checked + .chk-box svg {\n  stroke-dashoffset: 0;\n}\n.chk-text {\n  color: #ccc;\n  font-size: 11px;\n  font-weight: 600;\n  letter-spacing: 1px;\n}",
+          "js": "// Checkbox interaction\nconst chk = document.querySelector('.custom-chk input');\nif (chk) {\n  chk.addEventListener('change', (e) => {\n    console.log('Checked:', e.target.checked);\n  });\n}"
+        },
+        {
+          "id": "uiverse-tough-stingray",
+          "name": "Tough Stingray Reverse Card",
+          "description": "Interactive 3D dual-sided flip card with metallic foil reverse face.",
+          "author": "SelfMadeSystem",
+          "license": "MIT",
+          "sourceUrl": "https://uiverse.io/SelfMadeSystem/tough-stingray-70",
+          "framework": "html-css",
+          "tags": [
+            "card",
+            "3d",
+            "flip",
+            "reverse"
+          ],
+          "canvasX": 600,
+          "canvasY": 1175,
+          "width": 400,
+          "height": 470,
+          "createdAt": 1731100000000,
+          "updatedAt": 1731100000000,
+          "html": "<div class=\"flip-wrapper\">\n  <div class=\"flip-card\">\n    <div class=\"card-face face-front\">\n      <div class=\"badge\">SPEC // 01</div>\n      <h3>SURFACE MATTE</h3>\n      <p>Hover or click to inspect inverse structure.</p>\n    </div>\n    <div class=\"card-face face-back\">\n      <div class=\"badge\">REVERSE</div>\n      <h3>TEXTURE FOIL</h3>\n      <p>High-reflectivity physical layer.</p>\n    </div>\n  </div>\n</div>",
+          "css": "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody {\n  background: transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n}\n.flip-wrapper {\n  perspective: 900px;\n}\n.flip-card {\n  width: 250px;\n  height: 180px;\n  position: relative;\n  transform-style: preserve-3d;\n  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);\n  cursor: pointer;\n}\n.flip-wrapper:hover .flip-card, .flip-card.flipped {\n  transform: rotateY(180deg);\n}\n.card-face {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  border-radius: 16px;\n  padding: 20px;\n  backface-visibility: hidden;\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n}\n.face-front {\n  background: #0a0a0a;\n  border: 1px solid rgba(255,255,255,0.12);\n  color: #fff;\n  box-shadow: 0 16px 36px rgba(0,0,0,0.8);\n}\n.face-back {\n  background: linear-gradient(135deg, #1c1917, #0c0a09);\n  border: 1px solid rgba(245, 158, 11, 0.3);\n  color: #f59e0b;\n  transform: rotateY(180deg);\n  box-shadow: 0 16px 36px rgba(0,0,0,0.8);\n}\n.badge {\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 1.5px;\n  opacity: 0.6;\n}\nh3 {\n  font-size: 16px;\n  letter-spacing: 1px;\n}\np {\n  font-size: 11px;\n  opacity: 0.7;\n}",
+          "js": "const fCard = document.querySelector('.flip-card');\nif (fCard) {\n  fCard.addEventListener('click', () => {\n    fCard.classList.toggle('flipped');\n  });\n}"
+        }
+      ]
+    },
+    "antigravity_cm_settings_v1.bak.json": {
+      "schemaVersion": 3,
+      "savedAt": 1794230955470,
+      "data": {
+        "theme": "frost",
+        "creativeFreedom": 0.7,
+        "externalStoragePath": null,
+        "hasExternalDrive": false,
+        "reducedMotion": false,
+        "performanceMode": "balanced"
+      }
+    },
+    "antigravity_cm_settings_v1.json": {
+      "schemaVersion": 3,
+      "savedAt": 1794230982609,
+      "data": {
+        "theme": "obsidian",
+        "creativeFreedom": 0.7,
+        "externalStoragePath": null,
+        "hasExternalDrive": false,
+        "reducedMotion": false,
+        "performanceMode": "balanced"
+      }
+    }
+  }
+}
