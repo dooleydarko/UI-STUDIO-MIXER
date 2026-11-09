@@ -129,3 +129,26 @@ export interface Product3DProject {
   };
   savedAt: number;
 }
+
+export type QueueItemStatus = 'queued' | 'processing' | 'ready' | 'error';
+
+export interface QueuedComponent {
+  id: string;
+  name: string;
+  status: QueueItemStatus;
+  html: string;
+  css: string;
+  js: string;
+  sourceUrl?: string;
+  sourceType: 'manual_paste' | 'extension' | 'url_fetch' | 'native_gen';
+  createdAt: number;
+  tags: string[];
+  errorMessage?: string;
+  diagnostics?: {
+    htmlLines: number;
+    cssRules: number;
+    hasKeyframes: boolean;
+    hasHoverStates: boolean;
+  };
+}
+

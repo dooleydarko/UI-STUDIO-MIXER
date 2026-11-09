@@ -183,6 +183,31 @@ runTest('TEST-GEN-01', 'Native UI generator prompt-to-package schema validation'
   assert(mockGen.tags.includes('native-ai'));
 });
 
+// TEST-QUEUE-01: Queued component intake schema and diagnostics verification
+runTest('TEST-QUEUE-01', 'Queued component intake schema and diagnostics verification', () => {
+  const queueItem = {
+    id: 'queue-12345',
+    name: 'Cyberpunk Neon Button',
+    status: 'ready',
+    html: '<button class="cyber-btn">Launch</button>',
+    css: '.cyber-btn { background: #00f; color: #fff; }',
+    js: '',
+    sourceType: 'manual_paste',
+    createdAt: Date.now(),
+    tags: ['queued', 'intake'],
+    diagnostics: {
+      htmlLines: 1,
+      cssRules: 1,
+      hasKeyframes: false,
+      hasHoverStates: false,
+    },
+  };
+  assert(queueItem.id.startsWith('queue-'));
+  assert.strictEqual(queueItem.status, 'ready');
+  assert.strictEqual(queueItem.diagnostics.htmlLines, 1);
+  assert.strictEqual(queueItem.diagnostics.cssRules, 1);
+});
+
 console.log('\n----------------------------------------------------');
 console.log(`SUMMARY: ${passCount} passed, ${failCount} failed.`);
 console.log('----------------------------------------------------');

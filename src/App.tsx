@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { ComponentPackage, Product3DProject, MixVariationResult } from './types';
+import { ComponentPackage, Product3DProject, MixVariationResult, QueuedComponent } from './types';
 import type { StartMixOptions } from './components/MixerTray';
 import { mixWithAI } from './ai/aiMixer';
 import { StorageManager } from './storage/storageManager';
@@ -10,6 +10,7 @@ import { PackRevealModal } from './components/PackRevealModal';
 import { PopoutPreview } from './components/PopoutPreview';
 import { AddUIModal } from './components/AddUIModal';
 import { NativePromptBar } from './components/NativePromptBar';
+import { QueueLibraryDock } from './components/QueueLibraryDock';
 import { DiscoveryRoom } from './discovery/DiscoveryRoom';
 // Loaded on demand so three.js stays out of the initial bundle
 const Studio3DWorkstation = lazy(() =>
@@ -51,6 +52,8 @@ export const App: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBuildProgressOpen, setIsBuildProgressOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [queue, setQueue] = useState<QueuedComponent[]>([]);
+  const [isQueueDockOpen, setIsQueueDockOpen] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -58,6 +61,7 @@ export const App: React.FC = () => {
     setTheme(loadedSettings.theme);
     setComponents(storage.loadComponents());
     setProjects3D(storage.load3DProjects());
+    setQueue(storage.loadQueue());
   }, []);
 
   const handleToggleTheme = () => {
@@ -282,6 +286,32 @@ export const App: React.FC = () => {
             {theme === 'obsidian' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Quick Intake & Queue Button */}
+          {activeWorkspace === 'ui_playground' && (
+            <button
+              type="button"
+              onClick={() => setIsQueueDockOpen((prev) => !prev)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                isQueueDockOpen
+                  ? 'bg-sky-500 text-black border-sky-400 shadow-md shadow-sky-500/20'
+                  : isFrost
+                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-300'
+              }`}
+              title="Open Quick Intake & Queue Library"
+            >
+              <Layers className="w-3.5 h-3.5 text-sky-400" />
+              <span>Queue</span>
+              {queue.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  isQueueDockOpen ? 'bg-black text-white' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                }`}>
+                  {queue.length}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Quick Add UI Button */}
           {activeWorkspace === 'ui_playground' && (
             <button
@@ -330,6 +360,30 @@ export const App: React.FC = () => {
               onRemoveFromTray={(id) => setMixerTrayIds((prev) => prev.filter((i) => i !== id))}
               onClearTray={() => setMixerTrayIds([])}
               onStartMix={handleStartMix}
+            />
+
+            {/* Quick Intake & Queue Library Dock */}
+            <QueueLibraryDock
+              theme={theme}
+              isOpen={isQueueDockOpen}
+              onToggleOpen={() => setIsQueueDockOpen((prev) => !prev)}
+              initialQueue={queue}
+              onQueueChange={(newQueue) => {
+                setQueue(newQueue);
+                storage.saveQueue(newQueue);
+              }}
+              onAddToCanvas={(comp) => {
+                handleSaveNewComponent(comp);
+              }}
+              onAddToMixer={(comp) => {
+                handleSaveNewComponent(comp);
+                if (!mixerTrayIds.includes(comp.id)) {
+                  setMixerTrayIds((prev) => [...prev, comp.id]);
+                }
+              }}
+              onInspectComponent={(comp) => {
+                setPopoutComp(comp);
+              }}
             />
           </>
         )}

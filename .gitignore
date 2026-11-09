@@ -4,5 +4,6 @@ dist-ssr/
 *.local
 .DS_Store
 *.log
-storage/
+/storage/
 .staging/
+

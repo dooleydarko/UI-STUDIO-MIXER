@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Antigravity Code Mixer - Component Copier",
+  "version": "1.0.0",
+  "description": "One-click copy and auto-send HTML & CSS from Uiverse and CodePen directly into your Antigravity Studio.",
+  "permissions": ["clipboardWrite", "activeTab"],
+  "host_permissions": [
+    "*://uiverse.io/*",
+    "*://*.uiverse.io/*",
+    "*://codepen.io/*",
+    "*://*.codepen.io/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Antigravity Code Mixer"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://uiverse.io/*",
+        "*://*.uiverse.io/*",
+        "*://codepen.io/*",
+        "*://*.codepen.io/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
