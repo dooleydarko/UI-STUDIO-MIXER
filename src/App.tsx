@@ -11,6 +11,7 @@ import { PopoutPreview } from './components/PopoutPreview';
 import { AddUIModal } from './components/AddUIModal';
 import { NativePromptBar } from './components/NativePromptBar';
 import { QueueLibraryDock } from './components/QueueLibraryDock';
+import { VideoStudioDrawer } from './components/VideoStudioDrawer';
 import { DiscoveryRoom } from './discovery/DiscoveryRoom';
 // Loaded on demand so three.js stays out of the initial bundle
 const Studio3DWorkstation = lazy(() =>
@@ -27,7 +28,8 @@ import {
   Activity, 
   Plus, 
   HardDrive,
-  Sliders
+  Sliders,
+  Film
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -54,6 +56,7 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [queue, setQueue] = useState<QueuedComponent[]>([]);
   const [isQueueDockOpen, setIsQueueDockOpen] = useState(false);
+  const [isVideoStudioOpen, setIsVideoStudioOpen] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -261,6 +264,21 @@ export const App: React.FC = () => {
             <span>SanDisk Extreme (860GB)</span>
           </div>
 
+          {/* OmniVideo Studio Button */}
+          <button
+            type="button"
+            onClick={() => setIsVideoStudioOpen(true)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              isFrost
+                ? 'bg-cyan-50 border-cyan-200 text-cyan-800 hover:bg-cyan-100 shadow-sm'
+                : 'bg-cyan-950/60 hover:bg-cyan-900/60 border-cyan-500/40 text-cyan-300 shadow-lg shadow-cyan-950/40'
+            }`}
+            title="Open OmniVideo Multi-Account Proxy Studio"
+          >
+            <Film className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span>OmniVideo</span>
+          </button>
+
           {/* Build Progress View Button */}
           <button
             type="button"
@@ -460,6 +478,12 @@ export const App: React.FC = () => {
           onClose={() => setIsBuildProgressOpen(false)}
         />
       )}
+
+      {/* OmniVideo Multi-Account Proxy Studio Drawer */}
+      <VideoStudioDrawer
+        isOpen={isVideoStudioOpen}
+        onClose={() => setIsVideoStudioOpen(false)}
+      />
     </div>
   );
 };
