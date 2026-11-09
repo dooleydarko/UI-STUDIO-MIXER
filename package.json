@@ -9,6 +9,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "node tests/runner.js",
+    "test:video": "node tests/videoRunner.js",
+    "proxy:freellm": "node scripts/freeLlmDaemon.js",
+    "video:proxy": "node src/video/videoProxyServer.ts",
+    "claude:free": "bash scripts/launch-claude-free.sh",
     "electron:dev": "node electron/dev.cjs",
     "electron:start": "npm run build && electron ."
   },
