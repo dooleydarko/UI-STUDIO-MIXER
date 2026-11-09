@@ -59,6 +59,18 @@ export const BuildProgressModal: React.FC<BuildProgressModalProps> = ({
       status: 'completed',
       detail: 'Intel Mac performance tuning, SanDisk /Volumes/Extreme storage detection, automated test suite.',
     },
+    {
+      id: 'M6',
+      title: 'AI Mixing Engine & Dynamic Discovery',
+      status: 'completed',
+      detail: 'Google AI Studio Gemini API integration with dynamic ModelService discovery, candidate failover chains, local Whisper dictation, and active model telemetry.',
+    },
+    {
+      id: 'M7',
+      title: 'Rollup Chunk Splitting & Studio Hardening',
+      status: 'completed',
+      detail: 'Manual chunking for Three.js and Lucide icons, multi-rig lighting presets, texture disposal pipeline, and expanded 13-point test suite.',
+    },
   ];
 
   return (

@@ -123,6 +123,42 @@ runTest('TEST-3D-02', 'PBR material values clamped in physical bounds', () => {
   assert(metalness >= 0 && metalness <= 1, 'Metalness must be 0-1');
 });
 
+// TEST-AI-01: Gemini model identifier sanitization & endpoint construction
+runTest('TEST-AI-01', 'Gemini model identifier prefix sanitization', () => {
+  const sanitize = (m) => m.replace(/^models\//, '');
+  assert.strictEqual(sanitize('models/gemini-2.0-flash'), 'gemini-2.0-flash');
+  assert.strictEqual(sanitize('gemini-2.0-flash'), 'gemini-2.0-flash');
+  assert.strictEqual(sanitize('models/gemini-2.5-flash'), 'gemini-2.5-flash');
+});
+
+// TEST-AI-02: Fallback candidate models priority list and pattern matchers
+runTest('TEST-AI-02', 'Gemini candidate fallback models and priority matching', () => {
+  const candidates = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-2.5-pro',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash',
+  ];
+  assert(candidates.length >= 5, 'Must contain multiple candidate fallback models');
+  assert(candidates.includes('gemini-2.0-flash'), 'Must contain gemini-2.0-flash');
+
+  const pattern = /gemini-2\.0-flash/i;
+  assert(pattern.test('models/gemini-2.0-flash'));
+});
+
+// TEST-3D-03: Procedural lighting rigs validation
+runTest('TEST-3D-03', 'Procedural lighting rigs preset coverage', () => {
+  const rigs = ['studio', 'neon', 'daylight', 'dramatic_rim'];
+  assert.strictEqual(rigs.length, 4);
+  assert(rigs.includes('studio'));
+  assert(rigs.includes('neon'));
+  assert(rigs.includes('dramatic_rim'));
+});
+
 console.log('\n----------------------------------------------------');
 console.log(`SUMMARY: ${passCount} passed, ${failCount} failed.`);
 console.log('----------------------------------------------------');

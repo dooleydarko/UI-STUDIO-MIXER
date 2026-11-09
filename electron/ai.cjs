@@ -3,8 +3,20 @@ const fs = require('fs');
 const path = require('path');
 
 // Gemini handles both jobs with one key: reading code + writing mixes, and transcribing speech.
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL,
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash',
+  'gemini-1.5-pro',
+  'gemini-2.5-pro',
+  'gemini-1.5-flash',
+].filter(Boolean);
+
+let activeModel = CANDIDATE_MODELS[0] || 'gemini-2.0-flash';
+const endpoint = (m) => `https://generativelanguage.googleapis.com/v1beta/models/${m.replace(/^models\//, '')}:generateContent`;
 
 const keyFile = () => path.join(app.getPath('userData'), 'gemini.key');
 
@@ -39,34 +51,53 @@ async function callGemini({ parts, json = false, temperature = 0.7, timeoutMs = 
   const key = readKey();
   if (!key) throw new Error('No API key saved. Add your Gemini key first.');
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  async function execute(m) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(endpoint(m), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: { temperature, ...(json ? { responseMimeType: 'application/json' } : {}) },
+        }),
+        signal: controller.signal,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
+        const err = new Error(`Gemini request failed: ${detail}`);
+        err.status = res.status;
+        throw err;
+      }
+      const text = (body.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+      if (!text.trim()) {
+        const reason = body.candidates?.[0]?.finishReason || body.promptFeedback?.blockReason || 'empty response';
+        throw new Error(`Gemini returned no text (${reason}).`);
+      }
+      activeModel = m;
+      return text;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   try {
-    const res = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: { temperature, ...(json ? { responseMimeType: 'application/json' } : {}) },
-      }),
-      signal: controller.signal,
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const detail = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-      throw new Error(`Gemini request failed: ${detail}`);
-    }
-    const text = (body.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
-    if (!text.trim()) {
-      const reason = body.candidates?.[0]?.finishReason || body.promptFeedback?.blockReason || 'empty response';
-      throw new Error(`Gemini returned no text (${reason}).`);
-    }
-    return text;
+    return await execute(activeModel);
   } catch (e) {
+    if (e.status === 404) {
+      for (const candidate of CANDIDATE_MODELS) {
+        if (candidate === activeModel) continue;
+        try {
+          return await execute(candidate);
+        } catch (retryErr) {
+          if (retryErr.status !== 404) throw retryErr;
+        }
+      }
+    }
     if (e.name === 'AbortError') throw new Error('Gemini took too long to respond.');
     throw e;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -264,4 +295,14 @@ async function mix(payload) {
   return clean;
 }
 
-module.exports = { MODEL, LOCAL_MODEL, hasKey, writeKey, clearKey, transcribe, mix, localStatus, pullLocalModel };
+module.exports = {
+  get MODEL() { return activeModel; },
+  LOCAL_MODEL,
+  hasKey,
+  writeKey,
+  clearKey,
+  transcribe,
+  mix,
+  localStatus,
+  pullLocalModel,
+};

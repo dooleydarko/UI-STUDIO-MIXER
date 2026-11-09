@@ -1,8 +1,29 @@
 import { AiVariationRaw } from '../storage/nativeBridge';
 
 const STORAGE_KEY = 'antigravity_gemini_api_key';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-1.5-flash';
+const MODEL_STORAGE_KEY = 'antigravity_gemini_active_model';
+
+const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash',
+  'gemini-2.5-pro',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+];
+
+const PREFERRED_PATTERNS = [
+  /gemini-2\.0-flash/i,
+  /gemini-2\.5-flash/i,
+  /gemini-3\.\d+-flash/i,
+  /flash/i,
+  /gemini-2\.0/i,
+  /gemini-2\.5/i,
+  /gemini-1\.5-pro/i,
+  /pro/i,
+];
 
 export function getStoredBrowserKey(): string | null {
   try {
@@ -21,7 +42,86 @@ export function setStoredBrowserKey(key: string): void {
 }
 
 export function clearStoredBrowserKey(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(MODEL_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function getStoredActiveModel(): string | null {
+  try {
+    return localStorage.getItem(MODEL_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredActiveModel(model: string): void {
+  try {
+    localStorage.setItem(MODEL_STORAGE_KEY, model.replace(/^models\//, ''));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Queries Google AI Studio's ModelService to list active models for this API key.
+ */
+export async function fetchAvailableModels(key: string): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = body?.error?.message || `HTTP ${res.status}`;
+      throw new Error(`Gemini API error: ${msg}`);
+    }
+    if (!Array.isArray(body?.models)) return [];
+
+    const valid = body.models
+      .filter((m: { supportedGenerationMethods?: string[] }) =>
+        Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent')
+      )
+      .map((m: { name?: string }) => String(m.name || '').replace(/^models\//, ''))
+      .filter(Boolean);
+
+    return valid;
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message.startsWith('Gemini API error:')) {
+      throw e;
+    }
+    return [];
+  }
+}
+
+/**
+ * Resolves the best available Gemini model for generateContent.
+ */
+export async function resolveBestModel(key: string): Promise<string> {
+  const cached = getStoredActiveModel();
+  const available = await fetchAvailableModels(key);
+
+  if (available.length > 0) {
+    if (cached && available.includes(cached)) {
+      return cached;
+    }
+    for (const pattern of PREFERRED_PATTERNS) {
+      const match = available.find((m) => pattern.test(m));
+      if (match) {
+        setStoredActiveModel(match);
+        return match;
+      }
+    }
+    const fallback = available[0];
+    setStoredActiveModel(fallback);
+    return fallback;
+  }
+
+  return cached || CANDIDATE_MODELS[0];
 }
 
 interface CallGeminiOptions {
@@ -34,15 +134,19 @@ interface CallGeminiOptions {
 
 export async function callBrowserGemini(
   key: string,
-  { parts, json = false, temperature = 0.7, timeoutMs = 60000, model = DEFAULT_MODEL }: CallGeminiOptions
+  { parts, json = false, temperature = 0.7, timeoutMs = 60000, model }: CallGeminiOptions
 ): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const endpoint = (m: string) =>
-    `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`;
+  const endpoint = (m: string) => {
+    const clean = m.replace(/^models\//, '');
+    return `https://generativelanguage.googleapis.com/v1beta/models/${clean}:generateContent?key=${encodeURIComponent(key)}`;
+  };
 
-  async function tryModel(targetModel: string): Promise<string> {
+  const initialModel = model || getStoredActiveModel() || CANDIDATE_MODELS[0];
+
+  async function execute(targetModel: string): Promise<string> {
     const res = await fetch(endpoint(targetModel), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -59,11 +163,9 @@ export async function callBrowserGemini(
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = body?.error?.message || `HTTP ${res.status}`;
-      if (res.status === 404 && targetModel !== FALLBACK_MODEL) {
-        // Fallback to 1.5-flash if 2.5 is not yet active on this key's region
-        return tryModel(FALLBACK_MODEL);
-      }
-      throw new Error(`Gemini API error: ${msg}`);
+      const err = new Error(`Gemini API error: ${msg}`);
+      (err as { status?: number }).status = res.status;
+      throw err;
     }
 
     const text = (body.candidates?.[0]?.content?.parts || [])
@@ -75,11 +177,43 @@ export async function callBrowserGemini(
       throw new Error(`Gemini returned an empty response (${reason}).`);
     }
 
+    setStoredActiveModel(targetModel);
     return text;
   }
 
   try {
-    return await tryModel(model);
+    try {
+      return await execute(initialModel);
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 404) {
+        // Model not found or not supported in this region/key: find available models or iterate candidates
+        let modelsToTry: string[] = [];
+        try {
+          const discovered = await fetchAvailableModels(key);
+          modelsToTry = discovered.filter((m) => m !== initialModel);
+        } catch {
+          // If fetchAvailableModels failed, fallback to static candidates
+        }
+        if (modelsToTry.length === 0) {
+          modelsToTry = CANDIDATE_MODELS.filter((m) => m !== initialModel);
+        }
+
+        let lastErr = err;
+        for (const candidate of modelsToTry) {
+          try {
+            return await execute(candidate);
+          } catch (retryErr: unknown) {
+            lastErr = retryErr;
+            if ((retryErr as { status?: number })?.status !== 404) {
+              throw retryErr;
+            }
+          }
+        }
+        throw lastErr;
+      }
+      throw err;
+    }
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error('Gemini request timed out. Please check your connection and try again.');
@@ -92,12 +226,15 @@ export async function callBrowserGemini(
 
 export async function validateGeminiKey(key: string): Promise<{ ok: boolean; error?: string; model?: string }> {
   try {
+    const model = await resolveBestModel(key);
     const res = await callBrowserGemini(key, {
       parts: [{ text: 'Respond with "OK"' }],
       temperature: 0.1,
-      timeoutMs: 10000,
+      timeoutMs: 12000,
+      model,
     });
-    return { ok: res.length > 0, model: DEFAULT_MODEL };
+    const active = getStoredActiveModel() || model;
+    return { ok: res.length > 0, model: active };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }

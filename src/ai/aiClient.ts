@@ -3,6 +3,7 @@ import {
   getStoredBrowserKey,
   setStoredBrowserKey,
   clearStoredBrowserKey,
+  getStoredActiveModel,
   browserTranscribe,
   browserMix,
   validateGeminiKey,
@@ -43,7 +44,7 @@ export async function aiStatus(): Promise<AiStatus | null> {
 
   return {
     hasKey: !!key,
-    model: 'gemini-2.5-flash',
+    model: getStoredActiveModel() || 'gemini-2.0-flash',
     local: {
       running: localRunning,
       hasModel: hasLocalModel,

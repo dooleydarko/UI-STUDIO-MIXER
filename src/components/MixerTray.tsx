@@ -633,6 +633,12 @@ export const MixerTray: React.FC<MixerTrayProps> = ({
                       type="password"
                       value={keyDraft}
                       onChange={(e) => setKeyDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !keyBusy && keyDraft.trim().length >= 20) {
+                          e.preventDefault();
+                          connectWithKey(keyDraft);
+                        }
+                      }}
                       placeholder="Paste AIzaSy... key here"
                       autoComplete="off"
                       className={`flex-1 min-w-0 px-3 py-1.5 rounded-lg text-[11px] border focus:outline-none ${field}`}
@@ -655,8 +661,16 @@ export const MixerTray: React.FC<MixerTrayProps> = ({
 
               {provider === 'gemini' && ai?.hasKey && (
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-emerald-400">Gemini connected</span>
-                  <button type="button" onClick={handleRemoveKey} className={`text-[10px] hover:text-red-400 ${faint}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[11px] text-emerald-400 font-medium">Gemini connected</span>
+                    {ai.model && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-mono border border-emerald-500/20">
+                        {ai.model}
+                      </span>
+                    )}
+                  </div>
+                  <button type="button" onClick={handleRemoveKey} className={`text-[10px] hover:text-red-400 ${faint} transition-colors`}>
                     Disconnect
                   </button>
                 </div>
