@@ -90,6 +90,9 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
   const [proxyHealth, setProxyHealth] = useState<ProxyHealth | null>(null);
   const [proxyError, setProxyError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [isBuildingUpdate, setIsBuildingUpdate] = useState(false);
+  const [updateLog, setUpdateLog] = useState<string | null>(null);
+  const [appCommit, setAppCommit] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string>('Just now');
 
   const checkProxyAndSync = async () => {
@@ -104,9 +107,41 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
     } catch (err: unknown) {
       setProxyHealth(null);
       setProxyError(err instanceof Error ? err.message : 'Unreachable');
+    }
+
+    try {
+      const statusRes = await fetch('http://127.0.0.1:4173/api/app-status');
+      if (statusRes.ok) {
+        const st = await statusRes.json();
+        setAppCommit(st.commit || null);
+      }
+    } catch {
+      // Running in Vite dev server rather than desktop appServer
     } finally {
       setLastSyncedAt(new Date().toLocaleTimeString());
       setIsChecking(false);
+    }
+  };
+
+  const handleRebuildUpdate = async () => {
+    setIsBuildingUpdate(true);
+    setUpdateLog('Running npm run build via local desktop app server...');
+    try {
+      const res = await fetch('http://127.0.0.1:4173/api/app-update', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setUpdateLog(`Build failed:\n${data.log || data.message || `HTTP ${res.status}`}`);
+      } else {
+        setAppCommit(data.commit || null);
+        setUpdateLog(`Update applied cleanly (${data.commit || 'latest'}). Reloading app...`);
+        setTimeout(() => window.location.reload(), 900);
+      }
+    } catch (err: unknown) {
+      setUpdateLog(
+        `Desktop app update server not reachable on :4173 (${err instanceof Error ? err.message : 'offline'}). Launch from UI Mixer Studio.app or AI Engine Foundry.app.`
+      );
+    } finally {
+      setIsBuildingUpdate(false);
     }
   };
 
@@ -296,7 +331,15 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleRebuildUpdate}
+                  disabled={isBuildingUpdate}
+                  className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 transition"
+                >
+                  <Download className={`w-3.5 h-3.5 ${isBuildingUpdate ? 'animate-bounce' : ''}`} />
+                  <span>{isBuildingUpdate ? 'Rebuilding App...' : 'Rebuild & Apply Update'}</span>
+                </button>
                 <button
                   onClick={checkProxyAndSync}
                   disabled={isChecking}
@@ -312,6 +355,16 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
                   Hard Reload App
                 </button>
               </div>
+              {appCommit && (
+                <div className="w-full text-[11px] font-mono text-neutral-400">
+                  Running desktop build: <span className="text-cyan-300">{appCommit}</span>
+                </div>
+              )}
+              {updateLog && (
+                <pre className="w-full p-2.5 rounded-lg bg-black border border-cyan-500/30 text-[10px] font-mono text-cyan-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {updateLog}
+                </pre>
+              )}
             </div>
           </div>
 

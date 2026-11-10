@@ -71,6 +71,12 @@ export const App: React.FC = () => {
   const [isQueueDockOpen, setIsQueueDockOpen] = useState(false);
   const [isVideoStudioOpen, setIsVideoStudioOpen] = useState(false);
   const [isUpdatePatchOpen, setIsUpdatePatchOpen] = useState(false);
+  const [updateBannerState, setUpdateBannerState] = useState<{
+    visible: boolean;
+    applying: boolean;
+    error: string | null;
+  }>({ visible: false, applying: false, error: null });
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const handleSyncStorage = () => {
     const loadedSettings = storage.getSettings();
@@ -84,6 +90,52 @@ export const App: React.FC = () => {
   useEffect(() => {
     handleSyncStorage();
   }, []);
+
+  // Poll desktop app server for available updates and prompt the user
+  useEffect(() => {
+    let active = true;
+    const checkUpdates = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:4173/api/app-status');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active && data.updateAvailable && !updateDismissed) {
+          setUpdateBannerState((prev) => ({ ...prev, visible: true }));
+        }
+      } catch {
+        // Desktop appServer not active (e.g. Vite dev server)
+      }
+    };
+    checkUpdates();
+    const timer = setInterval(checkUpdates, 12000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [updateDismissed]);
+
+  const handleApplyPromptedUpdate = async () => {
+    setUpdateBannerState({ visible: true, applying: true, error: null });
+    try {
+      const res = await fetch('http://127.0.0.1:4173/api/app-update', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setUpdateBannerState({
+          visible: true,
+          applying: false,
+          error: data.message || 'Rebuild failed',
+        });
+        return;
+      }
+      window.location.reload();
+    } catch (err: unknown) {
+      setUpdateBannerState({
+        visible: true,
+        applying: false,
+        error: err instanceof Error ? err.message : 'Update failed',
+      });
+    }
+  };
 
   // Dynamically update physical app icon, PWA manifest, and URL per active app
   useEffect(() => {
@@ -567,6 +619,51 @@ export const App: React.FC = () => {
         isOpen={isVideoStudioOpen}
         onClose={() => setIsVideoStudioOpen(false)}
       />
+
+      {/* Automatic Update Available Notification Prompt */}
+      {updateBannerState.visible && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-2xl border border-emerald-500/40 bg-neutral-950/95 backdrop-blur-2xl p-4 shadow-2xl shadow-emerald-950/50 text-xs text-neutral-100 space-y-2.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <RefreshCw className={`w-4 h-4 text-emerald-400 ${updateBannerState.applying ? 'animate-spin' : ''}`} />
+              <span className="font-bold text-sm text-emerald-300">App Update Available</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUpdateDismissed(true);
+                setUpdateBannerState({ visible: false, applying: false, error: null });
+              }}
+              className="text-neutral-400 hover:text-white text-[11px]"
+            >
+              Later
+            </button>
+          </div>
+          <p className="text-neutral-300 leading-relaxed">
+            New updates are ready in your workspace. Do you want to rebuild and apply them now?
+          </p>
+          {updateBannerState.error && (
+            <p className="text-rose-400 font-mono text-[11px]">{updateBannerState.error}</p>
+          )}
+          <div className="flex items-center gap-2 pt-0.5">
+            <button
+              type="button"
+              disabled={updateBannerState.applying}
+              onClick={handleApplyPromptedUpdate}
+              className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold transition"
+            >
+              {updateBannerState.applying ? 'Updating & Reloading...' : 'Update Now'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsUpdatePatchOpen(true)}
+              className="py-1.5 px-3 rounded-xl border border-white/15 hover:bg-white/10 text-neutral-300 font-medium transition"
+            >
+              Patch Log
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Unified App Update & Patch Center Modal */}
       <UpdatePatchModal
