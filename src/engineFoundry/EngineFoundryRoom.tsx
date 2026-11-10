@@ -172,9 +172,11 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
         isFrost ? 'bg-white/80 border-slate-200 backdrop-blur' : 'bg-neutral-900/60 border-white/10 backdrop-blur'
       }`}>
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/20">
-            <Cpu className="w-5 h-5 animate-pulse" />
-          </div>
+          <img
+            src="/icon-engine-foundry.svg"
+            alt="AI Engine Foundry Emblem"
+            className="w-10 h-10 rounded-xl shadow-lg shadow-cyan-500/20 border border-cyan-500/40"
+          />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold tracking-tight">AI Engine Foundry</h1>
@@ -280,11 +282,18 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
                 }`}
               >
                 <div>
-                  {/* Top Badges */}
+                  {/* Top Badges & Emblem */}
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                      {eng.category.replace('_', ' ')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={eng.emblemUrl || '/icon-engine-foundry.svg'}
+                        alt={eng.name}
+                        className="w-6 h-6 rounded-lg border border-cyan-500/30"
+                      />
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                        {eng.category.replace('_', ' ')}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       <span>{eng.latencyEstimateMs}ms</span>

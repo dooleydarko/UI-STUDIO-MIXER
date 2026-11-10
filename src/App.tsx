@@ -19,6 +19,7 @@ const Studio3DWorkstation = lazy(() =>
   import('./studio3d/Studio3DWorkstation').then((m) => ({ default: m.Studio3DWorkstation }))
 );
 import { BuildProgressModal } from './components/BuildProgressModal';
+import { UpdatePatchModal } from './components/UpdatePatchModal';
 import { 
   Sparkles, 
   Box, 
@@ -31,14 +32,24 @@ import {
   HardDrive,
   Sliders,
   Film,
-  Cpu
+  Cpu,
+  RefreshCw
 } from 'lucide-react';
 
 export const App: React.FC = () => {
   const storage = StorageManager.getInstance();
   const mixerEngine = CodeMixerEngine.getInstance();
 
-  const [activeWorkspace, setActiveWorkspace] = useState<'ui_playground' | '3d_studio' | 'discovery' | 'engine_foundry'>('ui_playground');
+  const [activeWorkspace, setActiveWorkspace] = useState<'ui_playground' | '3d_studio' | 'discovery' | 'engine_foundry'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const room = params.get('room') || window.location.hash.replace('#', '');
+      if (room === 'engine_foundry' || room === '3d_studio' || room === 'discovery' || room === 'ui_playground') {
+        return room;
+      }
+    }
+    return 'engine_foundry';
+  });
   const [theme, setTheme] = useState<'obsidian' | 'frost'>('obsidian');
   const [components, setComponents] = useState<ComponentPackage[]>([]);
   const [projects3D, setProjects3D] = useState<Product3DProject[]>([]);
@@ -59,15 +70,40 @@ export const App: React.FC = () => {
   const [queue, setQueue] = useState<QueuedComponent[]>([]);
   const [isQueueDockOpen, setIsQueueDockOpen] = useState(false);
   const [isVideoStudioOpen, setIsVideoStudioOpen] = useState(false);
+  const [isUpdatePatchOpen, setIsUpdatePatchOpen] = useState(false);
 
-  // Initial load
-  useEffect(() => {
+  const handleSyncStorage = () => {
     const loadedSettings = storage.getSettings();
     setTheme(loadedSettings.theme);
     setComponents(storage.loadComponents());
     setProjects3D(storage.load3DProjects());
     setQueue(storage.loadQueue());
+  };
+
+  // Initial load
+  useEffect(() => {
+    handleSyncStorage();
   }, []);
+
+  // Dynamically update physical app icon, PWA manifest, and URL per active app
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isFoundry = activeWorkspace === 'engine_foundry';
+    const iconHref = isFoundry ? '/icon-engine-foundry.svg' : '/icon-ui-studio.svg';
+    const manifestHref = isFoundry ? '/manifest-engine.json' : '/manifest-ui.json';
+    document.title = isFoundry ? 'Antigravity AI Engine Foundry' : 'Antigravity UI Mixer Studio';
+
+    const iconEl = document.getElementById('app-icon') as HTMLLinkElement | null;
+    if (iconEl) iconEl.href = iconHref;
+    const touchEl = document.getElementById('apple-touch-icon') as HTMLLinkElement | null;
+    if (touchEl) touchEl.href = iconHref;
+    const manifestEl = document.getElementById('app-manifest') as HTMLLinkElement | null;
+    if (manifestEl) manifestEl.href = manifestHref;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', activeWorkspace);
+    window.history.replaceState({}, '', url.toString());
+  }, [activeWorkspace]);
 
   const handleToggleTheme = () => {
     const nextTheme = theme === 'obsidian' ? 'frost' : 'obsidian';
@@ -201,15 +237,26 @@ export const App: React.FC = () => {
       }`}>
         {/* Brand Logo & Workstation Mode Pill */}
         <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-500 flex items-center justify-center text-black font-black shadow-md shadow-sky-500/30 text-sm">
-              AG
-            </div>
+          <button
+            type="button"
+            onClick={() => setIsUpdatePatchOpen(true)}
+            className="flex items-center gap-2.5 text-left group"
+            title="Open Unified App Update & Patch Center"
+          >
+            <img
+              src={activeWorkspace === 'engine_foundry' ? '/icon-engine-foundry.svg' : '/icon-ui-studio.svg'}
+              alt="App Icon"
+              className="w-8 h-8 rounded-xl shadow-md border border-white/15 group-hover:scale-105 transition-transform"
+            />
             <div>
-              <span className="text-xs font-extrabold tracking-tight block">ANTIGRAVITY</span>
-              <span className="text-[9px] font-mono tracking-widest text-sky-400 block -mt-0.5">STUDIO v1.0</span>
+              <span className="text-xs font-extrabold tracking-tight block">
+                {activeWorkspace === 'engine_foundry' ? 'ENGINE FOUNDRY' : 'UI MIXER STUDIO'}
+              </span>
+              <span className="text-[9px] font-mono tracking-widest text-sky-400 block -mt-0.5">
+                v1.4 PATCH READY
+              </span>
             </div>
-          </div>
+          </button>
 
           {/* Workspace Switcher */}
           <div className={`flex items-center p-1 rounded-2xl border ${
@@ -278,6 +325,21 @@ export const App: React.FC = () => {
             <HardDrive className="w-3 h-3 text-emerald-400" />
             <span>SanDisk Extreme (860GB)</span>
           </div>
+
+          {/* Update & Patch Menu Button */}
+          <button
+            type="button"
+            onClick={() => setIsUpdatePatchOpen(true)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              isFrost
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 shadow-sm'
+                : 'bg-emerald-950/60 hover:bg-emerald-900/60 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/40'
+            }`}
+            title="Open Unified App Update & Patch Menu"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Update Patch</span>
+          </button>
 
           {/* OmniVideo Studio Button */}
           <button
@@ -504,6 +566,16 @@ export const App: React.FC = () => {
       <VideoStudioDrawer
         isOpen={isVideoStudioOpen}
         onClose={() => setIsVideoStudioOpen(false)}
+      />
+
+      {/* Unified App Update & Patch Center Modal */}
+      <UpdatePatchModal
+        isOpen={isUpdatePatchOpen}
+        onClose={() => setIsUpdatePatchOpen(false)}
+        activeWorkspace={activeWorkspace}
+        onSwitchWorkspace={setActiveWorkspace}
+        onSyncStorage={handleSyncStorage}
+        theme={theme}
       />
     </div>
   );

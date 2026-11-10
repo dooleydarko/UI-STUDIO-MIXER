@@ -1,0 +1,17 @@
+{
+  "name": "Antigravity AI Engine Foundry",
+  "short_name": "Engine Foundry",
+  "description": "Modular AI Engine Library, Hybrid Model Mixer & Multi-Provider Proxy Control",
+  "start_url": "/?room=engine_foundry",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "/icon-engine-foundry.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Antigravity UI Mixer Studio",
+  "short_name": "UI Studio",
+  "description": "Infinite Canvas UI Component Library, AI Code Mixer & 3D Product Studio",
+  "start_url": "/?room=ui_playground",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "/icon-ui-studio.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
