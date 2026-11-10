@@ -91,12 +91,15 @@ export const App: React.FC = () => {
     handleSyncStorage();
   }, []);
 
+  const getAppServerBase = () =>
+    typeof window !== 'undefined' && window.location.port === '4173' ? '' : 'http://127.0.0.1:4173';
+
   // Poll desktop app server for available updates and prompt the user
   useEffect(() => {
     let active = true;
     const checkUpdates = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:4173/api/app-status');
+        const res = await fetch(`${getAppServerBase()}/api/app-status`);
         if (!res.ok) return;
         const data = await res.json();
         if (active && data.updateAvailable && !updateDismissed) {
@@ -117,7 +120,7 @@ export const App: React.FC = () => {
   const handleApplyPromptedUpdate = async () => {
     setUpdateBannerState({ visible: true, applying: true, error: null });
     try {
-      const res = await fetch('http://127.0.0.1:4173/api/app-update', { method: 'POST' });
+      const res = await fetch(`${getAppServerBase()}/api/app-update`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setUpdateBannerState({
@@ -129,10 +132,11 @@ export const App: React.FC = () => {
       }
       window.location.reload();
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Update failed';
       setUpdateBannerState({
         visible: true,
         applying: false,
-        error: err instanceof Error ? err.message : 'Update failed',
+        error: `${msg} — desktop app server (:4173) may be offline. Run "npm run apps:serve" or reopen the app.`,
       });
     }
   };

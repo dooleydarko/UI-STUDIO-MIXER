@@ -113,10 +113,22 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
+function findNpmBinary() {
+  if (process.platform === 'win32') return 'npm.cmd';
+  for (const p of ['/usr/local/bin/npm', '/opt/homebrew/bin/npm', '/usr/bin/npm']) {
+    if (fs.existsSync(p)) return p;
+  }
+  return 'npm';
+}
+
 function runAppBuild() {
   return new Promise((resolve) => {
-    const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const child = spawn(npmBin, ['run', 'build'], { cwd: ROOT_DIR });
+    const npmBin = findNpmBinary();
+    const env = {
+      ...process.env,
+      PATH: `/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${process.env.PATH || ''}`,
+    };
+    const child = spawn(npmBin, ['run', 'build'], { cwd: ROOT_DIR, env });
     let output = '';
     child.stdout.on('data', (d) => (output += d.toString()));
     child.stderr.on('data', (d) => (output += d.toString()));

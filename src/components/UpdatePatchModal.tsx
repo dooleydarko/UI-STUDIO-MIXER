@@ -95,6 +95,9 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
   const [appCommit, setAppCommit] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string>('Just now');
 
+  const getAppServerBase = () =>
+    typeof window !== 'undefined' && window.location.port === '4173' ? '' : 'http://127.0.0.1:4173';
+
   const checkProxyAndSync = async () => {
     setIsChecking(true);
     setProxyError(null);
@@ -110,7 +113,7 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
     }
 
     try {
-      const statusRes = await fetch('http://127.0.0.1:4173/api/app-status');
+      const statusRes = await fetch(`${getAppServerBase()}/api/app-status`);
       if (statusRes.ok) {
         const st = await statusRes.json();
         setAppCommit(st.commit || null);
@@ -127,7 +130,7 @@ export const UpdatePatchModal: React.FC<UpdatePatchModalProps> = ({
     setIsBuildingUpdate(true);
     setUpdateLog('Running npm run build via local desktop app server...');
     try {
-      const res = await fetch('http://127.0.0.1:4173/api/app-update', { method: 'POST' });
+      const res = await fetch(`${getAppServerBase()}/api/app-update`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setUpdateLog(`Build failed:\n${data.log || data.message || `HTTP ${res.status}`}`);

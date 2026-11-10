@@ -210,7 +210,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
     }
 
     @objc func reloadView() {
-        webView.reload()
+        isServerAlive { [weak self] alive in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if alive {
+                    self.webView.reload()
+                } else {
+                    self.ensureLocalServerAndLoad()
+                }
+            }
+        }
     }
 
     @objc func launchCompanionApp() {
