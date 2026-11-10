@@ -95,8 +95,11 @@ export function scopeCss(rawCss: string, scopeClass: string): string {
     // Process selectors
     const selectors = rawSelectors.split(',').map(s => s.trim()).filter(Boolean);
     const scopedSelectors = selectors.map(sel => {
+      if (sel === '*') {
+        return `.${scopeClass}, .${scopeClass} *`;
+      }
       // Remap body, html, :root to scopeClass
-      if (sel === 'body' || sel === 'html' || sel === ':root' || sel === '*') {
+      if (sel === 'body' || sel === 'html' || sel === ':root') {
         return `.${scopeClass}`;
       }
       if (sel.startsWith('body ') || sel.startsWith('html ')) {
@@ -154,6 +157,7 @@ export function buildSandboxedDocument(
     .sandboxed-container {
       width: 100%;
       min-height: 100%;
+      padding: 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -161,6 +165,14 @@ export function buildSandboxedDocument(
       position: relative;
       transform-style: preserve-3d;
       perspective: 1200px;
+    }
+    .sandboxed-container > * {
+      max-width: 100%;
+    }
+    .sandboxed-container svg {
+      max-width: 100%;
+      max-height: 260px;
+      flex-shrink: 0;
     }
     ${processedCss}
   </style>

@@ -363,6 +363,80 @@ if (sw && txt) {
     };
   }
 
+  // 2.5 Loader / Spinner / Progress
+  if (p.includes('loader') || p.includes('spinner') || p.includes('loading') || p.includes('orbit')) {
+    return {
+      name: `${theme.name} Orbital Loader`,
+      html: `<div class="loader-wrap">
+  <div class="orbit-ring outer"></div>
+  <div class="orbit-ring mid"></div>
+  <div class="orbit-core"></div>
+  <span class="loader-caption">SYNCHRONIZING...</span>
+</div>`,
+      css: `* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.loader-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+.orbit-ring.outer {
+  width: 96px;
+  height: 96px;
+  border-top-color: ${theme.primary};
+  border-right-color: ${theme.accent};
+  box-shadow: 0 0 24px ${theme.glow};
+  animation: spinCW 1.2s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+}
+.orbit-ring.mid {
+  width: 62px;
+  height: 62px;
+  border-bottom-color: ${theme.primary};
+  border-left-color: ${theme.accent};
+  animation: spinCCW 0.85s linear infinite;
+}
+.orbit-core {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: ${theme.primary};
+  box-shadow: 0 0 18px ${theme.primary};
+  animation: corePulse 1.4s ease-in-out infinite;
+}
+.loader-caption {
+  position: absolute;
+  bottom: 4px;
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: ${theme.primary};
+}
+@keyframes spinCW { to { transform: rotate(360deg); } }
+@keyframes spinCCW { to { transform: rotate(-360deg); } }
+@keyframes corePulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.7; }
+  50% { transform: scale(1.25); opacity: 1; }
+}`,
+      js: '',
+    };
+  }
+
   // 3. Default: Glassmorphic Obsidian Card with holographic badge
   return {
     name: `${theme.name} Quantum Card`,
@@ -515,7 +589,8 @@ if (btn) {
  */
 export async function generateNativeUi(
   prompt: string,
-  onProgress?: (p: GenerationProgress) => void
+  onProgress?: (p: GenerationProgress) => void,
+  engineMode: 'hybrid' | 'webgpu' | 'ast' | 'gemini' = 'hybrid'
 ): Promise<ComponentPackage> {
   const cleanPrompt = prompt.trim();
   if (!cleanPrompt) throw new Error('Prompt cannot be empty.');
@@ -525,8 +600,8 @@ export async function generateNativeUi(
   const key = getStoredBrowserKey();
   let generatedData: { html: string; css: string; js: string; name: string } | null = null;
 
-  // 1. If Gemini key is available, use it for neural synthesis
-  if (key) {
+  // 1. If Gemini key is available (and not forced to AST-only), use it for neural synthesis
+  if (key && engineMode !== 'ast') {
     onProgress?.({ step: 'synthesizing', message: 'Synthesizing layout and interactivity with Gemini...' });
     try {
       const systemPrompt = `You are an elite front-end UI designer.
@@ -562,8 +637,46 @@ RULES:
     }
   }
 
-  // 2. If no cloud key or it failed, check local Ollama
-  if (!generatedData) {
+  // 2. Try local FreeLLM proxy (:3001) or Ollama (:11434) unless AST-only mode
+  if (!generatedData && engineMode !== 'ast') {
+    onProgress?.({ step: 'synthesizing', message: 'Querying local FreeLLM proxy...' });
+    try {
+      const proxyRes = await fetch('http://localhost:3001/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Return ONLY raw JSON {"name":"","html":"","css":"","js":""} for a complete self-contained HTML/CSS/JS component with centered dark-mode styling. No markdown fences.',
+            },
+            { role: 'user', content: cleanPrompt },
+          ],
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (proxyRes.ok) {
+        const body = await proxyRes.json();
+        const raw = body?.choices?.[0]?.message?.content || '';
+        const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+        const parsed = JSON.parse(cleaned);
+        if (parsed.html && parsed.css) {
+          generatedData = {
+            name: String(parsed.name || cleanPrompt).slice(0, 48),
+            html: String(parsed.html),
+            css: String(parsed.css),
+            js: String(parsed.js || ''),
+          };
+        }
+      }
+    } catch {
+      // Proxy has no keys yet or offline
+    }
+  }
+
+  if (!generatedData && engineMode !== 'ast') {
     onProgress?.({ step: 'synthesizing', message: 'Querying local model...' });
     try {
       const ollamaRes = await fetch('http://127.0.0.1:11434/api/generate', {

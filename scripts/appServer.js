@@ -141,6 +141,69 @@ const server = http.createServer(async (req, res) => {
   const reqUrl = new URL(req.url || '/', `http://127.0.0.1:${PORT}`);
   const pathname = reqUrl.pathname;
 
+  if (req.method === 'GET' && pathname === '/api/fetch-component') {
+    const target = reqUrl.searchParams.get('url') || '';
+    if (!/^https?:\/\//i.test(target)) {
+      return sendJson(res, 400, { ok: false, error: 'Invalid URL' });
+    }
+    try {
+      const upstream = await fetch(target, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!upstream.ok) {
+        return sendJson(res, 502, { ok: false, error: `Upstream returned HTTP ${upstream.status}` });
+      }
+      const text = await upstream.text();
+
+      // 1. Uiverse Next.js __NEXT_DATA__
+      const nextMatch = text.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+      if (nextMatch) {
+        try {
+          const parsed = JSON.parse(nextMatch[1]);
+          const post = parsed?.props?.pageProps?.post;
+          if (post && (post.html || post.css)) {
+            return sendJson(res, 200, {
+              ok: true,
+              name: post.title || post.name || '',
+              html: post.html || '',
+              css: post.css || '',
+              js: post.js || '',
+            });
+          }
+        } catch {
+          // continue to other extractors
+        }
+      }
+
+      // 2. Remix / React Router / JSON embedded {"html": "...", "css": "..."}
+      const jsonPair = text.match(/"html"\s*:\s*"((?:\\.|[^"\\])+)"\s*,\s*"css"\s*:\s*"((?:\\.|[^"\\])*)"/);
+      if (jsonPair) {
+        try {
+          const htmlVal = JSON.parse(`"${jsonPair[1]}"`);
+          const cssVal = JSON.parse(`"${jsonPair[2]}"`);
+          if (htmlVal) {
+            return sendJson(res, 200, { ok: true, name: '', html: htmlVal, css: cssVal, js: '' });
+          }
+        } catch {
+          // continue
+        }
+      }
+
+      // 3. Raw snippet (not a full webpage shell)
+      if (!/<html[\s>]|<!doctype/i.test(text)) {
+        return sendJson(res, 200, { ok: true, raw: text });
+      }
+
+      return sendJson(res, 422, {
+        ok: false,
+        error: 'Could not extract a standalone UI component from this URL. Copy the HTML and CSS tabs directly and paste them into Separate or Smart Paste.',
+      });
+    } catch (err) {
+      return sendJson(res, 502, { ok: false, error: err instanceof Error ? err.message : 'Fetch failed' });
+    }
+  }
+
   if (req.method === 'GET' && pathname === '/api/app-status') {
     let proxy = null;
     try {

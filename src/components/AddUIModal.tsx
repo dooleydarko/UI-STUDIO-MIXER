@@ -241,23 +241,61 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
     setStatusMessage({ text: 'Fetching component from link...', type: 'info' });
 
     try {
-      // 1. Try direct fetch first
+      // 1. Prefer local desktop app server proxy (bypasses CORS and extracts Uiverse/Remix JSON cleanly)
+      try {
+        const localRes = await fetch(
+          `http://127.0.0.1:4173/api/fetch-component?url=${encodeURIComponent(targetUrl)}`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        const localData = await localRes.json();
+        if (localRes.ok && localData.ok) {
+          if (localData.raw) {
+            const parsed = splitCombinedHtmlCssJs(localData.raw);
+            if (parsed.html) setHtml(parsed.html);
+            if (parsed.css) setCss(parsed.css);
+            if (parsed.js) setJs(parsed.js);
+            const derived = parsed.name || deriveComponentName(parsed.html, targetUrl);
+            setName(derived);
+            setSourceUrl(targetUrl);
+            showStatus(`Imported "${derived}" successfully!`, 'success');
+            setActiveTab('separate');
+            return;
+          }
+          if (localData.html || localData.css) {
+            if (localData.html) setHtml(localData.html);
+            if (localData.css) setCss(localData.css);
+            if (localData.js) setJs(localData.js);
+            const derived = localData.name || deriveComponentName(localData.html || '', targetUrl);
+            setName(derived);
+            setSourceUrl(targetUrl);
+            showStatus(`Imported "${derived}" successfully!`, 'success');
+            setActiveTab('separate');
+            return;
+          }
+        } else if (localData && localData.error) {
+          throw new Error(localData.error);
+        }
+      } catch (localErr) {
+        if (localErr instanceof Error && localErr.message.includes('standalone UI component')) {
+          throw localErr;
+        }
+      }
+
+      // 2. Browser fetch fallback
       let pageText = '';
       try {
         const res = await fetch(targetUrl, { signal: AbortSignal.timeout(6000) });
         if (res.ok) pageText = await res.text();
       } catch {
-        // Direct fetch failed (likely CORS), try CORS proxy gateway
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
         const resProxy = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
         if (resProxy.ok) pageText = await resProxy.text();
       }
 
       if (!pageText) {
-        throw new Error('Could not fetch page. The site may block external scripts.');
+        throw new Error('Could not fetch page. The site may block external requests.');
       }
 
-      // Check for Uiverse Next.js __NEXT_DATA__
       let extractedName = '';
       let extractedHtml = '';
       let extractedCss = '';
@@ -279,8 +317,9 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
         }
       }
 
-      // Fallback: parse raw HTML & <style> tags from page
-      if (!extractedHtml && !extractedCss) {
+      // Never dump an entire <html> webpage shell into html as a broken fragment
+      const isFullWebpage = /<!doctype|<html[\s>]/i.test(pageText);
+      if (!extractedHtml && !extractedCss && !isFullWebpage) {
         const parsed = splitCombinedHtmlCssJs(pageText);
         extractedHtml = parsed.html;
         extractedCss = parsed.css;
@@ -296,7 +335,7 @@ export const AddUIModal: React.FC<AddUIModalProps> = ({
         showStatus(`Imported "${derived}" successfully!`, 'success');
         setActiveTab('separate');
       } else {
-        throw new Error('No usable HTML/CSS found on that page.');
+        throw new Error('Could not extract a standalone component from that page.');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Fetch failed';

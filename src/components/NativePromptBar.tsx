@@ -37,7 +37,7 @@ export const NativePromptBar: React.FC<NativePromptBarProps> = ({
     setProgress({ step: 'analyzing', message: `Initializing ${engineLabels[engineMode].label}...` });
 
     try {
-      const pkg = await generateNativeUi(text, setProgress);
+      const pkg = await generateNativeUi(text, setProgress, engineMode);
       onComponentGenerated(pkg);
       setPrompt('');
       setProgress(null);
