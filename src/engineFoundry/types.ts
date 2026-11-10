@@ -32,6 +32,8 @@ export interface EnginePackage {
   author: string;
   emblemUrl?: string;
   emblemSvg?: string;
+  canvasX?: number;
+  canvasY?: number;
 }
 
 export interface HybridEngineMix {
@@ -160,7 +162,7 @@ export const STARTER_ENGINES_CATALOG: EnginePackage[] = [
     schemaProtocol: 'webgpu',
     tags: ['Offline', 'WebGPU', 'Intel Iris Plus', 'Zero Bandwidth'],
     status: 'online',
-    samplePrompt: 'Render procedural procedural normal maps and liquid glass refraction.',
+    samplePrompt: 'Render procedural normal maps and liquid glass refraction.',
     benchmarkScore: '60 FPS Direct GPU',
     author: 'Antigravity Shaders',
   },

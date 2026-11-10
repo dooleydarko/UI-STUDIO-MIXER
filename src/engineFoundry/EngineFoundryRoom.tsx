@@ -1,38 +1,45 @@
-import React, { useState } from 'react';
-import { 
-  Cpu, 
-  Sparkles, 
-  Layers, 
-  Terminal, 
-  Zap, 
-  ShieldCheck, 
-  Search, 
-  Copy, 
-  Check, 
-  Play, 
-  Filter, 
-  Plus, 
-  ExternalLink, 
-  Flame, 
-  Sliders, 
-  Film,
+import React, { useState, useEffect } from 'react';
+import {
+  Sparkles,
+  Layers,
+  Zap,
+  Search,
+  Plus,
+  Play,
   RotateCw,
-  Boxes
+  LayoutGrid,
+  Move,
+  Code2,
+  Upload,
+  Check,
+  Copy,
+  CheckCircle2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { EnginePackage, EngineCategory, STARTER_ENGINES_CATALOG, HybridEngineMix } from './types';
+import { StorageManager } from '../storage/storageManager';
+import { EngineCard } from './EngineCard';
+import { EngineCanvasMirror } from './EngineCanvasMirror';
 
 interface EngineFoundryRoomProps {
   theme: 'obsidian' | 'frost';
   onLaunchClaudeFree?: () => void;
 }
 
-export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onLaunchClaudeFree }) => {
+export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme }) => {
   const isFrost = theme === 'frost';
+  const storage = StorageManager.getInstance();
 
-  const [engines, setEngines] = useState<EnginePackage[]>(STARTER_ENGINES_CATALOG);
+  const [engines, setEngines] = useState<EnginePackage[]>(() => storage.loadEngines());
+  const [viewMode, setViewMode] = useState<'rack' | 'canvas'>('rack');
   const [selectedCategory, setSelectedCategory] = useState<EngineCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [proxyStatus, setProxyStatus] = useState<{ state: 'checking' | 'ready' | 'no-keys' | 'offline'; providers: string[] }>({
+    state: 'checking',
+    providers: [],
+  });
 
   // Engine Mixer State
   const [mixerSelectedEngineIds, setMixerSelectedEngineIds] = useState<string[]>([]);
@@ -45,6 +52,12 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
   const [testOutput, setTestOutput] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
+  // Code & Emblem Inspector Modal State
+  const [codeEmblemEngine, setCodeEmblemEngine] = useState<EnginePackage | null>(null);
+  const [emblemUrlDraft, setEmblemUrlDraft] = useState('');
+  const [emblemSvgDraft, setEmblemSvgDraft] = useState('');
+  const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+
   // Import New Engine Modal State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [newEngineName, setNewEngineName] = useState('');
@@ -52,12 +65,32 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
   const [newEngineEndpoint, setNewEngineEndpoint] = useState('');
   const [newEngineDescription, setNewEngineDescription] = useState('');
 
+  const refreshProxyHealth = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/health');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const providers: string[] = Array.isArray(data.configuredProviders) ? data.configuredProviders : [];
+      setProxyStatus({
+        state: providers.length > 0 ? 'ready' : 'no-keys',
+        providers,
+      });
+    } catch {
+      setProxyStatus({ state: 'offline', providers: [] });
+    }
+  };
+
+  useEffect(() => {
+    setEngines(storage.loadEngines());
+    refreshProxyHealth();
+  }, []);
+
   const filteredEngines = engines.filter((eng) => {
     const matchesCategory = selectedCategory === 'all' || eng.category === selectedCategory;
-    const matchesSearch = 
+    const matchesSearch =
       eng.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       eng.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      eng.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      eng.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
@@ -68,23 +101,25 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
   };
 
   const handleToggleMixerSelection = (id: string) => {
-    setMixerSelectedEngineIds((prev) => 
-      prev.includes(id) 
-        ? prev.filter((item) => item !== id) 
-        : prev.length < 3 ? [...prev, id] : prev
+    setMixerSelectedEngineIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : prev.length < 3
+        ? [...prev, id]
+        : prev
     );
   };
 
   const handleSynthesizeMix = () => {
     if (mixerSelectedEngineIds.length < 2) return;
-    const selected = engines.filter(e => mixerSelectedEngineIds.includes(e.id));
+    const selected = engines.filter((e) => mixerSelectedEngineIds.includes(e.id));
     const mix: HybridEngineMix = {
       id: `mix-${Date.now()}`,
-      name: `Hybrid // ${selected.map(s => s.name.split(' ')[0]).join(' + ')}`,
+      name: `Hybrid // ${selected.map((s) => s.name.split(' ')[0]).join(' + ')}`,
       primaryEngineId: selected[0].id,
       secondaryEngineId: selected[1].id,
       fallbackEngineId: selected[2]?.id,
-      synthesizedPurpose: `Pipelines ${selected[0].name} for generation, verified by ${selected[1].name} with unmetered failover.`,
+      synthesizedPurpose: `Pipelines ${selected[0].name} for generation, verified by ${selected[1].name} with proxy failover.`,
       createdAt: Date.now(),
     };
     setSynthesizedPipeline(mix);
@@ -112,26 +147,77 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
       if (!res.ok) {
         setTestOutput(
           `[${eng.name} // HTTP ${res.status} Proxy Response]\n` +
-          `Latency: ${elapsed}ms\n\n` +
-          `${data?.error?.message || JSON.stringify(data, null, 2)}`
+            `Latency: ${elapsed}ms\n\n` +
+            `${data?.error?.message || JSON.stringify(data, null, 2)}`
         );
       } else {
         const reply = data?.choices?.[0]?.message?.content || '';
         const provider = data?.x_provider || data?.model || 'proxy';
         setTestOutput(
           `[${eng.name} // Live Proxy 200 OK via ${provider}]\n` +
-          `Latency: ${elapsed}ms | Model: ${data?.model || eng.id}\n\n` +
-          `${reply}`
+            `Latency: ${elapsed}ms | Model: ${data?.model || eng.id}\n\n` +
+            `${reply}`
         );
       }
+      refreshProxyHealth();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setTestOutput(
         `[${eng.name} // Connection Error]\n` +
-        `Could not reach http://localhost:3001/v1/chat/completions: ${msg}`
+          `Could not reach http://localhost:3001/v1/chat/completions: ${msg}`
       );
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleUpdatePosition = (id: string, x: number, y: number) => {
+    setEngines((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, canvasX: x, canvasY: y } : e))
+    );
+    storage.updateEngine(id, { canvasX: x, canvasY: y });
+  };
+
+  const handleOpenCodeEmblem = (eng: EnginePackage) => {
+    setCodeEmblemEngine(eng);
+    setEmblemUrlDraft(eng.emblemUrl || '');
+    setEmblemSvgDraft(eng.emblemSvg || '');
+  };
+
+  const handleSaveEmblem = () => {
+    if (!codeEmblemEngine) return;
+    const updates: Partial<EnginePackage> = {
+      emblemUrl: emblemUrlDraft.trim() || undefined,
+      emblemSvg: emblemSvgDraft.trim() || undefined,
+    };
+    storage.updateEngine(codeEmblemEngine.id, updates);
+    setEngines((prev) =>
+      prev.map((e) => (e.id === codeEmblemEngine.id ? { ...e, ...updates } : e))
+    );
+    setCodeEmblemEngine({ ...codeEmblemEngine, ...updates });
+  };
+
+  const handleEmblemFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type === 'image/svg+xml' || file.name.endsWith('.svg')) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setEmblemSvgDraft(reader.result);
+          setEmblemUrlDraft('');
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setEmblemUrlDraft(reader.result);
+          setEmblemSvgDraft('');
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -154,23 +240,60 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
       status: 'online',
       samplePrompt: 'Test custom endpoint health and prompt synthesis.',
       author: 'Custom Added',
+      canvasX: 40,
+      canvasY: 40,
     };
 
-    setEngines([customPkg, ...engines]);
+    storage.addEngine(customPkg);
+    setEngines((prev) => [customPkg, ...prev]);
     setIsImportModalOpen(false);
     setNewEngineName('');
     setNewEngineEndpoint('');
     setNewEngineDescription('');
   };
 
+  const handleResetCatalog = () => {
+    storage.saveEngines(STARTER_ENGINES_CATALOG);
+    setEngines(STARTER_ENGINES_CATALOG);
+  };
+
+  const buildDisplayCode = (eng: EnginePackage) => {
+    const curlCode = `curl -s ${eng.endpointUrl === 'http://localhost:3001/v1' ? 'http://localhost:3001/v1/chat/completions' : eng.endpointUrl} \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${eng.id}","messages":[{"role":"user","content":"${eng.samplePrompt.replace(/"/g, '\\"')}"}]}'`;
+
+    const fetchCode = `const res = await fetch("http://localhost:3001/v1/chat/completions", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    model: "${eng.id}",
+    messages: [{ role: "user", content: "${eng.samplePrompt.replace(/"/g, '\\"')}" }],
+  }),
+});
+const data = await res.json();
+console.log(data.choices?.[0]?.message?.content);`;
+
+    return { curlCode, fetchCode };
+  };
+
+  const copySnippet = (label: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSnippet(label);
+    setTimeout(() => setCopiedSnippet(null), 1800);
+  };
+
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${
-      isFrost ? 'bg-slate-50 text-slate-900' : 'bg-neutral-950 text-neutral-100'
-    }`}>
+    <div
+      className={`flex-1 flex flex-col h-full overflow-hidden ${
+        isFrost ? 'bg-slate-50 text-slate-900' : 'bg-neutral-950 text-neutral-100'
+      }`}
+    >
       {/* Header Bar */}
-      <div className={`p-5 border-b flex flex-wrap items-center justify-between gap-4 ${
-        isFrost ? 'bg-white/80 border-slate-200 backdrop-blur' : 'bg-neutral-900/60 border-white/10 backdrop-blur'
-      }`}>
+      <div
+        className={`p-5 border-b flex flex-wrap items-center justify-between gap-4 ${
+          isFrost ? 'bg-white/80 border-slate-200 backdrop-blur' : 'bg-neutral-900/60 border-white/10 backdrop-blur'
+        }`}
+      >
         <div className="flex items-center gap-3">
           <img
             src="/icon-engine-foundry.svg"
@@ -178,21 +301,64 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
             className="w-10 h-10 rounded-xl shadow-lg shadow-cyan-500/20 border border-cyan-500/40"
           />
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-lg font-bold tracking-tight">AI Engine Foundry</h1>
-              <span className="text-[10px] font-mono uppercase bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/30 font-semibold">
-                7.4B Free Pool Unmetered
-              </span>
+              {proxyStatus.state === 'ready' ? (
+                <span className="text-[10px] font-mono uppercase bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Proxy Active ({proxyStatus.providers.join(', ')})
+                </span>
+              ) : proxyStatus.state === 'no-keys' ? (
+                <span className="text-[10px] font-mono uppercase bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 font-semibold flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Proxy :3001 Ready — Add Keys in .env.local
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono uppercase bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 font-semibold">
+                  {engines.length} Engines Loaded
+                </span>
+              )}
             </div>
             <p className="text-xs text-neutral-400">
-              Browse, test, mix, and route AI models and proxy engines with zero subscription costs
+              Browse, arrange on infinite canvas, attach custom emblems, copy integration code, and test live proxy routes
             </p>
           </div>
         </div>
 
         {/* Global Action Tools */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Rack / Canvas Mirror Toggle */}
+          <div className="flex items-center p-1 rounded-xl border border-white/10 bg-black/40">
+            <button
+              type="button"
+              onClick={() => setViewMode('rack')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                viewMode === 'rack'
+                  ? 'bg-cyan-500 text-slate-950'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+              title="Server Blade Rack Grid View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Blade Rack</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('canvas')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                viewMode === 'canvas'
+                  ? 'bg-cyan-500 text-slate-950'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+              title="Infinite Canvas Mirror View"
+            >
+              <Move className="w-3.5 h-3.5" />
+              <span>Canvas Mirror</span>
+            </button>
+          </div>
+
           <button
+            type="button"
             onClick={() => setIsImportModalOpen(true)}
             className="px-3.5 py-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition"
           >
@@ -201,6 +367,7 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
           </button>
 
           <button
+            type="button"
             onClick={() => setIsMixerDrawerOpen(!isMixerDrawerOpen)}
             className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition ${
               mixerSelectedEngineIds.length > 0
@@ -215,48 +382,62 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
       </div>
 
       {/* Filter and Search Bar */}
-      <div className={`px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${
-        isFrost ? 'bg-slate-100/60 border-slate-200' : 'bg-neutral-900/40 border-white/[0.06]'
-      }`}>
-        {/* Category Filter Chips */}
+      <div
+        className={`px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${
+          isFrost ? 'bg-slate-100/60 border-slate-200' : 'bg-neutral-900/40 border-white/[0.06]'
+        }`}
+      >
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-          {(['all', 'code_generation', 'reasoning', 'video_diffusion', 'local_webgpu', 'universal_proxy'] as const).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition capitalize whitespace-nowrap ${
-                selectedCategory === cat
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
-                  : 'bg-white/5 text-neutral-400 hover:text-neutral-200 hover:bg-white/10'
-              }`}
-            >
-              {cat.replace('_', ' ')}
-            </button>
-          ))}
+          {(['all', 'code_generation', 'reasoning', 'video_diffusion', 'local_webgpu', 'universal_proxy'] as const).map(
+            (cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-lg font-medium transition capitalize whitespace-nowrap ${
+                  selectedCategory === cat
+                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                    : 'bg-white/5 text-neutral-400 hover:text-neutral-200 hover:bg-white/10'
+                }`}
+              >
+                {cat.replace('_', ' ')}
+              </button>
+            )
+          )}
         </div>
 
-        {/* Search Input */}
-        <div className="relative w-full md:w-64">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-          <input
-            type="text"
-            placeholder="Search engines, tags, models..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-neutral-900 border border-white/10 rounded-lg text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-cyan-500"
-          />
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+            <input
+              type="text"
+              placeholder="Search engines, tags, models..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-neutral-900 border border-white/10 rounded-lg text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleResetCatalog}
+            className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[11px]"
+            title="Reset engine library to starter defaults"
+          >
+            Reset
+          </button>
         </div>
       </div>
 
-      {/* Active Pipeline Announcement Banner if Hybrid Mix Created */}
+      {/* Active Pipeline Announcement Banner */}
       {synthesizedPipeline && (
-        <div className="mx-5 mt-4 p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 flex items-center justify-between text-xs animate-in fade-in">
+        <div className="mx-5 mt-4 p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-purple-400" />
             <span className="font-bold text-purple-200">{synthesizedPipeline.name}</span>
             <span className="text-purple-300/80">— {synthesizedPipeline.synthesizedPurpose}</span>
           </div>
           <button
+            type="button"
             onClick={() => setSynthesizedPipeline(null)}
             className="text-[11px] text-purple-400 hover:text-purple-200 underline"
           >
@@ -265,117 +446,44 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
         </div>
       )}
 
-      {/* Main Grid of Engine Cards */}
-      <div className="flex-1 p-5 overflow-y-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredEngines.map((eng) => {
-            const isSelectedForMix = mixerSelectedEngineIds.includes(eng.id);
-            return (
-              <div
-                key={eng.id}
-                className={`group rounded-2xl border p-4 flex flex-col justify-between transition-all duration-200 ${
-                  isSelectedForMix
-                    ? 'border-purple-500 bg-purple-950/20 shadow-lg shadow-purple-500/10'
-                    : isFrost 
-                      ? 'bg-white border-slate-200 hover:border-cyan-400 hover:shadow-md' 
-                      : 'bg-neutral-900/60 border-white/10 hover:border-cyan-500/50 hover:bg-neutral-900/90'
-                }`}
-              >
-                <div>
-                  {/* Top Badges & Emblem */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={eng.emblemUrl || '/icon-engine-foundry.svg'}
-                        alt={eng.name}
-                        className="w-6 h-6 rounded-lg border border-cyan-500/30"
-                      />
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                        {eng.category.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{eng.latencyEstimateMs}ms</span>
-                    </div>
-                  </div>
-
-                  {/* Title & Quota */}
-                  <h3 className="text-sm font-bold text-neutral-100 group-hover:text-cyan-400 transition-colors">
-                    {eng.name}
-                  </h3>
-                  <div className="text-[11px] font-mono font-medium text-amber-400 mt-0.5 flex items-center gap-1">
-                    <Flame className="w-3 h-3 text-amber-400" />
-                    <span>{eng.tokenQuota}</span>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-xs text-neutral-400 mt-2 line-clamp-3 leading-relaxed">
-                    {eng.description}
-                  </p>
-
-                  {/* Benchmark & Protocol */}
-                  {eng.benchmarkScore && (
-                    <div className="mt-3 py-1 px-2 rounded-lg bg-white/5 border border-white/5 text-[10px] font-mono text-neutral-300 flex items-center justify-between">
-                      <span className="text-neutral-500">Benchmark:</span>
-                      <span className="text-cyan-300 font-bold">{eng.benchmarkScore}</span>
-                    </div>
-                  )}
-
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {eng.tags.map((t) => (
-                      <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card Action Buttons */}
-                <div className="pt-4 mt-4 border-t border-white/[0.08] flex items-center gap-2">
-                  <button
-                    onClick={() => handleRunTestPrompt(eng)}
-                    className="flex-1 py-1.5 px-2 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition"
-                    title="Test engine in sandbox"
-                  >
-                    <Play className="w-3 h-3 text-cyan-400 fill-cyan-400" />
-                    <span>Test Prompt</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleCopyEndpoint(eng)}
-                    className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition"
-                    title="Copy local endpoint URL"
-                  >
-                    {copiedId === eng.id ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleToggleMixerSelection(eng.id)}
-                    className={`p-1.5 rounded-lg border transition ${
-                      isSelectedForMix
-                        ? 'bg-purple-600 text-white border-purple-400'
-                        : 'bg-neutral-800 border-white/5 text-neutral-400 hover:text-white'
-                    }`}
-                    title="Toggle selection for Engine Mixer"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+      {/* Main Content Area: Blade Rack Grid OR Infinite Canvas Mirror */}
+      {viewMode === 'canvas' ? (
+        <div className="flex-1 overflow-hidden relative">
+          <EngineCanvasMirror
+            engines={filteredEngines}
+            theme={theme}
+            mixerSelectedIds={mixerSelectedEngineIds}
+            copiedId={copiedId}
+            onRunTest={(eng) => handleRunTestPrompt(eng)}
+            onCopyEndpoint={handleCopyEndpoint}
+            onToggleMix={handleToggleMixerSelection}
+            onOpenCodeEmblem={handleOpenCodeEmblem}
+            onUpdatePosition={handleUpdatePosition}
+          />
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 p-5 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredEngines.map((eng) => (
+              <EngineCard
+                key={eng.id}
+                engine={eng}
+                theme={theme}
+                isSelectedForMix={mixerSelectedEngineIds.includes(eng.id)}
+                copiedId={copiedId}
+                onRunTest={(target) => handleRunTestPrompt(target)}
+                onCopyEndpoint={handleCopyEndpoint}
+                onToggleMix={handleToggleMixerSelection}
+                onOpenCodeEmblem={handleOpenCodeEmblem}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Engine Mixer Bottom Drawer */}
       {isMixerDrawerOpen && (
-        <div className="p-4 bg-neutral-900 border-t border-purple-500/30 text-xs animate-in slide-in-from-bottom">
+        <div className="p-4 bg-neutral-900 border-t border-purple-500/30 text-xs">
           <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div>
               <span className="font-bold text-sm text-purple-200 flex items-center gap-2">
@@ -383,12 +491,13 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
                 Multi-Engine Synthesis Foundry
               </span>
               <p className="text-neutral-400 text-xs mt-0.5">
-                Select 2 or 3 engines to combine their reasoning, coding, and diffusion capabilities into a single pipeline.
+                Select 2 or 3 engines to combine their capabilities into a single pipeline.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 disabled={mixerSelectedEngineIds.length < 2}
                 onClick={handleSynthesizeMix}
                 className="py-2 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 disabled:opacity-40 text-white font-bold flex items-center gap-2 shadow-lg shadow-purple-500/20 cursor-pointer"
@@ -398,6 +507,7 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
               </button>
 
               <button
+                type="button"
                 onClick={() => setMixerSelectedEngineIds([])}
                 className="py-2 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
               >
@@ -410,7 +520,7 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
 
       {/* Live Sandbox Test Drawer */}
       {activeTestingEngine && (
-        <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-neutral-950/95 backdrop-blur-2xl border-l border-cyan-500/30 z-50 p-5 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right">
+        <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-neutral-950/95 backdrop-blur-2xl border-l border-cyan-500/30 z-50 p-5 shadow-2xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div className="flex items-center gap-2">
@@ -418,6 +528,7 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
                 <h3 className="font-bold text-sm text-neutral-100">{activeTestingEngine.name}</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setActiveTestingEngine(null)}
                 className="text-xs text-neutral-400 hover:text-white"
               >
@@ -439,12 +550,13 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
               </div>
 
               <button
+                type="button"
                 onClick={() => handleRunTestPrompt(activeTestingEngine, testPrompt)}
                 disabled={isTesting}
                 className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition"
               >
                 {isTesting ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                <span>{isTesting ? 'Synthesizing...' : 'Run Test via Local Proxy'}</span>
+                <span>{isTesting ? 'Calling Local Proxy...' : 'Run Test via Local Proxy'}</span>
               </button>
 
               {testOutput && (
@@ -467,16 +579,126 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
         </div>
       )}
 
+      {/* Display Code & Custom Emblem Modal */}
+      {codeEmblemEngine && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-neutral-950 border border-cyan-500/30 rounded-2xl p-5 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-cyan-400" />
+                <h3 className="font-bold text-sm text-neutral-100">
+                  {codeEmblemEngine.name} — Display Code & Emblem
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCodeEmblemEngine(null)}
+                className="p-1 text-neutral-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Custom Emblem Section */}
+            <div className="p-3.5 rounded-xl border border-white/10 bg-neutral-900/60 space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-neutral-200">Custom Card Emblem (Saved to Storage)</span>
+                <label className="px-3 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-semibold cursor-pointer flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload SVG / Image</span>
+                  <input
+                    type="file"
+                    accept="image/*,.svg"
+                    onChange={handleEmblemFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <input
+                type="text"
+                placeholder="Or paste emblem image URL..."
+                value={emblemUrlDraft}
+                onChange={(e) => setEmblemUrlDraft(e.target.value)}
+                className="w-full bg-black border border-white/10 rounded-lg px-3 py-1.5 text-xs text-neutral-200 font-mono"
+              />
+              <textarea
+                rows={2}
+                placeholder="Or paste raw <svg>...</svg> emblem code..."
+                value={emblemSvgDraft}
+                onChange={(e) => setEmblemSvgDraft(e.target.value)}
+                className="w-full bg-black border border-white/10 rounded-lg px-3 py-1.5 text-xs text-neutral-200 font-mono"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveEmblem}
+                  className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold"
+                >
+                  Save Emblem to Card
+                </button>
+              </div>
+            </div>
+
+            {/* Display Code Snippets */}
+            {(() => {
+              const { curlCode, fetchCode } = buildDisplayCode(codeEmblemEngine);
+              return (
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-neutral-400 uppercase tracking-wider text-[10px]">
+                        cURL Quick Call
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copySnippet('curl', curlCode)}
+                        className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px]"
+                      >
+                        {copiedSnippet === 'curl' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedSnippet === 'curl' ? 'Copied' : 'Copy cURL'}</span>
+                      </button>
+                    </div>
+                    <pre className="p-3 rounded-xl bg-black border border-white/10 text-[11px] font-mono text-emerald-300 overflow-x-auto">
+                      {curlCode}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-neutral-400 uppercase tracking-wider text-[10px]">
+                        JavaScript / TypeScript Fetch
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copySnippet('fetch', fetchCode)}
+                        className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px]"
+                      >
+                        {copiedSnippet === 'fetch' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedSnippet === 'fetch' ? 'Copied' : 'Copy JS'}</span>
+                      </button>
+                    </div>
+                    <pre className="p-3 rounded-xl bg-black border border-white/10 text-[11px] font-mono text-cyan-300 overflow-x-auto">
+                      {fetchCode}
+                    </pre>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Import New Custom Engine Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-neutral-900 border border-cyan-500/30 rounded-2xl p-5 shadow-2xl space-y-4 animate-in zoom-in-95">
+          <div className="w-full max-w-md bg-neutral-900 border border-cyan-500/30 rounded-2xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="font-bold text-sm text-neutral-100 flex items-center gap-2">
                 <Plus className="w-4 h-4 text-cyan-400" />
                 Register New Engine or Endpoint
               </h3>
               <button
+                type="button"
                 onClick={() => setIsImportModalOpen(false)}
                 className="text-xs text-neutral-400 hover:text-white"
               >
@@ -501,7 +723,7 @@ export const EngineFoundryRoom: React.FC<EngineFoundryRoomProps> = ({ theme, onL
                 <label className="block text-neutral-400 mb-1">Category</label>
                 <select
                   value={newEngineCategory}
-                  onChange={(e) => setNewEngineCategory(e.target.value as any)}
+                  onChange={(e) => setNewEngineCategory(e.target.value as EngineCategory)}
                   className="w-full bg-neutral-950 border border-neutral-700 rounded-lg p-2 text-neutral-200"
                 >
                   <option value="code_generation">Code Generation</option>
