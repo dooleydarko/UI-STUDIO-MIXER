@@ -5,6 +5,7 @@ import { Viewport3D } from './Viewport3D';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
 import { exportSceneToGlb } from './glbExporter';
+import { createLocalDracoLoader } from './localDraco';
 
 interface Props {
   project: Product3DProject;
@@ -64,7 +65,8 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     setBusy(true);
     setError('');
     try {
-      const loaded = await loadStudioModel(file);
+      const decoder = createLocalDracoLoader();
+      const loaded = await loadStudioModel(file, decoder).finally(() => decoder.dispose());
       if (!mounted.current || id !== request.current) { releaseStudioModel(loaded); return; }
       current.current = loaded;
       setModel(loaded);
