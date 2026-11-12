@@ -102,11 +102,11 @@ rm -rf "$TMP_DIR"
 if [ "${SKIP_INSTALL:-0}" != "1" ]; then
   echo "[4/4] Installing apps to $INSTALL_DIR..."
   mkdir -p "$INSTALL_DIR"
-  BACKUP_DIR="$INSTALL_DIR/.ui-studio-backup-$(date +%Y%m%d-%H%M%S)-$"
+  BACKUP_DIR="$INSTALL_DIR/.ui-studio-backup-$(date +%Y%m%d-%H%M%S)-$$"
   mkdir -p "$BACKUP_DIR"
   for app_name in 'UI Mixer Studio' 'AI Engine Foundry'; do
     target="$INSTALL_DIR/$app_name.app"
-    staged="$INSTALL_DIR/.$app_name.app.new-$"
+    staged="$INSTALL_DIR/.$app_name.app.new-$$"
     ditto "$OUT_APPS_DIR/$app_name.app" "$staged"
     if [ -e "$target" ]; then mv "$target" "$BACKUP_DIR/$app_name.app"; fi
     if ! mv "$staged" "$target"; then
