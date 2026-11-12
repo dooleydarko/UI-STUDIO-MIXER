@@ -47,11 +47,15 @@
   - *Sneaker:* Sole color/roughness, Upper leather/mesh material, Lace color, Accent badge.
   - *Headphones:* Headband leather/fabric, Earcups outer shell, Cushion padding, Metallic sliders.
 
-### Objective C: In-GLB Texture Swapping & Image Replacement
-- Allow users to load or import existing `.glb` models and swap specific image maps without touching the geometry:
-  - Inspect glTF node hierarchy using `scene.traverse((node) => ...)`.
-  - Identify named meshes and their `MeshStandardMaterial` / `MeshPhysicalMaterial`.
-  - Dynamically replace `material.map` (albedo/diffuse), `normalMap`, or `roughnessMap` with user-uploaded artwork or decals.
+### Objective C: Full GLB Import, Inspection & Texture Editing
+- **Drag-and-Drop & File Picker GLB Import:**
+  - Support importing external `.glb` and `.gltf` binary models directly into the 3D Product Studio viewport using Three.js `GLTFLoader`.
+  - Automatically center geometries and compute bounding box extents to normalize scale into the studio lighting setup.
+  - Support animated GLB models with `AnimationMixer` (play, pause, timeline scrub controls).
+- **In-GLB Texture & Material Decomposition:**
+  - Inspect the glTF scene hierarchy with `scene.traverse((node) => ...)`.
+  - Extract all material references (`MeshStandardMaterial`, `MeshPhysicalMaterial`) and expose their map channels (albedo/map, normalMap, roughnessMap, metalnessMap) in the studio sidebar.
+  - In-place texture swapping: allow users to replace specific internal image textures (e.g. replacing a printed logo, label, or pattern on a model) without modifying the 3D geometry or rigging.
   - Re-export the modified model as a binary `.glb` via `GLTFExporter`.
 
 ### Objective D: Swipeable Storefront Showcase Mode
@@ -73,14 +77,15 @@ The codebase currently has:
 3. Verified Vite build and 34 passing test suites.
 
 I want to implement the next milestone:
-1. High-Detail Product Models: Add detailed procedural models for Sneakers, Over-Ear Headphones, and Luxury Bags to replace basic primitives.
-2. Multi-Zone Material Editing: Allow separate color, roughness, and metalness controls for distinct parts of each model (e.g. sneaker sole vs upper vs laces).
-3. GLB Image/Texture In-Place Replacement: Allow loading a GLB model and replacing specific internal texture images (like decals, logos, or printed artwork) without modifying the 3D mesh geometry, and re-exporting it as GLB.
+1. Direct GLB Import & Animation Player: Drag-and-drop / file picker for `.glb` / `.gltf` models with automatic scaling, bounding box centering, and `AnimationMixer` controls.
+2. In-GLB Material & Texture Decomposition: Traverse loaded GLBs, expose each mesh's material and texture maps in the sidebar, and allow replacing specific textures/images without altering underlying geometry.
+3. High-Detail Product Models: Add detailed procedural models for Sneakers, Over-Ear Headphones, and Luxury Bags with multi-part material zones (e.g., sole vs upper vs laces).
 4. Storefront Carousel: An interactive swipeable carousel showcasing hero products alongside matching branded merchandise.
 
 Please provide the concrete TypeScript/Three.js code modifications for:
-- `src/types/index.ts` (new presets and multi-zone material definitions)
+- `src/types/index.ts` (GLB import state, new presets, and multi-zone material definitions)
+- `src/studio3d/glbLoader.ts` (custom GLTF loader with auto-centering, bounds normalization, and animation mixer)
+- `src/studio3d/glbTextureSwapper.ts` (glTF node traversal, texture extraction, and in-place replacement utility)
 - `src/studio3d/proceduralModels.ts` (high-detail sneaker, headphones, and bag mesh generators)
-- `src/studio3d/glbTextureSwapper.ts` (glTF texture traversal and in-place replacement utility)
-- `src/studio3d/Studio3DWorkstation.tsx` (multi-zone UI controls and storefront carousel view)
+- `src/studio3d/Studio3DWorkstation.tsx` (import button, animation controls, material zone sidebar, and storefront carousel view)
 ```
