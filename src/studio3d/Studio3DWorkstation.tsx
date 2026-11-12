@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { Product3DProject, ProductPreset, LightingPreset } from '../types';
 import { Viewport3D } from './Viewport3D';
+import { ImportedModelStudio } from './ImportedModelStudio';
 import { exportSceneToGlb } from './glbExporter';
 import { useUndoableState } from '../state/useUndoableState';
 import { LIGHTING_RIGS } from './lightingRigs';
@@ -48,6 +49,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
   const handleSceneReady = useCallback((group: THREE.Group) => setActiveSceneGroup(group), []);
 
   const isFrost = theme === 'frost';
+  const [importMode, setImportMode] = useState(false);
 
   // Keep the decal preview in sync when undo/redo changes the decal
   useEffect(() => {
@@ -176,6 +178,8 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
     }
   };
 
+  if (importMode) return <ImportedModelStudio project={activeProject} onExit={() => setImportMode(false)} />;
+
   return (
     <div className={`w-full h-full flex flex-col ${isFrost ? 'bg-slate-50 text-slate-800' : 'bg-black text-neutral-100'}`}>
       {/* Top Workstation Bar */}
@@ -196,6 +200,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2.5">
+          <button type="button" onClick={() => setImportMode(true)} className="px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 text-xs font-medium">Import GLB</button>
           {/* Undo / Redo */}
           <div className="flex items-center gap-1">
             <button
