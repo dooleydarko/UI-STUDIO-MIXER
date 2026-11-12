@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 
-export async function exportSceneToGlb(sceneOrGroup: THREE.Object3D, fileName: string = 'product_model.glb'): Promise<void> {
+export async function exportSceneToGlb(sceneOrGroup: THREE.Object3D, fileName: string = 'product_model.glb', animations: THREE.AnimationClip[] = []): Promise<void> {
   const exporter = new GLTFExporter();
 
   // Hide viewport-only effects (e.g. the LED glow halo) so they stay out of the file
@@ -37,7 +37,7 @@ export async function exportSceneToGlb(sceneOrGroup: THREE.Object3D, fileName: s
         restore();
         reject(error);
       },
-      { binary: true, onlyVisible: true }
+      { binary: true, onlyVisible: true, animations }
     );
   });
 }
