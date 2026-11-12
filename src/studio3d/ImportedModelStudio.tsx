@@ -7,6 +7,7 @@ import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } f
 import { encodeSceneGlb, exportSceneToGlb } from './glbExporter';
 import { listSavedModels, readSavedModel, removeSavedModel, saveModelSnapshot, type SavedModelInfo } from './modelLibrary';
 import { createLocalDracoLoader } from './localDraco';
+import { PRODUCT_GLB_CATALOG, fetchCatalogModel, type ProductGlbAsset } from './productCatalog';
 import { estimateModelBudget, recommendQuality, downscaleModelTextures, type QualityMode, type PreviewQuality } from './modelPerformance';
 
 interface Props {
@@ -27,6 +28,11 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const [libraryStatus, setLibraryStatus] = useState('');
   const [dirty, setDirty] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogCategory, setCatalogCategory] = useState('All');
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [downloadStatus, setDownloadStatus] = useState('');
+  const downloadController = useRef<AbortController | null>(null);
   const current = useRef<ImportedStudioModel | null>(null);
   const mounted = useRef(false);
   const request = useRef(0);
@@ -63,7 +69,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; request.current++; current.current = null; action.current = null; };
+    return () => { mounted.current = false; request.current++; downloadController.current?.abort(); current.current = null; action.current = null; };
   }, []);
   useEffect(() => () => { if (model) releaseStudioModel(model); }, [model]);
   useEffect(() => { listSavedModels().then(items => { if (mounted.current) setSavedModels(items); }).catch(() => { if (mounted.current) setLibraryStatus('Local model library unavailable. Export GLB files instead.'); }); }, []);
@@ -84,15 +90,41 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     action.current = next;
   };
 
-  const importFile = async (file?: File, libraryId?: string) => {
-    if (!file || busy) return;
+  const importFile = async (file?: File, libraryId?: string, asset?: ProductGlbAsset) => {
+    if ((!file && !asset) || busy) return;
     if (dirty && !window.confirm('Discard unsaved model changes?')) return;
     const id = ++request.current;
     setBusy(true);
     setError('');
     try {
+      let sourceFile = file;
+      if (asset) {
+        const controller = new AbortController();
+        downloadController.current = controller;
+        const timer = window.setTimeout(() => controller.abort(), 120000);
+        setDownloadStatus('Downloading ' + asset.name + '…');
+        try {
+          sourceFile = await fetchCatalogModel(asset, controller.signal, (bytes, total) => {
+            if (mounted.current) setDownloadStatus('Downloading ' + asset.name + ' · ' + (bytes / 1048576).toFixed(1) + ' MB' + (total ? ' / ' + (total / 1048576).toFixed(1) + ' MB' : ''));
+          });
+        } finally {
+          window.clearTimeout(timer);
+          downloadController.current = null;
+          if (mounted.current) setDownloadStatus('');
+        }
+      }
+      if (!mounted.current || id !== request.current || !sourceFile) return;
       const decoder = createLocalDracoLoader();
-      const loaded = await loadStudioModel(file, decoder).finally(() => decoder.dispose());
+      const loaded = await loadStudioModel(sourceFile, decoder).finally(() => decoder.dispose());
+      if (asset) {
+        const credit = { name: asset.name, creator: asset.credit, license: asset.license, source: asset.source, note: asset.note, modificationNotice: 'May be modified in UI Studio Mixer; see source for original.' };
+        loaded.scene.userData.productCatalogCredit = credit;
+        // Keep attribution on an exported node even when the exporter flattens the scene root.
+        const attributionNode = new THREE.Group();
+        attributionNode.name = 'Product asset attribution';
+        attributionNode.userData.productCatalogCredit = credit;
+        loaded.scene.add(attributionNode);
+      }
       if (!mounted.current || id !== request.current) { releaseStudioModel(loaded); return; }
       current.current = loaded;
       setOptimizationNote('');
@@ -100,10 +132,11 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       setDirty(!libraryId);
       setLibraryStatus('');
       setModel(loaded);
+      if (asset) setCatalogOpen(false);
       setMaterialId(inspectMaterials(loaded.scene)[0]?.id ?? '');
       selectClip(loaded, loaded.clips.length ? 0 : -1);
     } catch (e) {
-      if (mounted.current && id === request.current) setError(e instanceof Error ? e.message : String(e));
+      if (mounted.current && id === request.current) setError(e instanceof Error && e.name === 'AbortError' ? 'Product download canceled or timed out.' : e instanceof Error ? e.message : String(e));
     } finally {
       if (mounted.current && id === request.current) setBusy(false);
     }
@@ -128,6 +161,8 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     if (lastUpdate.current >= 0.1) { setTime(active.time); lastUpdate.current = 0; }
   }, []);
 
+  const catalogItems = PRODUCT_GLB_CATALOG.filter(asset => (catalogCategory === 'All' || asset.category === catalogCategory) && (asset.name + ' ' + asset.category).toLowerCase().includes(catalogQuery.toLowerCase()));
+  const modelCredit = React.useMemo(() => { let credit: { name: string; creator: string; license: string; source: string; note?: string } | undefined; model?.scene.traverse(node => { const value = node.userData.productCatalogCredit; if (value && typeof value.creator === 'string' && typeof value.license === 'string' && typeof value.source === 'string') credit = value; }); return credit; }, [model]);
   const materials = React.useMemo(() => model ? inspectMaterials(model.scene) : [], [model, revision]);
   const selected = materials.find((entry) => entry.id === materialId);
   const duration = model?.clips[clipIndex]?.duration ?? 0;
@@ -219,10 +254,27 @@ export function ImportedModelStudio({ project, onExit }: Props) {
           <input type="file" accept=".glb,.gltf" disabled={busy} className="hidden"
             onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; void importFile(f); }} />
         </label>
-        <button className={button} onClick={() => setLibraryOpen(v=>!v)} disabled={busy}>Library ({savedModels.length})</button>
+        <button className={button} onClick={() => { setCatalogOpen(v=>!v); setLibraryOpen(false); }} disabled={busy}>Product GLBs ({PRODUCT_GLB_CATALOG.length})</button>
+        <button className={button} onClick={() => { setLibraryOpen(v=>!v); setCatalogOpen(false); }} disabled={busy}>Library ({savedModels.length})</button>
         <button className={button} onClick={saveSnapshot} disabled={!model || busy}>{dirty ? 'Save model •' : 'Save model'}</button>
         <button className={button} onClick={exportModel} disabled={!model || busy}>Export edited GLB</button>
       </header>
+      {downloadStatus && <div role="status" className="flex items-center justify-between gap-2 bg-sky-500/10 px-4 py-2 text-xs text-sky-300"><span>{downloadStatus}</span><button className={button} onClick={()=>downloadController.current?.abort()}>Cancel download</button></div>}
+      {catalogOpen && <section className="max-h-72 overflow-y-auto border-b border-white/10 p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2"><h3 className="mr-auto text-sm font-semibold">Product GLB library</h3>
+          <input aria-label="Search products" placeholder="Search products…" className="rounded-lg bg-neutral-900 p-2 text-xs" value={catalogQuery} onChange={e=>setCatalogQuery(e.target.value)}/>
+          <select aria-label="Product category" className="rounded-lg bg-neutral-900 p-2 text-xs" value={catalogCategory} onChange={e=>setCatalogCategory(e.target.value)}>{['All', ...new Set(PRODUCT_GLB_CATALOG.map(asset=>asset.category))].map(category=><option key={category}>{category}</option>)}</select>
+        </div>
+        <p className="text-xs text-neutral-400">Real GLB models from the Khronos collection. Download only the product you select. Save locally for offline reuse.</p>
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">{catalogItems.map(asset=><div key={asset.id} className="rounded-xl border border-white/10 bg-white/[.025] p-3 space-y-1.5">
+          <div className="text-[10px] uppercase tracking-wider text-sky-400">{asset.category} · {asset.license}</div>
+          <h4 className="text-sm font-semibold">{asset.name}</h4>
+          <p className="text-[10px] text-neutral-400">{asset.credit}</p>
+          {asset.note && <p className="text-[10px] text-neutral-500">{asset.note}</p>}
+          <div className="flex items-center gap-2"><button className={button} disabled={busy} onClick={()=>void importFile(undefined,undefined,asset)}>Load GLB</button><a className="text-xs text-sky-400" href={asset.source} target="_blank" rel="noreferrer">Source / license</a></div>
+        </div>)}</div>
+        {!catalogItems.length && <p className="text-xs text-neutral-500">No matching products.</p>}
+      </section>}
       {libraryStatus && <div role="status" className="px-4 py-2 text-xs text-sky-300">{libraryStatus}</div>}
       {libraryOpen && <section className="max-h-52 overflow-y-auto border-b border-white/10 p-4 space-y-2"><h3 className="text-xs font-semibold">Saved models · local device</h3>{!savedModels.length && <p className="text-xs text-neutral-500">No saved models yet.</p>}{savedModels.map(item => <div key={item.id} className="flex items-center gap-2 text-xs"><span className="mr-auto truncate">{item.name} · {(item.size/1048576).toFixed(1)} MB</span><button className={button} disabled={busy} onClick={()=>void openSnapshot(item.id)}>Open</button><button className={button} disabled={busy} onClick={()=>void deleteSnapshot(item.id)}>Delete</button></div>)}</section>}
       {error && <div role="alert" className="border-b border-red-500/30 bg-red-950/30 px-4 py-2 text-xs text-red-300">{error}</div>}
@@ -234,7 +286,8 @@ export function ImportedModelStudio({ project, onExit }: Props) {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/10">
               <span className="text-lg font-medium">Drop a 3D model here</span>
               <span className="text-xs text-neutral-500">GLB or self-contained glTF · up to 100 MB</span>
-              <span className="text-xs text-neutral-500">Use the Import model button to browse files.</span>
+              <span className="text-xs text-neutral-500">Use Import model to browse files, or choose a ready-made product.</span>
+              <button className={button} disabled={busy} onClick={()=>{setCatalogOpen(true);setLibraryOpen(false);}}>Browse product GLBs</button>
             </div>}
           {busy && <div role="status" className="absolute top-3 left-3 rounded-lg bg-black/80 px-3 py-2 text-xs">Working…</div>}
           {model && <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-black/80 p-3 backdrop-blur">
@@ -313,6 +366,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
               </div>)}
             </div>}
           </div>
+          {modelCredit && <div className="rounded-xl border border-white/10 p-3 text-xs space-y-1"><h3 className="font-semibold">Model attribution</h3><p>{modelCredit.name} · {modelCredit.creator}</p><p>{modelCredit.license}</p><p>{modelCredit.note}</p>{modelCredit.source.startsWith('https://github.com/KhronosGroup/glTF-Sample-Assets/') && <a href={modelCredit.source} target="_blank" rel="noreferrer" className="text-sky-400">Original source and license</a>}<p className="text-neutral-500">Retain attribution when sharing edited models.</p></div>}
           <p className="text-xs text-neutral-500">Save model to reopen locally, or export an edited GLB for a portable backup. The library is device-local and not synced.</p>
         </aside>
       </div>
