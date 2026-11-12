@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Product3DProject, ProductPreset, LightingPreset } from '../types';
 import { Viewport3D } from './Viewport3D';
 import { ImportedModelStudio } from './ImportedModelStudio';
+import { DETAIL_PRESETS } from './detailedProducts';
 import { exportSceneToGlb } from './glbExporter';
 import { useUndoableState } from '../state/useUndoableState';
 import { LIGHTING_RIGS } from './lightingRigs';
@@ -98,11 +99,16 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
       history.reset(existing);
       setDecalUrl(existing.decal?.imageUrl || null);
     } else {
-      setActiveProject((prev) => ({
-        ...prev,
-        preset,
-        name: `${preset.replace('_', ' ').toUpperCase()} Prototype`,
-      }));
+      const def = DETAIL_PRESETS[preset];
+      const size = def?.dimensions ?? (preset === 'bottle' ? [65, 180, 65] : [100, 140, 50]);
+      history.reset({
+        ...activeProject, id: crypto.randomUUID(), preset,
+        name: preset.replace(/_/g, ' ').toUpperCase() + ' Prototype',
+        dimensions: { width: size[0], height: size[1], depth: size[2], unit: 'mm' },
+        decal: undefined, materialZones: def ? { ...def.zones } : undefined,
+        savedAt: Date.now(),
+      });
+      setDecalUrl(null);
     }
   };
 
@@ -318,7 +324,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
               Product Preset
             </span>
             <div className="flex flex-col gap-1.5">
-              {(['beverage_can', 'device_case', 'bottle', 'product_box'] as ProductPreset[]).map((preset) => (
+              {(['beverage_can', 'device_case', 'bottle', 'product_box', 'sneaker', 'headphones', 'tote_bag', 'shopping_bag', 'business_card'] as ProductPreset[]).map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -329,7 +335,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
                       : isFrost ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-white/5 text-neutral-400'
                   }`}
                 >
-                  {preset.replace('_', ' ')}
+                  {preset.replace(/_/g, ' ')}
                 </button>
               ))}
             </div>
@@ -572,7 +578,24 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
             </div>
           </div>
 
-          <div className="border-t border-white/[0.08] pt-3">
+          {DETAIL_PRESETS[activeProject.preset] && <div className="space-y-3 border-t border-white/[0.08] pt-3">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Independent material zones</h3>
+            {Object.entries(DETAIL_PRESETS[activeProject.preset]!.zones).map(([key, defaults]) => {
+              const zone = activeProject.materialZones?.[key] ?? defaults;
+              const updateZone = (patch: Partial<typeof zone>) => setActiveProject(prev => ({
+                ...prev, materialZones: { ...prev.materialZones, [key]: { ...(prev.materialZones?.[key] ?? defaults), ...patch } }
+              }));
+              return <div key={key} className="space-y-2 rounded-xl border border-white/10 p-3">
+                <label className="flex items-center justify-between text-xs capitalize">{key}
+                  <input aria-label={key + ' color'} type="color" value={zone.color} onChange={e=>updateZone({ color: e.target.value })}/>
+                </label>
+                {(['roughness','metalness'] as const).map(field => <label key={field} className="block text-xs capitalize">{field} · {zone[field].toFixed(2)}
+                  <input aria-label={key + ' ' + field} className="block w-full accent-sky-500" type="range" min={0} max={1} step={.02} value={zone[field]} onChange={e=>updateZone({ [field]: Number(e.target.value) })}/>
+                </label>)}
+              </div>;
+            })}
+          </div>}
+          {!DETAIL_PRESETS[activeProject.preset] && <div className="border-t border-white/[0.08] pt-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">
               PBR Material Properties
             </span>
@@ -649,7 +672,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
                 className="w-7 h-7 rounded border border-white/20 bg-transparent cursor-pointer"
               />
             </div>
-          </div>
+          </div>}
 
           {/* Decal Label Info */}
           <div className="border-t border-white/[0.08] pt-3">
