@@ -9,6 +9,10 @@
 ## Scope boundary (November 12, 2026)
 The interactive branding storefront is explicitly canceled from this project and all its development phases. It belongs to a separate project. Do not implement, schedule, or merge storefront features here, including in a final update.
 
+## Current feature branch
+- `feature/glb-import-studio` / PR #1: import GLB and self-contained glTF, animation player, PBR material editing, local Draco + Meshopt decoding, adaptive preview, memory diagnostics, optional 2K texture resizing and deduplicated GPU cleanup.
+- Build and runtime verification pending; do not merge or package before checks pass. Remaining: detailed product presets, per-zone materials, persistence, actual compressed-model browser tests and Mac smoke tests. KTX2 and geometry simplification are not implemented.
+
 ## 1. Project Overview
 **UI Studio Mixer** is a standalone Mac workstation featuring two creative environments sharing a unified component, asset, and branding pipeline:
 
