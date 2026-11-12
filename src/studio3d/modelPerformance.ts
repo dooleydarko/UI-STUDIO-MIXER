@@ -80,6 +80,7 @@ export function downscaleModelTextures(root: THREE.Object3D, limit = 2048): numb
   let count = 0;
   const canvases = new Map<THREE.Source, HTMLCanvasElement>();
   const oldImages = new Set<ImageBitmap>();
+  const replacements: { texture: THREE.Texture; canvas: HTMLCanvasElement }[] = [];
   for (const texture of collectTextures(root)) {
     if (texture instanceof THREE.CompressedTexture || texture instanceof THREE.DataTexture || texture instanceof THREE.CubeTexture) continue;
     const { width, height } = imageSize(texture);
@@ -98,6 +99,10 @@ export function downscaleModelTextures(root: THREE.Object3D, limit = 2048): numb
       canvases.set(texture.source, canvas);
     }
     if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) oldImages.add(image);
+    replacements.push({ texture, canvas });
+  }
+  // Commit after all images are successfully prepared, so decode failures cannot leave half-applied edits.
+  for (const { texture, canvas } of replacements) {
     texture.source = new THREE.Source(canvas);
     texture.needsUpdate = true;
     count++;
