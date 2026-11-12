@@ -12,6 +12,7 @@ import { disposeObject3D } from './disposal';
 import { createStudioLights, applyLightingRig, StudioLights } from './lightingRigs';
 import { createLabelTexture } from './labelTexture';
 import { StorageManager } from '../storage/storageManager';
+import { PREVIEW_PROFILES, type PreviewQuality } from './modelPerformance';
 
 interface Viewport3DProps {
   project: Product3DProject;
@@ -19,6 +20,7 @@ interface Viewport3DProps {
   onSceneReady?: (group: THREE.Group) => void;
   importedGroup?: THREE.Group | null;
   onFrame?: (delta: number) => void;
+  quality?: PreviewQuality;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -27,6 +29,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   onSceneReady,
   importedGroup,
   onFrame,
+  quality,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -42,6 +45,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const onSceneReadyRef = useRef(onSceneReady);
   const frameCallbackRef = useRef(onFrame);
   const ownsProductRef = useRef(true);
+  const qualityRef = useRef(quality);
+  useEffect(() => { qualityRef.current = quality; }, [quality]);
   useEffect(() => { frameCallbackRef.current = onFrame; }, [onFrame]);
   const decalImageRef = useRef<{ url: string; image: HTMLImageElement | null } | null>(null);
   const [imageVersion, setImageVersion] = useState(0);
@@ -75,8 +80,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // 3. Renderer with antialiasing and shadow maps
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, qualityRef.current ? PREVIEW_PROFILES[qualityRef.current].pixelRatio : 2));
+    renderer.shadowMap.enabled = qualityRef.current ? PREVIEW_PROFILES[qualityRef.current].shadows : true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
@@ -94,7 +99,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // 5. Lighting setup
     // Procedural studio environment (no downloaded HDRI) so metals have something to reflect
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const room = new RoomEnvironment();
+    const envTarget = pmrem.fromScene(room, 0.04);
+    const envTexture = envTarget.texture;
+    room.dispose();
     scene.environment = envTexture;
     pmrem.dispose();
 
@@ -164,7 +172,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       }
 
       // If bloom is enabled in state, render via composer; otherwise direct render
-      if (liveState.bloomEnabled) {
+      if (liveState.bloomEnabled && (!qualityRef.current || PREVIEW_PROFILES[qualityRef.current].bloom)) {
         composer.render();
       } else {
         renderer.render(scene, camera);
@@ -188,7 +196,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       disposeObject3D(floor);
       disposeObject3D(disk);
       decalImageRef.current = null;
-      envTexture.dispose();
+      envTarget.dispose();
       if (scene.background instanceof THREE.Texture) scene.background.dispose();
       renderer.dispose();
       if (mount && renderer.domElement) {
@@ -204,13 +212,24 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     if (!lights || !scene) return;
 
     // Softboxes are the GPU-heavy part; eco quality leaves them off.
-    const softboxesEnabled = StorageManager.getInstance().getSettings().performanceMode !== 'eco';
+    const softboxesEnabled = StorageManager.getInstance().getSettings().performanceMode !== 'eco' && (!quality || PREVIEW_PROFILES[quality].softboxes);
     applyLightingRig(scene, lights, {
       preset: project.state.lighting || 'studio',
       reflectionStrength: project.state.reflectionStrength ?? 1,
       softboxesEnabled,
     });
-  }, [project.state.lighting, project.state.reflectionStrength]);
+  }, [project.state.lighting, project.state.reflectionStrength, quality]);
+
+  useEffect(() => {
+    if (!quality || !rendererRef.current || !mountRef.current) return;
+    const renderer = rendererRef.current;
+    const profile = PREVIEW_PROFILES[quality];
+    const ratio = Math.min(window.devicePixelRatio, profile.pixelRatio);
+    renderer.setPixelRatio(ratio);
+    renderer.shadowMap.enabled = profile.shadows;
+    renderer.shadowMap.needsUpdate = true;
+    composerRef.current?.setPixelRatio(ratio);
+  }, [quality]);
 
   // Update postprocessing bloom parameters live
   useEffect(() => {
