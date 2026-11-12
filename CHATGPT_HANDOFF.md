@@ -9,6 +9,10 @@
 ## Scope boundary (November 12, 2026)
 The interactive branding storefront is explicitly canceled from this project and all its development phases. It belongs to a separate project. Do not implement, schedule, or merge storefront features here, including in a final update.
 
+## Product catalog extension — 1.5.1
+- 1.5.0 Linux and Intel Mac packaging passed (run 43311944163; commit 64a23e9dada81efb38f6debc28315eb55bbf0ec3). Actual destination-Mac launch not yet verified.
+- 1.5.1 adds ten licensed, pinned real product GLBs through the imported model editor catalog, not visualizer props. See RELEASE_1.5.1.md. Latest build and catalog checks pending.
+
 ## Current feature branch
 - `feature/glb-import-studio` / PR #1: import GLB and self-contained glTF, animation player, PBR material editing, local Draco + Meshopt decoding, adaptive preview, memory diagnostics, optional 2K texture resizing and deduplicated GPU cleanup.
 - Release candidate 1.5.0: five standalone procedural product presets, independent material zones, local saved-model library and native WebKit export handling implemented. Packaging scripts and gated Intel Mac artifact workflow added; see RELEASE_1.5.0.md.
