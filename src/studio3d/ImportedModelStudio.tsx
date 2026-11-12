@@ -6,6 +6,7 @@ import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from '.
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
 import { exportSceneToGlb } from './glbExporter';
 import { createLocalDracoLoader } from './localDraco';
+import { estimateModelBudget, recommendQuality, downscaleModelTextures, type QualityMode, type PreviewQuality } from './modelPerformance';
 
 interface Props {
   project: Product3DProject;
@@ -33,6 +34,22 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [rotation, setRotation] = useState(false);
+  const [qualityMode, setQualityMode] = useState<QualityMode>('auto');
+  const [adaptiveQuality, setAdaptiveQuality] = useState<PreviewQuality>('balanced');
+  const frameSample = useRef({ seconds: 0, frames: 0 });
+  const qualityModeRef = useRef<QualityMode>('auto');
+  const [fps, setFps] = useState(0);
+  const [optimizationNote, setOptimizationNote] = useState('');
+  const budget = React.useMemo(() => model ? estimateModelBudget(model.scene) : null, [model, revision]);
+  const effectiveQuality = qualityMode === 'auto' ? adaptiveQuality : qualityMode;
+  useEffect(() => {
+    qualityModeRef.current = qualityMode;
+    if (qualityMode === 'auto' && budget) {
+      const recommendation = recommendQuality(budget);
+      setAdaptiveQuality(recommendation === 'high' ? 'balanced' : recommendation);
+    }
+    frameSample.current = { seconds: 0, frames: 0 };
+  }, [qualityMode, budget]);
   const [lighting, setLighting] = useState(project.state.lighting);
   const viewportProject = React.useMemo(() => ({
     ...project, state: { ...project.state, rotationActive: rotation, lighting }
@@ -69,6 +86,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       const loaded = await loadStudioModel(file, decoder).finally(() => decoder.dispose());
       if (!mounted.current || id !== request.current) { releaseStudioModel(loaded); return; }
       current.current = loaded;
+      setOptimizationNote('');
       setModel(loaded);
       setMaterialId(inspectMaterials(loaded.scene)[0]?.id ?? '');
       selectClip(loaded, loaded.clips.length ? 0 : -1);
@@ -82,6 +100,16 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const tick = useCallback((delta: number) => {
     const source = current.current;
     const active = action.current;
+    if (source) {
+      frameSample.current.seconds += delta;
+      frameSample.current.frames++;
+      if (frameSample.current.seconds >= 2) {
+        const rate = Math.round(frameSample.current.frames / frameSample.current.seconds);
+        setFps(rate);
+        if (qualityModeRef.current === 'auto' && rate < 24) setAdaptiveQuality((q) => q === 'high' ? 'balanced' : 'eco');
+        frameSample.current = { seconds: 0, frames: 0 };
+      }
+    }
     if (!source || !active || active.paused) return;
     source.mixer.update(delta);
     lastUpdate.current += delta;
@@ -116,6 +144,16 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       if (mounted.current) setError(e instanceof Error ? e.message : String(e));
     } finally { if (mounted.current) setBusy(false); }
   };
+  const optimizeTextures = () => {
+    if (!model || busy) return;
+    if (!window.confirm('Downscale textures larger than 2048px? This changes the edited export, not your original file.')) return;
+    setError('');
+    try {
+      const count = downscaleModelTextures(model.scene, 2048);
+      setOptimizationNote(count ? count + ' texture maps downscaled.' : 'No eligible oversized textures.');
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setRevision((v) => v + 1); }
+  };
   const exportModel = async () => {
     if (!model || busy) return;
     setBusy(true);
@@ -147,7 +185,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
         <main className="relative flex-1 min-w-0"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void importFile(e.dataTransfer.files[0]); }}>
-          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} /> :
+          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} /> :
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/10">
               <span className="text-lg font-medium">Drop a 3D model here</span>
               <span className="text-xs text-neutral-500">GLB or self-contained glTF · up to 100 MB</span>
@@ -173,6 +211,24 @@ export function ImportedModelStudio({ project, onExit }: Props) {
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
             {model && <p className="text-xs text-neutral-500">{model.meshCount} meshes · {model.triangles.toLocaleString()} triangles · {model.clips.length} clips</p>}
+          </div>
+          <div className="space-y-2 rounded-xl border border-white/10 p-3 text-xs">
+            <h3 className="font-bold uppercase tracking-wider text-neutral-400">Performance</h3>
+            <label className="block">Preview quality
+              <select className="mt-1 w-full rounded-lg bg-neutral-900 p-2" value={qualityMode} onChange={(e) => setQualityMode(e.target.value as QualityMode)}>
+                <option value="auto">Auto (Intel-friendly)</option><option value="eco">Eco</option><option value="balanced">Balanced</option><option value="high">High</option>
+              </select>
+            </label>
+            {budget && <div className="space-y-1 text-neutral-400">
+              <p>Active: {effectiveQuality} · ~{fps || '—'} FPS</p>
+              <p>{budget.triangles.toLocaleString()} triangles · {budget.textureCount} maps</p>
+              <p>Estimated texture memory: {(budget.estimatedTextureBytes / 1048576).toFixed(1)} MB</p>
+              <p>Geometry buffers: {(budget.geometryBytes / 1048576).toFixed(1)} MB</p>
+              <p>Largest texture: {budget.largestTexture}px</p>
+              <button className={button + ' w-full'} disabled={busy || budget.largestTexture <= 2048} onClick={optimizeTextures}>Downscale textures to 2K</button>
+              <p className="text-neutral-500">Optional; changes exported textures. Original file stays intact.</p>
+              {optimizationNote && <p role="status" className="text-sky-300">{optimizationNote}</p>}
+            </div>}
           </div>
           <label className="block text-xs text-neutral-400">Lighting
             <select className="mt-1 w-full rounded-lg bg-neutral-900 p-2 text-neutral-100" value={lighting} onChange={(e) => setLighting(e.target.value as Product3DProject['state']['lighting'])}>
