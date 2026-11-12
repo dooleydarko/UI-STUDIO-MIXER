@@ -28,6 +28,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
       - run: node --test tests/glbStudio.test.mjs
+      - run: node tests/verifyProductCatalog.mjs
   mac-release-candidate:
     needs: build-and-test
     runs-on: macos-15-intel
@@ -53,10 +54,10 @@ jobs:
           codesign --verify --strict "apps/AI Engine Foundry.app"
           file "apps/UI Mixer Studio.app/Contents/MacOS/StudioAppHost"
           mkdir -p release
-          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.5.0/ -o release/UI-STUDIO-MIXER-1.5.0-source.zip HEAD
-          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.5.0-source.zip > SHA256SUMS.txt)
+          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.5.1/ -o release/UI-STUDIO-MIXER-1.5.1-source.zip HEAD
+          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.5.1-source.zip > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: UI-STUDIO-MIXER-1.5.0-mac-update-candidate
+          name: UI-STUDIO-MIXER-1.5.1-mac-update-candidate
           path: release/
           if-no-files-found: error
