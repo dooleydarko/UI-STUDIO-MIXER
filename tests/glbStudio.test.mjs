@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // Compile only the targeted modules, preserving normal package resolution.
 const temp = await mkdtemp(path.join(process.cwd(), '.glb-test-'));
 try {
-  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper']) {
+  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance']) {
     const source = await readFile(path.join(process.cwd(), 'src/studio3d', name + '.ts'), 'utf8');
     const compiled = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
@@ -18,6 +18,25 @@ try {
   }
   const { normalizeModel, loadStudioModel, releaseStudioModel } = await import(pathToFileURL(path.join(temp, 'glbLoader.mjs')));
   const { inspectMaterials } = await import(pathToFileURL(path.join(temp, 'glbTextureSwapper.mjs')));
+
+  const { estimateModelBudget, recommendQuality, scaledTextureSize } = await import(pathToFileURL(path.join(temp, 'modelPerformance.mjs')));
+
+  await test('model budget counts shared buffers and textures once', () => {
+    const root = new THREE.Group();
+    const geometry = new THREE.BoxGeometry();
+    const texture = new THREE.Texture({ width: 4096, height: 2048 });
+    const material = new THREE.MeshStandardMaterial({ map: texture });
+    root.add(new THREE.Mesh(geometry, material), new THREE.Mesh(geometry, material));
+    const budget = estimateModelBudget(root);
+    assert.equal(budget.textureCount, 1);
+    assert.equal(budget.triangles, 24);
+    assert.equal(budget.largestTexture, 4096);
+    assert.equal(recommendQuality(budget), 'balanced');
+    assert.equal(recommendQuality({ ...budget, triangles: 600000 }), 'eco');
+    assert.deepEqual(scaledTextureSize(4096, 2048, 2048), { width: 2048, height: 1024 });
+    assert.deepEqual(scaledTextureSize(512, 256, 2048), { width: 512, height: 256 });
+    geometry.dispose(); material.dispose(); texture.dispose();
+  });
 
   await test('normalizes a displaced model without changing source transforms', () => {
     const root = new THREE.Group();
