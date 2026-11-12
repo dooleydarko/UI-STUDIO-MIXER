@@ -5,6 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_DIR="$ROOT_DIR/.build-tmp"
 OUT_APPS_DIR="$ROOT_DIR/apps"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Applications}"
+APP_VERSION="${APP_VERSION:-1.5.1}"
+BUILD_NUMBER="${BUILD_NUMBER:-3}"
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-12.0}"
 
 rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR" "$OUT_APPS_DIR"
@@ -36,6 +39,8 @@ build_bundle() {
   chmod +x "$bundle_dir/Contents/MacOS/StudioAppHost"
   cp "$icns_file" "$bundle_dir/Contents/Resources/AppIcon.icns"
 
+  local escaped_root
+  escaped_root=$(printf '%s' "$ROOT_DIR" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
   cat > "$bundle_dir/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -58,9 +63,9 @@ build_bundle() {
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.4.0</string>
+  <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>${BUILD_NUMBER}</string>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
   <key>NSHighResolutionCapable</key>
@@ -75,7 +80,7 @@ build_bundle() {
   <key>AGRoom</key>
   <string>${room}</string>
   <key>AGProjectRoot</key>
-  <string>${ROOT_DIR}</string>
+  <string>${escaped_root}</string>
   <key>AGCompanionApp</key>
   <string>${companion}</string>
   <key>AGAppPort</key>
@@ -83,6 +88,9 @@ build_bundle() {
 </dict>
 </plist>
 EOF
+  plutil -lint "$bundle_dir/Contents/Info.plist"
+  codesign --force --sign - "$bundle_dir"
+  codesign --verify --strict "$bundle_dir"
 }
 
 echo "[3/4] Assembling .app bundles in $OUT_APPS_DIR..."
@@ -94,9 +102,19 @@ rm -rf "$TMP_DIR"
 if [ "${SKIP_INSTALL:-0}" != "1" ]; then
   echo "[4/4] Installing apps to $INSTALL_DIR..."
   mkdir -p "$INSTALL_DIR"
-  rm -rf "$INSTALL_DIR/UI Mixer Studio.app" "$INSTALL_DIR/AI Engine Foundry.app"
-  cp -R "$OUT_APPS_DIR/UI Mixer Studio.app" "$INSTALL_DIR/UI Mixer Studio.app"
-  cp -R "$OUT_APPS_DIR/AI Engine Foundry.app" "$INSTALL_DIR/AI Engine Foundry.app"
+  BACKUP_DIR="$INSTALL_DIR/.ui-studio-backup-$(date +%Y%m%d-%H%M%S)-$$"
+  mkdir -p "$BACKUP_DIR"
+  for app_name in 'UI Mixer Studio' 'AI Engine Foundry'; do
+    target="$INSTALL_DIR/$app_name.app"
+    staged="$INSTALL_DIR/.$app_name.app.new-$$"
+    ditto "$OUT_APPS_DIR/$app_name.app" "$staged"
+    if [ -e "$target" ]; then mv "$target" "$BACKUP_DIR/$app_name.app"; fi
+    if ! mv "$staged" "$target"; then
+      if [ -e "$BACKUP_DIR/$app_name.app" ]; then mv "$BACKUP_DIR/$app_name.app" "$target"; fi
+      exit 1
+    fi
+  done
+  echo "Previous application bundles backed up to: $BACKUP_DIR"
   echo "Installed:"
   echo "  - $INSTALL_DIR/UI Mixer Studio.app"
   echo "  - $INSTALL_DIR/AI Engine Foundry.app"

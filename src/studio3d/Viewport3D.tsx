@@ -12,17 +12,24 @@ import { disposeObject3D } from './disposal';
 import { createStudioLights, applyLightingRig, StudioLights } from './lightingRigs';
 import { createLabelTexture } from './labelTexture';
 import { StorageManager } from '../storage/storageManager';
+import { PREVIEW_PROFILES, type PreviewQuality } from './modelPerformance';
 
 interface Viewport3DProps {
   project: Product3DProject;
   decalDataUrl?: string | null;
   onSceneReady?: (group: THREE.Group) => void;
+  importedGroup?: THREE.Group | null;
+  onFrame?: (delta: number) => void;
+  quality?: PreviewQuality;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
   project,
   decalDataUrl,
   onSceneReady,
+  importedGroup,
+  onFrame,
+  quality,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -36,6 +43,11 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const lightsRef = useRef<StudioLights | null>(null);
 
   const onSceneReadyRef = useRef(onSceneReady);
+  const frameCallbackRef = useRef(onFrame);
+  const ownsProductRef = useRef(true);
+  const qualityRef = useRef(quality);
+  useEffect(() => { qualityRef.current = quality; }, [quality]);
+  useEffect(() => { frameCallbackRef.current = onFrame; }, [onFrame]);
   const decalImageRef = useRef<{ url: string; image: HTMLImageElement | null } | null>(null);
   const [imageVersion, setImageVersion] = useState(0);
 
@@ -68,8 +80,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // 3. Renderer with antialiasing and shadow maps
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, qualityRef.current ? PREVIEW_PROFILES[qualityRef.current].pixelRatio : 2));
+    renderer.shadowMap.enabled = qualityRef.current ? PREVIEW_PROFILES[qualityRef.current].shadows : true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
@@ -87,7 +99,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // 5. Lighting setup
     // Procedural studio environment (no downloaded HDRI) so metals have something to reflect
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const room = new RoomEnvironment();
+    const envTarget = pmrem.fromScene(room, 0.04);
+    const envTexture = envTarget.texture;
+    room.dispose();
     scene.environment = envTexture;
     pmrem.dispose();
 
@@ -145,7 +160,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     window.addEventListener('resize', handleResize);
 
     // Animation Loop
+    const clock = new THREE.Clock();
     const animate = () => {
+      const delta = Math.min(clock.getDelta(), 0.1);
+      frameCallbackRef.current?.(delta);
       controls.update();
 
       const liveState = projectRef.current.state;
@@ -154,7 +172,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       }
 
       // If bloom is enabled in state, render via composer; otherwise direct render
-      if (liveState.bloomEnabled) {
+      if (liveState.bloomEnabled && (!qualityRef.current || PREVIEW_PROFILES[qualityRef.current].bloom)) {
         composer.render();
       } else {
         renderer.render(scene, camera);
@@ -172,13 +190,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       bloomPass.dispose();
       if (productGroupRef.current) {
         scene.remove(productGroupRef.current);
-        disposeObject3D(productGroupRef.current);
+        if (ownsProductRef.current) disposeObject3D(productGroupRef.current);
         productGroupRef.current = null;
       }
       disposeObject3D(floor);
       disposeObject3D(disk);
       decalImageRef.current = null;
-      envTexture.dispose();
+      envTarget.dispose();
       if (scene.background instanceof THREE.Texture) scene.background.dispose();
       renderer.dispose();
       if (mount && renderer.domElement) {
@@ -194,13 +212,24 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     if (!lights || !scene) return;
 
     // Softboxes are the GPU-heavy part; eco quality leaves them off.
-    const softboxesEnabled = StorageManager.getInstance().getSettings().performanceMode !== 'eco';
+    const softboxesEnabled = StorageManager.getInstance().getSettings().performanceMode !== 'eco' && (!quality || PREVIEW_PROFILES[quality].softboxes);
     applyLightingRig(scene, lights, {
       preset: project.state.lighting || 'studio',
       reflectionStrength: project.state.reflectionStrength ?? 1,
       softboxesEnabled,
     });
-  }, [project.state.lighting, project.state.reflectionStrength]);
+  }, [project.state.lighting, project.state.reflectionStrength, quality]);
+
+  useEffect(() => {
+    if (!quality || !rendererRef.current || !mountRef.current) return;
+    const renderer = rendererRef.current;
+    const profile = PREVIEW_PROFILES[quality];
+    const ratio = Math.min(window.devicePixelRatio, profile.pixelRatio);
+    renderer.setPixelRatio(ratio);
+    renderer.shadowMap.enabled = profile.shadows;
+    renderer.shadowMap.needsUpdate = true;
+    composerRef.current?.setPixelRatio(ratio);
+  }, [quality]);
 
   // Update postprocessing bloom parameters live
   useEffect(() => {
@@ -227,9 +256,19 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     if (productGroupRef.current) {
       previousRotationY = productGroupRef.current.rotation.y;
       scene.remove(productGroupRef.current);
-      disposeObject3D(productGroupRef.current);
+      if (ownsProductRef.current) disposeObject3D(productGroupRef.current);
       productGroupRef.current = null;
     }
+
+    if (importedGroup) {
+      ownsProductRef.current = false;
+      importedGroup.rotation.y = previousRotationY;
+      productGroupRef.current = importedGroup;
+      scene.add(importedGroup);
+      onSceneReadyRef.current?.(importedGroup);
+      return;
+    }
+    ownsProductRef.current = true;
 
     // Load the artwork once per image, then compose a fresh canvas label texture
     // each rebuild so scale/rotation/position/wrap edits apply live.
@@ -265,7 +304,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // Read via ref: an inline callback prop changes every render and would
     // otherwise retrigger this effect in a rebuild loop.
     onSceneReadyRef.current?.(newGroup);
-  }, [project, decalDataUrl, imageVersion]);
+  }, [project, decalDataUrl, imageVersion, importedGroup]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">

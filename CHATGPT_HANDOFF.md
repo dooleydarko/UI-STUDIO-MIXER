@@ -1,4 +1,4 @@
-# Handoff: UI Studio Mixer (UI Mixer Studio & 3D Product Showcase)
+# Handoff: UI Studio Mixer (UI Mixer Studio & 3D Product Studio)
 
 > **Repository URL:** [https://github.com/dooleydarko/UI-STUDIO-MIXER](https://github.com/dooleydarko/UI-STUDIO-MIXER)  
 > **Local Workspace:** `/Users/abcd/.gemini/antigravity/scratch/code-mixer-3d-studio`  
@@ -6,14 +6,26 @@
 
 ---
 
+## Scope boundary (November 12, 2026)
+The interactive branding storefront is explicitly canceled from this project and all its development phases. It belongs to a separate project. Do not implement, schedule, or merge storefront features here, including in a final update.
+
+## Product catalog extension — 1.5.1
+- 1.5.0 Linux and Intel Mac packaging passed (run 43311944163; commit 64a23e9dada81efb38f6debc28315eb55bbf0ec3). Actual destination-Mac launch not yet verified.
+- 1.5.1 adds ten licensed, pinned real product GLBs through the imported model editor catalog, not visualizer props. See RELEASE_1.5.1.md. Latest build and catalog checks pending.
+
+## Current feature branch
+- `feature/glb-import-studio` / PR #1: import GLB and self-contained glTF, animation player, PBR material editing, local Draco + Meshopt decoding, adaptive preview, memory diagnostics, optional 2K texture resizing and deduplicated GPU cleanup.
+- Release candidate 1.5.0: five standalone procedural product presets, independent material zones, local saved-model library and native WebKit export handling implemented. Packaging scripts and gated Intel Mac artifact workflow added; see RELEASE_1.5.0.md.
+- Build and runtime verification pending. Do not merge or distribute until checks and real Mac acceptance pass. Actual compressed-model browser tests, KTX2 and geometry simplification are not implemented. No storefront work.
+
 ## 1. Project Overview
 **UI Studio Mixer** is a standalone Mac workstation featuring two creative environments sharing a unified component, asset, and branding pipeline:
 
 1. **UI Playground / Code Mixer:** Collect, inspect, and interact with live HTML/CSS/JS components on an infinite obsidian canvas. Mixes selected components into three distinct creative variations (*Refined*, *Reimagined*, *Experimental*) with CSS isolation, AST token grafting, and card-pack reveal motion.
-2. **3D Product Studio & Interactive Storefront:** A high-fidelity Three.js WebGL viewport with PBR physical materials, customizable studio lighting rigs, dynamic decal/branding texture projection, and real binary `.glb` export.
+2. **3D Product Studio:** A high-fidelity Three.js WebGL viewport with PBR physical materials, customizable studio lighting rigs, dynamic decal/branding texture projection, and real binary `.glb` export.
 
 - **Stack:** React 18, TypeScript 5.7, Vite 6, Tailwind CSS 3.4, Three.js 0.173, Electron 45.
-- **Hardware Profile:** Optimized for macOS Ventura (Intel & Apple Silicon), 8 GB RAM, with strict memory disposal and zero GPU memory leaks.
+- **Hardware Profile:** Optimized for macOS Ventura (Intel & Apple Silicon), 8 GB RAM, with GPU resource cleanup; hardware performance requires verification.
 
 ---
 
@@ -24,7 +36,7 @@
 - `src/types/index.ts`: Definitions for `Product3DProject`, `ProductPreset`, `LightingPreset`, `DecalTransform`, `ComponentPackage`.
 - `package.json`: Project manifest (named `ui-studio-mixer`).
 
-### 3D Studio & Storefront Engine (`src/studio3d/`)
+### 3D Studio Engine (`src/studio3d/`)
 - `Viewport3D.tsx`: Three.js scene, camera, OrbitControls, PMREM studio environment, contact shadow floor, and postprocessing pipeline.
 - `Studio3DWorkstation.tsx`: Studio UI sidebar, preset selector, PBR material sliders, turntable controls, and export triggers.
 - `proceduralModels.ts`: Mesh generation engine (`createProductMeshGroup`) creating procedural PBR geometries.
@@ -35,7 +47,7 @@
 
 ---
 
-## 3. Next Milestone: High-Detail Models, GLB Texture Editing & Storefront
+## 3. Next Milestone: High-Detail Models & GLB Texture Editing
 
 ### Objective A: High-Detail Product Models (Replacing Basic Low-Poly Primitives)
 - **Sneaker Preset (`'sneaker'`):** Multi-part procedural model featuring sculpted rubber outsole, cushioned midsole, stitched upper vamp, tongue, collar, laces, and heel counter.
@@ -58,9 +70,10 @@
   - In-place texture swapping: allow users to replace specific internal image textures (e.g. replacing a printed logo, label, or pattern on a model) without modifying the 3D geometry or rigging.
   - Re-export the modified model as a binary `.glb` via `GLTFExporter`.
 
-### Objective D: Swipeable Storefront Showcase Mode
-- A storefront presentation view allowing shoppers or clients to swipe horizontally between a hero product and complementary branded items (bags, bottles, accessories).
-- Synchronized brand theme: updating the brand palette or logo projects across all items in the showcase.
+### Objective D: Heavy-Model Performance
+- Local Draco and Meshopt decoding; no external decoder service.
+- Model diagnostics, adaptive preview quality, and optional texture downscaling.
+- Preserve geometry, rigs, and source files; do not silently simplify assets.
 
 ---
 
@@ -69,7 +82,7 @@
 Copy and paste the prompt below directly into ChatGPT to continue development:
 
 ```markdown
-I am developing UI Studio Mixer (https://github.com/dooleydarko/UI-STUDIO-MIXER), a React 18 + TypeScript + Three.js workstation for interactive 3D product design and storefront branding.
+I am developing UI Studio Mixer (https://github.com/dooleydarko/UI-STUDIO-MIXER), a React 18 + TypeScript + Three.js workstation for 3D product design.
 
 The codebase currently has:
 1. Procedural 3D studio with PBR materials, dynamic decal projection, lighting rigs, and GLB export in `src/studio3d/`.
@@ -80,12 +93,12 @@ I want to implement the next milestone:
 1. Direct GLB Import & Animation Player: Drag-and-drop / file picker for `.glb` / `.gltf` models with automatic scaling, bounding box centering, and `AnimationMixer` controls.
 2. In-GLB Material & Texture Decomposition: Traverse loaded GLBs, expose each mesh's material and texture maps in the sidebar, and allow replacing specific textures/images without altering underlying geometry.
 3. High-Detail Product Models: Add detailed procedural models for Sneakers, Over-Ear Headphones, and Luxury Bags with multi-part material zones (e.g., sole vs upper vs laces).
-4. Storefront Carousel: An interactive swipeable carousel showcasing hero products alongside matching branded merchandise.
+4. Heavy-Model Performance: Improve local decoding, viewport quality, and texture memory usage.
 
 Please provide the concrete TypeScript/Three.js code modifications for:
 - `src/types/index.ts` (GLB import state, new presets, and multi-zone material definitions)
 - `src/studio3d/glbLoader.ts` (custom GLTF loader with auto-centering, bounds normalization, and animation mixer)
 - `src/studio3d/glbTextureSwapper.ts` (glTF node traversal, texture extraction, and in-place replacement utility)
 - `src/studio3d/proceduralModels.ts` (high-detail sneaker, headphones, and bag mesh generators)
-- `src/studio3d/Studio3DWorkstation.tsx` (import button, animation controls, material zone sidebar, and storefront carousel view)
+- `src/studio3d/Studio3DWorkstation.tsx` (import button, animation controls, material zone sidebar)
 ```

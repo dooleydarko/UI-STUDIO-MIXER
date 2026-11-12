@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Product3DProject, DecalTransform } from '../types';
+import { createDetailedProduct } from './detailedProducts';
 
 /** Soft radial halo billboard used as a cheap, LED-only bloom. */
 function createGlowSprite(color: string, strength: number): THREE.Sprite {
@@ -42,6 +43,8 @@ export function createProductMeshGroup(
   project: Product3DProject,
   decalTexture?: THREE.Texture | null
 ): THREE.Group {
+  const detailed = createDetailedProduct(project, decalTexture);
+  if (detailed) return detailed;
   const group = new THREE.Group();
   group.name = `product_${project.preset}`;
 

@@ -1,0 +1,63 @@
+name: GLB Studio checks and Mac release candidate
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/glb-studio.yml'
+      - 'package*.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: glb-studio-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: node --test tests/glbStudio.test.mjs
+      - run: node tests/verifyProductCatalog.mjs
+  mac-release-candidate:
+    needs: build-and-test
+    runs-on: macos-15-intel
+    timeout-minutes: 25
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test
+      - run: node --test tests/glbStudio.test.mjs
+      - run: bash -n scripts/build-mac-apps.sh scripts/install-mac-update.sh
+      - run: SKIP_INSTALL=1 bash scripts/build-mac-apps.sh
+      - run: |
+          codesign --verify --strict "apps/UI Mixer Studio.app"
+          codesign --verify --strict "apps/AI Engine Foundry.app"
+          file "apps/UI Mixer Studio.app/Contents/MacOS/StudioAppHost"
+          mkdir -p release
+          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.5.1/ -o release/UI-STUDIO-MIXER-1.5.1-source.zip HEAD
+          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.5.1-source.zip > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UI-STUDIO-MIXER-1.5.1-mac-update-candidate
+          path: release/
+          if-no-files-found: error

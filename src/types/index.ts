@@ -81,7 +81,7 @@ export interface MixVariationResult {
 }
 
 
-export type ProductPreset = 'beverage_can' | 'device_case' | 'bottle' | 'product_box';
+export type ProductPreset = 'beverage_can' | 'device_case' | 'bottle' | 'product_box' | 'sneaker' | 'headphones' | 'tote_bag' | 'shopping_bag' | 'business_card';
 export type LightingPreset = 'studio' | 'neon' | 'daylight' | 'dramatic_rim';
 
 export interface DecalTransform {
@@ -116,6 +116,7 @@ export interface Product3DProject {
     emissiveColor: string;
     emissiveIntensity: number;
   };
+  materialZones?: Record<string, { color: string; roughness: number; metalness: number }>;
   decal?: DecalTransform;
   state: {
     powerOn: boolean;
