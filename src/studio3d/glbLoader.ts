@@ -23,10 +23,12 @@ export function normalizeModel(scene: THREE.Group): THREE.Group {
   }
   // Keep source transforms and animation bindings intact. Only normalize the wrapper.
   const display = new THREE.Group();
+  const normalized = new THREE.Group();
   const scale = 2.2 / extent;
-  display.scale.setScalar(scale);
-  display.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
-  display.add(scene);
+  normalized.scale.setScalar(scale);
+  normalized.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
+  normalized.add(scene);
+  display.add(normalized);
   return display;
 }
 
