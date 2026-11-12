@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // Compile only the targeted modules, preserving normal package resolution.
 const temp = await mkdtemp(path.join(process.cwd(), '.glb-test-'));
 try {
-  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance']) {
+  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts']) {
     const source = await readFile(path.join(process.cwd(), 'src/studio3d', name + '.ts'), 'utf8');
     const compiled = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
@@ -36,6 +36,30 @@ try {
     assert.deepEqual(scaledTextureSize(4096, 2048, 2048), { width: 2048, height: 1024 });
     assert.deepEqual(scaledTextureSize(512, 256, 2048), { width: 512, height: 256 });
     geometry.dispose(); material.dispose(); texture.dispose();
+  });
+
+  const { createDetailedProduct, DETAIL_PRESETS } = await import(pathToFileURL(path.join(temp, 'detailedProducts.mjs')));
+  await test('all five detailed product presets contain finite geometry and independent named materials', () => {
+    for (const preset of Object.keys(DETAIL_PRESETS)) {
+      const zones = DETAIL_PRESETS[preset].zones;
+      const zone = Object.keys(zones)[0];
+      const project = { preset, state: { showWireframe: false }, materialZones: { [zone]: { color: '#ff0000', roughness: .31, metalness: .4 } } };
+      const group = createDetailedProduct(project);
+      assert(group);
+      const bounds = new THREE.Box3().setFromObject(group);
+      assert(!bounds.isEmpty());
+      assert(Number.isFinite(bounds.max.y));
+      const entries = inspectMaterials(group);
+      assert(entries.length >= 3);
+      const material = entries.find(e=>e.name === zone).material;
+      assert.equal(material.color.getHexString(), 'ff0000');
+      assert.equal(material.roughness, .31);
+      assert.equal(material.metalness, .4);
+      const geometry = new Set(), mats = new Set();
+      group.traverse(obj => { if (obj.isMesh) {geometry.add(obj.geometry); mats.add(obj.material);} });
+      for (const g of geometry) g.dispose();
+      for (const m of mats) m.dispose();
+    }
   });
 
   await test('normalizes a displaced model without changing source transforms', () => {
