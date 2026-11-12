@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import decoderJs from 'three/examples/jsm/libs/draco/gltf/draco_decoder.js?url';
