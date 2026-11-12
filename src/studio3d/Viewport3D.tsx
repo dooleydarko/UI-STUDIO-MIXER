@@ -17,12 +17,16 @@ interface Viewport3DProps {
   project: Product3DProject;
   decalDataUrl?: string | null;
   onSceneReady?: (group: THREE.Group) => void;
+  importedGroup?: THREE.Group | null;
+  onFrame?: (delta: number) => void;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
   project,
   decalDataUrl,
   onSceneReady,
+  importedGroup,
+  onFrame,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -36,6 +40,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const lightsRef = useRef<StudioLights | null>(null);
 
   const onSceneReadyRef = useRef(onSceneReady);
+  const frameCallbackRef = useRef(onFrame);
+  const ownsProductRef = useRef(true);
+  useEffect(() => { frameCallbackRef.current = onFrame; }, [onFrame]);
   const decalImageRef = useRef<{ url: string; image: HTMLImageElement | null } | null>(null);
   const [imageVersion, setImageVersion] = useState(0);
 
@@ -145,7 +152,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     window.addEventListener('resize', handleResize);
 
     // Animation Loop
+    const clock = new THREE.Clock();
     const animate = () => {
+      const delta = Math.min(clock.getDelta(), 0.1);
+      frameCallbackRef.current?.(delta);
       controls.update();
 
       const liveState = projectRef.current.state;
@@ -172,7 +182,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       bloomPass.dispose();
       if (productGroupRef.current) {
         scene.remove(productGroupRef.current);
-        disposeObject3D(productGroupRef.current);
+        if (ownsProductRef.current) disposeObject3D(productGroupRef.current);
         productGroupRef.current = null;
       }
       disposeObject3D(floor);
@@ -227,9 +237,19 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     if (productGroupRef.current) {
       previousRotationY = productGroupRef.current.rotation.y;
       scene.remove(productGroupRef.current);
-      disposeObject3D(productGroupRef.current);
+      if (ownsProductRef.current) disposeObject3D(productGroupRef.current);
       productGroupRef.current = null;
     }
+
+    if (importedGroup) {
+      ownsProductRef.current = false;
+      importedGroup.rotation.y = previousRotationY;
+      productGroupRef.current = importedGroup;
+      scene.add(importedGroup);
+      onSceneReadyRef.current?.(importedGroup);
+      return;
+    }
+    ownsProductRef.current = true;
 
     // Load the artwork once per image, then compose a fresh canvas label texture
     // each rebuild so scale/rotation/position/wrap edits apply live.
@@ -265,7 +285,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // Read via ref: an inline callback prop changes every render and would
     // otherwise retrigger this effect in a rebuild loop.
     onSceneReadyRef.current?.(newGroup);
-  }, [project, decalDataUrl, imageVersion]);
+  }, [project, decalDataUrl, imageVersion, importedGroup]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
