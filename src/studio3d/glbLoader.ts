@@ -61,7 +61,7 @@ export async function loadStudioModel(file: File, draco?: DRACOLoader): Promise<
     return { name: file.name, scene: gltf.scene, display: normalizeModel(gltf.scene),
       clips: gltf.animations, mixer: new THREE.AnimationMixer(gltf.scene), meshCount, triangles };
   } catch (error) {
-    disposeObject3D(gltf.scene);
+    disposeObject3D(gltf.scene, true);
     throw error;
   }
 }
@@ -70,5 +70,5 @@ export function releaseStudioModel(model: ImportedStudioModel): void {
   model.mixer.stopAllAction();
   model.mixer.uncacheRoot(model.scene);
   model.display.removeFromParent();
-  disposeObject3D(model.scene);
+  disposeObject3D(model.scene, true);
 }
