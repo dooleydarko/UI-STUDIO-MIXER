@@ -39,10 +39,11 @@ export function estimateModelBudget(root: THREE.Object3D): ModelBudget {
   let triangles = 0;
   root.traverse((node) => {
     if (!(node instanceof THREE.Mesh)) return;
-    const geometry = node.geometry;
+    const geometry: THREE.BufferGeometry = node.geometry;
     const count = geometry.index?.count ?? geometry.attributes.position?.count ?? 0;
     triangles += Math.floor(count / 3) * (node instanceof THREE.InstancedMesh ? node.count : 1);
-    const attributes = [...Object.values(geometry.attributes), ...Object.values(geometry.morphAttributes).flat()];
+    const attributes: (THREE.BufferAttribute | THREE.InterleavedBufferAttribute)[] = [...Object.values(geometry.attributes)];
+    for (const targets of Object.values(geometry.morphAttributes)) if (targets) attributes.push(...targets);
     if (geometry.index) attributes.push(geometry.index);
     for (const attribute of attributes) {
       if (!attribute) continue;
