@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { disposeObject3D } from './disposal';
 
 export interface ImportedStudioModel {
@@ -32,7 +34,7 @@ export function normalizeModel(scene: THREE.Group): THREE.Group {
   return display;
 }
 
-export async function loadStudioModel(file: File): Promise<ImportedStudioModel> {
+export async function loadStudioModel(file: File, draco?: DRACOLoader): Promise<ImportedStudioModel> {
   if (!/\.(glb|gltf)$/i.test(file.name)) throw new Error('Choose a GLB or self-contained glTF file.');
   if (file.size > 100 * 1024 * 1024) throw new Error('Model exceeds the 100 MB import limit. Optimize it first.');
   const manager = new THREE.LoadingManager();
@@ -41,7 +43,9 @@ export async function loadStudioModel(file: File): Promise<ImportedStudioModel> 
     if (/^(data:|blob:)/i.test(url)) return url;
     throw new Error('External resources are not supported. Export a self-contained GLB.');
   });
-  const gltf = await new GLTFLoader(manager).parseAsync(await file.arrayBuffer(), '');
+  const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
+  if (draco) loader.setDRACOLoader(draco);
+  const gltf = await loader.parseAsync(await file.arrayBuffer(), '');
   try {
     let meshCount = 0;
     let triangles = 0;
