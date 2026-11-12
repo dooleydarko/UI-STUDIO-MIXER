@@ -74,6 +74,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
   // Undo / redo keyboard shortcuts (Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z, Ctrl+Y)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (importMode) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'range')) return;
       const mod = e.metaKey || e.ctrlKey;
@@ -89,7 +90,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [history.undo, history.redo]);
+  }, [history.undo, history.redo, importMode]);
 
   const handlePresetChange = (preset: ProductPreset) => {
     const existing = projects.find((p) => p.preset === preset);
