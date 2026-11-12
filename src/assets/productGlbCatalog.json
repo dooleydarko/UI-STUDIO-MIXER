@@ -1,0 +1,102 @@
+[
+  {
+    "id": "MaterialsVariantsShoe",
+    "name": "Sneaker",
+    "category": "Footwear",
+    "credit": "Shopify (2021)",
+    "license": "CC-BY-4.0",
+    "note": "Default material loads; variant switching is not implemented.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/MaterialsVariantsShoe/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/MaterialsVariantsShoe/glTF-Binary/MaterialsVariantsShoe.glb"
+  },
+  {
+    "id": "ChronographWatch",
+    "name": "Chronograph watch",
+    "category": "Accessories",
+    "credit": "Darmstadt Graphics Group GmbH / Eric Chadwick (2025)",
+    "license": "CC-BY-4.0",
+    "note": "Includes Khronos, 3D Commerce and DGG marks; trademark rights are separate. Default material only.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/ChronographWatch/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/ChronographWatch/glTF-Binary/ChronographWatch.glb"
+  },
+  {
+    "id": "SunglassesKhronos",
+    "name": "Sunglasses",
+    "category": "Accessories",
+    "credit": "Darmstadt Graphics Group GmbH / Eric Chadwick (2024)",
+    "license": "CC-BY-4.0",
+    "note": "Includes Khronos and 3D Commerce marks; trademark rights are separate.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SunglassesKhronos/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SunglassesKhronos/glTF-Binary/SunglassesKhronos.glb"
+  },
+  {
+    "id": "CarConcept",
+    "name": "Concept car",
+    "category": "Automotive",
+    "credit": "Darmstadt Graphics Group GmbH / Eric Chadwick (2024)",
+    "license": "CC-BY-4.0",
+    "note": "Includes Khronos and 3D Commerce marks; trademark rights are separate. Default material only.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/CarConcept/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/CarConcept/glTF-Binary/CarConcept.glb"
+  },
+  {
+    "id": "SheenChair",
+    "name": "Velvet accent chair",
+    "category": "Furniture",
+    "credit": "Wayfair / Eric Chadwick (2020)",
+    "license": "CC0-1.0",
+    "note": "Default material only.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SheenChair/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SheenChair/glTF-Binary/SheenChair.glb"
+  },
+  {
+    "id": "SheenWoodLeatherSofa",
+    "name": "Wood and leather sofa",
+    "category": "Furniture",
+    "credit": "Darmstadt Graphics Group GmbH / Eric Chadwick (2024); original by Fran Calvente (2021, CC0)",
+    "license": "CC-BY-4.0",
+    "note": "WebP textures.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SheenWoodLeatherSofa/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SheenWoodLeatherSofa/glTF-Binary/SheenWoodLeatherSofa.glb"
+  },
+  {
+    "id": "SpecularSilkPouf",
+    "name": "Silk pouf",
+    "category": "Furniture",
+    "credit": "Wayfair / Eric Chadwick (2023)",
+    "license": "CC-BY-4.0",
+    "note": "",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SpecularSilkPouf/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/SpecularSilkPouf/glTF-Binary/SpecularSilkPouf.glb"
+  },
+  {
+    "id": "IridescenceLamp",
+    "name": "Iridescent table lamp",
+    "category": "Lighting",
+    "credit": "Wayfair / Eric Chadwick (2022)",
+    "license": "CC-BY-4.0",
+    "note": "",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/IridescenceLamp/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/IridescenceLamp/glTF-Binary/IridescenceLamp.glb"
+  },
+  {
+    "id": "WaterBottle",
+    "name": "Reusable water bottle",
+    "category": "Lifestyle",
+    "credit": "Microsoft (2017)",
+    "license": "CC0-1.0",
+    "note": "",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/WaterBottle/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/WaterBottle/glTF-Binary/WaterBottle.glb"
+  },
+  {
+    "id": "CommercialRefrigerator",
+    "name": "Glass-door refrigerator",
+    "category": "Appliances",
+    "credit": "Darmstadt Graphics Group GmbH / Eric Chadwick (2025); based on Commercial Fridge by Sean Thomas (2025)",
+    "license": "CC-BY-4.0",
+    "note": "Animated door; source contains bottles.",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/blob/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/CommercialRefrigerator/README.md",
+    "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/8f492390ddc7a2ae221a1369ef560589cf8c70fb/Models/CommercialRefrigerator/glTF-Binary/CommercialRefrigerator.glb"
+  }
+]
