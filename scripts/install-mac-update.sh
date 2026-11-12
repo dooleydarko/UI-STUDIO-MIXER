@@ -18,8 +18,7 @@ npm ci --ignore-scripts
 npm run build
 node --test tests/glbStudio.test.mjs
 npm test
-SKIP_INSTALL=1 bash scripts/build-mac-apps.sh
-# Only install after all checks and both app bundles have built.
+# Only install after all checks; builder creates both bundles before installation.
 bash scripts/build-mac-apps.sh
 echo "Installed UI Studio Mixer 1.5.0 candidate. Open UI Mixer Studio from Applications."
 echo "If an old local server is running from a different checkout, stop that specific server before relaunching."
