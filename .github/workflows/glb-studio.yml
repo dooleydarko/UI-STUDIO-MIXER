@@ -52,16 +52,16 @@ jobs:
       - run: npm test
       - run: node --test tests/glbStudio.test.mjs
       - run: bash -n scripts/build-mac-apps.sh scripts/install-mac-update.sh
-      - run: APP_VERSION=1.6.0 BUILD_NUMBER=4 SKIP_INSTALL=1 bash scripts/build-mac-apps.sh
+      - run: APP_VERSION=1.7.0 BUILD_NUMBER=5 SKIP_INSTALL=1 bash scripts/build-mac-apps.sh
       - run: |
           codesign --verify --strict "apps/UI Mixer Studio.app"
           codesign --verify --strict "apps/AI Engine Foundry.app"
           file "apps/UI Mixer Studio.app/Contents/MacOS/StudioAppHost"
           mkdir -p release
-          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.6.0-surface/ -o release/UI-STUDIO-MIXER-1.6.0-surface-source.zip HEAD
-          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.6.0-surface-source.zip > SHA256SUMS.txt)
+          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.7.0-advanced-surface/ -o release/UI-STUDIO-MIXER-1.7.0-advanced-surface-source.zip HEAD
+          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.7.0-advanced-surface-source.zip > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: UI-STUDIO-MIXER-1.6.0-surface-mac-update-candidate
+          name: UI-STUDIO-MIXER-1.7.0-advanced-surface-mac-update-candidate
           path: release/
           if-no-files-found: error
