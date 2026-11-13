@@ -38,8 +38,8 @@ function disposeOrphans(root:THREE.Object3D,discarded:Snapshot[],retained:Snapsh
 export class StructuralHistory{
   private past:Entry[]=[];private future:Entry[]=[];
   constructor(private root:THREE.Object3D,private maxEntries=8,private maxBytes=256*1024*1024){}
-  get undoLabel(){return this.past.at(-1)?.label;}
-  get redoLabel(){return this.future.at(-1)?.label;}
+  get undoLabel(){return this.past[this.past.length-1]?.label;}
+  get redoLabel(){return this.future[this.future.length-1]?.label;}
   begin(){return capture(this.root);}
   commit(label:string,before:Snapshot){
     const after=capture(this.root),discarded=this.future.flatMap(e=>[e.before,e.after]);this.future=[];
