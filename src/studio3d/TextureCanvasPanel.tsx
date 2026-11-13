@@ -82,6 +82,15 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
       if(alive.current){commit(next);setSelected(next.layers[next.layers.length-1]?.id??'');}
     }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
   };
+  const cleanMask=async()=>{
+    if(!layer||loading||pending||busy)return;
+    setLoading(true);setCompatibility('');
+    try{
+      await new Promise(resolve=>window.setTimeout(resolve,20));
+      const patch=await session.cleanMaskedRegion(doc,layer.id);
+      if(alive.current){add({...layerDefaults('Local surface cleanup'),kind:'image',...patch,rotation:0,flipX:false,flipY:false});setTool('move');setCompatibility('Local cleanup patch added. It samples surrounding colors, not an AI model; refine textured areas with Clone Stamp.');}
+    }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
+  };
   const exportPsd=async()=>{
     if(loading||pending||busy)return;setLoading(true);setCompatibility('');
     try{const blob=await exportTexturePsd(session,doc);if(alive.current){downloadTextureFile(blob,'surface.psd');setCompatibility('Exported layered PSD. Save the native layer document too to retain brush history and original artwork transforms.');}}
@@ -153,6 +162,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
         <div className="flex flex-wrap gap-1">
           <button className={button} disabled={loading} onClick={()=>add({...layerDefaults('Gray Out'),kind:'gray',color:'#b0b0b0'})}>Gray Out</button>
           <button className={button} disabled={loading} onClick={()=>{add({...layerDefaults('Paint'),kind:'paint',strokes:[]});setTool('brush');}}>Paint</button>
+          <button className={button} disabled={loading||doc.layers.length>=64} onClick={()=>{add({...layerDefaults('Cleanup selection'),kind:'paint',strokes:[]});setMaskMode(true);setTool('eraser');setCompatibility('Paint over unwanted graphics with E in mask mode, then click Clean masked area. Use a small selection.');}}>Cleanup mask</button>
           <label className={button+' cursor-pointer'}>Artwork<input type="file" className="hidden" accept="image/png,image/jpeg,image/webp" disabled={loading} onChange={e=>{void importArtwork(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/></label>
         </div>
         {[...doc.layers].reverse().map(l=><div key={l.id} className={'flex items-center gap-1 rounded border p-1 text-xs '+(l.id===selected?'border-sky-500/60 bg-sky-500/10':'border-white/10')}>
@@ -172,6 +182,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
             <strong>Layer mask</strong>
             <button className={button+" w-full "+(maskMode?'border-sky-500 text-sky-300':'')} disabled={layer.locked||loading} onClick={()=>{setMaskMode(v=>!v);setTool(maskMode?'move':'eraser');}}>{maskMode?'Exit mask editing':'Edit mask'}</button>
             {maskMode&&<p className="text-neutral-400">E hides · B reveals on 2D or 3D.</p>}
+            {(layer.mask?.length||layer.maskImage)&&<button className={button+' w-full'} disabled={loading||pending} onClick={()=>void cleanMask()}>Clean masked area (local)</button>}
             {(!!layer.mask?.length||!!layer.maskImage)&&<div className="flex gap-1"><button className={button} disabled={layer.locked||loading} onClick={()=>edit({maskEnabled:layer.maskEnabled===false})}>{layer.maskEnabled===false?'Enable':'Disable'}</button><button className={button} disabled={layer.locked||loading} onClick={()=>{if(window.confirm('Clear the layer mask?'))edit({mask:[],maskImage:undefined,maskEnabled:true});}}>Clear</button></div>}
           </div>
           {layer.kind==='gray'&&<input type="color" aria-label="Gray color" disabled={layer.locked||loading} value={layer.color} onChange={e=>edit({color:e.target.value})}/>}
