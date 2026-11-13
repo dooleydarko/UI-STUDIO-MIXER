@@ -4,7 +4,7 @@ import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
 import { GrayOutSession, inspectSurfaces, collectUVGuide, isolateMeshMaterial } from './surfaceEditing';
 import { TextureCanvasSession, type TextureDocument } from './textureCanvasEngine';
-import { SurfaceWorkspace } from './surfaceWorkspace';
+import { SurfaceWorkspace, type SurfaceHistory } from './surfaceWorkspace';
 import { TextureCanvasPanel } from './TextureCanvasPanel';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
@@ -62,6 +62,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [docRevision,setDocRevision]=useState(0);
   const lastPersisted=useRef<{document:TextureDocument;lighting:Product3DProject['state']['lighting']}|null>(null);
   const onCanvasDocument = useCallback((doc:TextureDocument)=>{const session=canvasRef.current;if(session&&workspace.current.update(session,doc)){canvasDoc.current=doc;setDocRevision(v=>v+1);}},[]);
+  const onCanvasHistory=useCallback((history:SurfaceHistory)=>{const session=canvasRef.current;if(session)workspace.current.updateHistory(session,history);},[]);
   const [canvasSession, setCanvasSession] = useState<TextureCanvasSession | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
   const [paintTarget, setPaintTarget] = useState<SurfacePaintTarget | null>(null);
@@ -450,7 +451,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             </div>
           </div>}
         </main>
-        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
+        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} initialHistory={workspace.current.getBySession(canvasSession)?.history} onHistory={onCanvasHistory} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
