@@ -41,6 +41,11 @@ try {
     check(material.normalMap===normal&&material.roughness===.4&&material.metalness===.3,'Physical channels changed');
     const clone=engine.createClonePatch(session.output,[{x:10,y:10}],{x:6,y:6},2);
     check(clone.startsWith('data:image/png;base64,'),'Clone patch not exported');
+    const cleaned=await session.cleanMaskedRegion(doc,masked.id);
+    const cleanup={...engine.layerDefaults('Cleanup patch'),kind:'image',...cleaned,rotation:0,flipX:false,flipY:false};
+    await session.render({...doc,layers:[...doc.layers,cleanup]});
+    check(Math.abs(pix(12,3)[0]-128)<=1,'Local masked reconstruction did not sample surrounding gray');
+    await session.render(doc);
     const bytes=await psd.exportTexturePsd(session,doc);
     const imported=await psd.importTexturePsd(new File([bytes],'roundtrip.psd'),session.initial);
     check(imported.document.layers.length===3,'PSD layer count changed');
@@ -59,7 +64,7 @@ try {
     await library.removeSavedModel(saved.id);
     session.showOriginal(true);check(material.map===map,'Original comparison failed');
     session.restore();check(material.map===map&&material.normalMap===normal,'Session restoration failed');
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration'];
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration'];
   });
   assert.equal(results.length,5);
   console.log('Browser acceptance passed:',results);
