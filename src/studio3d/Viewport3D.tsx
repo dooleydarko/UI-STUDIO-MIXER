@@ -151,13 +151,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
     // Resize observer
     const handleResize = () => {
-      if (!mount) return;
+      if (!mount || mount.clientWidth === 0 || mount.clientHeight === 0) return;
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
       composer.setSize(mount.clientWidth, mount.clientHeight);
     };
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(mount);
 
     // Animation Loop
     const clock = new THREE.Clock();
@@ -183,6 +185,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     animate();
 
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       controls.dispose();
