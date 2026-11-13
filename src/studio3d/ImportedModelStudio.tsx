@@ -3,12 +3,12 @@ import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
 import { GrayOutSession, inspectSurfaces } from './surfaceEditing';
-import { TextureCanvasSession } from './textureCanvasEngine';
+import { TextureCanvasSession, parseTextureDocument, type TextureDocument } from './textureCanvasEngine';
 import { TextureCanvasPanel } from './TextureCanvasPanel';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
 import { encodeSceneGlb, exportSceneToGlb } from './glbExporter';
-import { listSavedModels, readSavedModel, removeSavedModel, saveModelSnapshot, type SavedModelInfo } from './modelLibrary';
+import { listSavedModels, readSavedModel, removeSavedModel, saveModelSnapshot, saveSurfaceProject, readSurfaceProject, type SurfaceProjectData, type SavedModelInfo } from './modelLibrary';
 import { createLocalDracoLoader } from './localDraco';
 import { PRODUCT_GLB_CATALOG, fetchCatalogModel, type ProductGlbAsset } from './productCatalog';
 import { estimateModelBudget, recommendQuality, downscaleModelTextures, type QualityMode, type PreviewQuality } from './modelPerformance';
@@ -16,6 +16,8 @@ import { estimateModelBudget, recommendQuality, downscaleModelTextures, type Qua
 interface Props {
   project: Product3DProject;
   onExit: () => void;
+  initialModelId?: string;
+  onSendBack?: (info:SavedModelInfo) => void;
 }
 
 const button = 'rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs hover:bg-white/10 disabled:opacity-40';
@@ -24,7 +26,7 @@ const channelNames: Record<MapChannel, string> = {
   metalnessMap: 'Metalness', emissiveMap: 'Emissive', aoMap: 'Ambient occlusion',
 };
 
-export function ImportedModelStudio({ project, onExit }: Props) {
+export function ImportedModelStudio({ project, onExit, initialModelId, onSendBack }: Props) {
   const [model, setModel] = useState<ImportedStudioModel | null>(null);
   const [savedModels, setSavedModels] = useState<SavedModelInfo[]>([]);
   const [savedId, setSavedId] = useState<string>();
@@ -48,6 +50,14 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const graySession = useRef(new GrayOutSession());
   const [grayActive, setGrayActive] = useState(false);
   const canvasRef = useRef<TextureCanvasSession | null>(null);
+  const canvasOwner = useRef<ImportedStudioModel | null>(null);
+  const sourceFileRef = useRef<File | null>(null);
+  const sourceModified = useRef(false);
+  const sourceSnapshot = useRef<File | null>(null);
+  const surfaceId = useRef<string | undefined>();
+  const canvasDoc = useRef<TextureDocument | null>(null);
+  const [initialDocument, setInitialDocument] = useState<TextureDocument | undefined>();
+  const onCanvasDocument = useCallback((doc:TextureDocument)=>{canvasDoc.current=doc;},[]);
   const [canvasSession, setCanvasSession] = useState<TextureCanvasSession | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
   const [paintTarget, setPaintTarget] = useState<SurfacePaintTarget | null>(null);
@@ -85,7 +95,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     mounted.current = true;
     return () => { mounted.current = false; request.current++; downloadController.current?.abort(); current.current = null; action.current = null; };
   }, []);
-  useEffect(() => () => { if (model) { canvasRef.current?.restore(); canvasRef.current = null; graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
+  useEffect(() => () => { if (model) { if(canvasOwner.current===model){canvasRef.current?.restore(); canvasRef.current=null;canvasOwner.current=null;} graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
   useEffect(() => { listSavedModels().then(items => { if (mounted.current) setSavedModels(items); }).catch(() => { if (mounted.current) setLibraryStatus('Local model library unavailable. Export GLB files instead.'); }); }, []);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || grayActive || canvasSession) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty, grayActive, canvasSession]);
 
@@ -104,7 +114,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     action.current = next;
   };
 
-  const importFile = async (file?: File, libraryId?: string, asset?: ProductGlbAsset) => {
+  const importFile = async (file?: File, libraryId?: string, asset?: ProductGlbAsset, surface?:SurfaceProjectData) => {
     if ((!file && !asset) || busy || canvasRef.current) return;
     if ((dirty || grayActive) && !window.confirm('Discard unsaved model changes and Gray Out preview?')) return;
     const id = ++request.current;
@@ -143,14 +153,31 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       graySession.current.restoreAll();
       setGrayActive(false);
       current.current = loaded;
+      sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;setInitialDocument(undefined);
       setOptimizationNote('');
-      setSavedId(libraryId);
+      setSavedId(surface?undefined:libraryId);
       setDirty(!libraryId);
       setLibraryStatus('');
       setModel(loaded);
       if (asset) setCatalogOpen(false);
       setMaterialId(inspectMaterials(loaded.scene)[0]?.id ?? '');
       selectClip(loaded, loaded.clips.length ? 0 : -1);
+      if(surface){
+        let session:TextureCanvasSession|undefined;
+        try{
+          if(surface.projectId!==project.id)throw new Error('Saved surface belongs to another Product Studio project.');
+          const binding=inspectMaterials(loaded.scene)[surface.materialIndex];
+          const doc=parseTextureDocument(JSON.stringify(surface.document));
+          if(!binding||binding.name!==surface.materialName||doc.material!==binding.name)throw new Error('Saved material binding does not match the source GLB.');
+          session=new TextureCanvasSession(binding.material,binding.name);
+          await session.restoreSavedBase(doc);
+          if(!mounted.current||id!==request.current){session.restore();return;}
+          canvasRef.current=session;canvasOwner.current=loaded;canvasDoc.current=doc;surfaceId.current=libraryId;
+          sourceSnapshot.current=sourceFile;setInitialDocument(doc);setCanvasSession(session);setCanvasMode('split');setCanvasReady(false);
+          setMaterialId(binding.id);setLighting(surface.lighting);setLibraryOpen(false);
+          setLibraryStatus('Reopened editable surface project · original source retained');
+        }catch(e){session?.restore();if(mounted.current)setError('Could not reopen editable surface: '+(e instanceof Error?e.message:String(e))+' The original source is still open.');}
+      }
     } catch (e) {
       if (mounted.current && id === request.current) setError(e instanceof Error && e.name === 'AbortError' ? 'Product download canceled or timed out.' : e instanceof Error ? e.message : String(e));
     } finally {
@@ -212,13 +239,13 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       if (grayActive && !window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?')) return;
       if (grayActive) restoreGray();
       const next = new TextureCanvasSession(target, selected.name);
-      canvasRef.current = next; setCanvasSession(next); setCanvasReady(false); setCanvasMode('split');
+      canvasRef.current = next; canvasOwner.current=model;canvasDoc.current=next.initial;surfaceId.current=undefined;setInitialDocument(undefined);setCanvasSession(next); setCanvasReady(false); setCanvasMode('split');
       setRevision(v=>v+1);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
   const closeCanvas = () => {
     if (!window.confirm('Close texture canvas and restore the original material? Save layers or export the edited GLB first.')) return;
-    canvasRef.current?.restore(); canvasRef.current=null; setCanvasSession(null); setCanvasReady(false); setRevision(v=>v+1);
+    canvasRef.current?.restore(); canvasRef.current=null;canvasOwner.current=null;canvasDoc.current=null;surfaceId.current=undefined;setInitialDocument(undefined); setCanvasSession(null); setCanvasReady(false); setRevision(v=>v+1);
   };
   const duration = model?.clips[clipIndex]?.duration ?? 0;
   const togglePlay = () => {
@@ -241,7 +268,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     try {
       await replaceMaterialMap(source.scene, selected.material, channel, file,
         () => mounted.current && current.current === source);
-      if (mounted.current) { setRevision((v) => v + 1); setDirty(true); }
+      if (mounted.current) { sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }
     } catch (e) {
       if (mounted.current) setError(e instanceof Error ? e.message : String(e));
     } finally { if (mounted.current) setBusy(false); }
@@ -253,30 +280,59 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     try {
       const count = downscaleModelTextures(model.scene, 2048);
       setOptimizationNote(count ? count + ' texture maps downscaled.' : 'No eligible oversized textures.');
-      if (count) setDirty(true);
+      if (count) {sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);}
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setRevision((v) => v + 1); }
   };
-  const saveSnapshot = async () => {
-    if (!model || busy || grayActive || canvasSession) return;
+  const saveSnapshot = async (sendBack=false) => {
+    if (!model || busy || grayActive || (canvasSession&&!canvasReady)) return;
     setBusy(true); setError(''); setLibraryStatus('');
     if (action.current) action.current.paused = true;
     setPlaying(false);
     try {
       const blob = await encodeSceneGlb(model.scene, model.clips);
       if (blob.size > 100 * 1024 * 1024) throw new Error('Saved GLB exceeds the current 100 MB reopen limit. Downscale textures or export it instead.');
-      const info = await saveModelSnapshot(model.name, blob, savedId);
+      let info:SavedModelInfo;
+      const session=canvasRef.current,doc=canvasDoc.current;
+      if(session&&doc){
+        const binding=inspectMaterials(model.scene).findIndex(entry=>entry.material===session.paintMaterial);
+        if(binding<0)throw new Error('Active material no longer belongs to this model.');
+        let source=sourceSnapshot.current;
+        if(!source){
+          if(!sourceModified.current&&sourceFileRef.current)source=sourceFileRef.current;
+          else{
+            session.showOriginal(true);
+            try{const original=await encodeSceneGlb(model.scene,model.clips);source=new File([original],model.name.replace(/\\.(glb|gltf)$/i,'')+'-source.glb',{type:'model/gltf-binary'});}
+            finally{session.showOriginal(false);}
+          }
+          sourceSnapshot.current=source;
+        }
+        if(source.size>100*1024*1024)throw new Error('Original source exceeds the local reopen limit.');
+        info=await saveSurfaceProject(model.name,blob,{source,sourceName:source.name,materialIndex:binding,materialName:doc.material,document:doc,lighting,projectId:project.id},surfaceId.current);
+        surfaceId.current=info.id;
+      }else info=await saveModelSnapshot(model.name,blob,savedId);
       if (mounted.current) {
-        setSavedId(info.id); setDirty(false); setLibraryStatus('Saved locally · ' + new Date(info.savedAt).toLocaleTimeString());
+        if(!canvasSession)setSavedId(info.id); setDirty(false); setLibraryStatus((canvasSession?'Saved editable surface locally · ':'Saved locally · ') + new Date(info.savedAt).toLocaleTimeString());
         setSavedModels(await listSavedModels());
+        if(sendBack&&info.layered){onSendBack?.(info);onExit();}
       }
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)); }
     finally { if (mounted.current) setBusy(false); }
   };
-  const openSnapshot = async (id: string) => {
-    try { const file = await readSavedModel(id); await importFile(file, id); }
-    catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)); }
+  const openSnapshot = async (id: string, baked=false) => {
+    if(canvasRef.current||busy)return;
+    try {
+      const surface=baked?undefined:await readSurfaceProject(id);
+      if(surface){if(surface.projectId!==project.id)throw new Error('Open this surface from its associated Product Studio project.');await importFile(new File([surface.source],surface.sourceName),id,undefined,surface);}
+      else{const file=await readSavedModel(id);await importFile(file,baked?undefined:id);}
+    }catch(e){if(mounted.current)setError(e instanceof Error?e.message:String(e));}
   };
+  useEffect(()=>{
+    if(!initialModelId)return;
+    let canceled=false;
+    Promise.resolve().then(()=>{if(!canceled)void openSnapshot(initialModelId);});
+    return()=>{canceled=true;};
+  },[initialModelId]);
   const deleteSnapshot = async (id: string) => {
     if (busy || !window.confirm('Delete this saved local copy? The original file is not affected.')) return;
     try {
@@ -315,7 +371,8 @@ export function ImportedModelStudio({ project, onExit }: Props) {
         <button className={button} onClick={() => { setLibraryOpen(v=>!v); setCatalogOpen(false); }} disabled={busy || !!canvasSession}>Library ({savedModels.length})</button>
         <button className={button+' border-sky-500/40 text-sky-300'} onClick={openCanvas} disabled={!selected || busy || !!canvasSession}>Open Texture Canvas</button>
         {canvasSession && <div className="flex gap-1">{(['split','2d','3d'] as const).map(mode=><button key={mode} className={button+(canvasMode===mode?' border-sky-500 text-sky-300':'')} onClick={()=>setCanvasMode(mode)}>{mode==='split'?'Split':mode==='2d'?'2D':'3D'}</button>)}</div>}
-        <button className={button} onClick={saveSnapshot} disabled={!model || busy || grayActive || !!canvasSession}>{dirty ? 'Save model •' : 'Save model'}</button>
+        <button className={button} onClick={()=>void saveSnapshot()} disabled={!model || busy || grayActive || (!!canvasSession&&!canvasReady)}>{canvasSession?'Save editable project':dirty?'Save model •':'Save model'}</button>
+        {canvasSession&&<button className={button+' border-emerald-500/40 text-emerald-300'} disabled={busy||!canvasReady} onClick={()=>void saveSnapshot(true)}>Send Back to Product Studio</button>}
         <button className={button} onClick={exportModel} disabled={!model || busy || (!!canvasSession && !canvasReady)}>Export edited GLB</button>
       </header>
       {downloadStatus && <div role="status" className="flex items-center justify-between gap-2 bg-sky-500/10 px-4 py-2 text-xs text-sky-300"><span>{downloadStatus}</span><button className={button} onClick={()=>downloadController.current?.abort()}>Cancel download</button></div>}
@@ -335,7 +392,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
         {!catalogItems.length && <p className="text-xs text-neutral-500">No matching products.</p>}
       </section>}
       {libraryStatus && <div role="status" className="px-4 py-2 text-xs text-sky-300">{libraryStatus}</div>}
-      {libraryOpen && <section className="max-h-52 overflow-y-auto border-b border-white/10 p-4 space-y-2"><h3 className="text-xs font-semibold">Saved models · local device</h3>{!savedModels.length && <p className="text-xs text-neutral-500">No saved models yet.</p>}{savedModels.map(item => <div key={item.id} className="flex items-center gap-2 text-xs"><span className="mr-auto truncate">{item.name} · {(item.size/1048576).toFixed(1)} MB</span><button className={button} disabled={busy} onClick={()=>void openSnapshot(item.id)}>Open</button><button className={button} disabled={busy} onClick={()=>void deleteSnapshot(item.id)}>Delete</button></div>)}</section>}
+      {libraryOpen && <section className="max-h-52 overflow-y-auto border-b border-white/10 p-4 space-y-2"><h3 className="text-xs font-semibold">Saved models · local device</h3>{!savedModels.length && <p className="text-xs text-neutral-500">No saved models yet.</p>}{savedModels.map(item => <div key={item.id} className="flex items-center gap-2 text-xs"><span className="mr-auto truncate">{item.name} · {(item.size/1048576).toFixed(1)} MB{item.layered?' · layered':''}</span><button className={button} disabled={busy||!!canvasSession} onClick={()=>void openSnapshot(item.id)}>{item.layered?'Edit layers':'Open'}</button>{item.layered&&<button className={button} disabled={busy||!!canvasSession} onClick={()=>void openSnapshot(item.id,true)}>Open baked copy</button>}<button className={button} disabled={busy} onClick={()=>void deleteSnapshot(item.id)}>Delete</button></div>)}</section>}
       {error && <div role="alert" className="border-b border-red-500/30 bg-red-950/30 px-4 py-2 text-xs text-red-300">{error}</div>}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <main className={canvasSession && canvasMode==='2d' ? 'hidden' : 'relative flex-1 min-w-0'}
@@ -364,7 +421,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
             </div>
           </div>}
         </main>
-        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
+        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} initialDocument={initialDocument} onDocument={onCanvasDocument} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
@@ -421,13 +478,13 @@ export function ImportedModelStudio({ project, onExit }: Props) {
               <p className="break-words text-xs text-neutral-500">Shared by: {selected.meshes.join(', ')}</p>
               <label className="flex items-center justify-between text-xs">Color tint
                 <input type="color" disabled={busy || grayActive} value={'#' + selected.material.color.getHexString()}
-                  onChange={(e) => { selected.material.color.set(e.target.value); setRevision((v) => v + 1); setDirty(true); }} />
+                  onChange={(e) => { selected.material.color.set(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }} />
               </label>
               {(['roughness', 'metalness'] as const).map((key) => <label key={key} className="block text-xs capitalize">
                 {key} · {selected.material[key].toFixed(2)}
                 <input className="block w-full accent-sky-500" type="range" min={0} max={1} step={0.01}
                   disabled={busy || grayActive} value={selected.material[key]} onChange={(e) => {
-                    selected.material[key] = Number(e.target.value); setRevision((v) => v + 1); setDirty(true);
+                    selected.material[key] = Number(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true);
                   }} />
               </label>)}
               {MAP_CHANNELS.map((channel) => <div key={channel} className="rounded-xl border border-white/10 p-2">
