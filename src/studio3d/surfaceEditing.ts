@@ -102,3 +102,46 @@ export class GrayOutSession {
     for (const material of [...this.originals.keys()]) this.restore(material);
   }
 }
+
+export interface UVGuide { segments:number[][]; truncated:boolean }
+/** UV edges for the selected material slots only. Shared UVs remain shared. */
+export function collectUVGuide(root:THREE.Object3D,material:THREE.MeshStandardMaterial,limit=12000):UVGuide{
+  const segments:number[][]=[];let truncated=false;
+  const map=material.map,channel=map?.channel??0;
+  if(map?.matrixAutoUpdate)map.updateMatrix();
+  const seen=new Set<string>();
+  const a=new THREE.Vector2(),b=new THREE.Vector2(),c=new THREE.Vector2();
+  root.traverse(node=>{
+    if(!(node instanceof THREE.Mesh)||truncated)return;
+    const geo=node.geometry,uv=geo.getAttribute(channel?'uv'+channel:'uv');
+    if(!uv)return;
+    const slots=Array.isArray(node.material)?node.material:[node.material];
+    if(!slots.includes(material))return;
+    const count=geo.index?.count??uv.count;
+    const groups=Array.isArray(node.material)?geo.groups.filter(g=>slots[g.materialIndex??0]===material):[{start:0,count}];
+    const index=(i:number)=>geo.index?geo.index.getX(i):i;
+    const point=(p:THREE.Vector2,i:number)=>{p.fromBufferAttribute(uv,index(i));if(map)map.transformUv(p);};
+    const edge=(p:THREE.Vector2,q:THREE.Vector2)=>{
+      const first=p.x.toFixed(5)+','+p.y.toFixed(5),second=q.x.toFixed(5)+','+q.y.toFixed(5),key=first<second?first+'|'+second:second+'|'+first;
+      if(seen.has(key))return;
+      if(segments.length>=limit){truncated=true;return;}
+      seen.add(key);segments.push([p.x,p.y,q.x,q.y]);
+    };
+    for(const g of groups){
+      for(let i=g.start;i+2<Math.min(count,g.start+g.count)&&!truncated;i+=3){point(a,i);point(b,i+1);point(c,i+2);edge(a,b);edge(b,c);edge(c,a);}
+      if(truncated)break;
+    }
+  });
+  return {segments,truncated};
+}
+export function isolateMeshMaterial(root:THREE.Object3D,nodeId:string,materialId:string):THREE.MeshStandardMaterial{
+  const node=root.getObjectByProperty('uuid',nodeId);
+  if(!(node instanceof THREE.Mesh))throw new Error('Select an imported mesh.');
+  const slots=Array.isArray(node.material)?node.material:[node.material];
+  const material=slots.find(m=>m.uuid===materialId);
+  if(!(material instanceof THREE.MeshStandardMaterial))throw new Error('Selected PBR material not found on this mesh.');
+  const isolated=material.clone();
+  isolated.name=(material.name||'Material')+' — '+(node.name||'isolated mesh');
+  node.material=Array.isArray(node.material)?slots.map(m=>m===material?isolated:m):isolated;
+  return isolated;
+}
