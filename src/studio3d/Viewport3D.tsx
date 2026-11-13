@@ -14,6 +14,11 @@ import { createLabelTexture } from './labelTexture';
 import { StorageManager } from '../storage/storageManager';
 import { PREVIEW_PROFILES, type PreviewQuality } from './modelPerformance';
 
+export interface SurfacePaintTarget {
+  material: THREE.MeshStandardMaterial;
+  onStroke: (segments: {x:number;y:number}[][]) => void;
+}
+
 interface Viewport3DProps {
   project: Product3DProject;
   decalDataUrl?: string | null;
@@ -21,6 +26,7 @@ interface Viewport3DProps {
   importedGroup?: THREE.Group | null;
   onFrame?: (delta: number) => void;
   quality?: PreviewQuality;
+  paintTarget?: SurfacePaintTarget | null;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -30,6 +36,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   importedGroup,
   onFrame,
   quality,
+  paintTarget,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -46,6 +53,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const frameCallbackRef = useRef(onFrame);
   const ownsProductRef = useRef(true);
   const qualityRef = useRef(quality);
+  const paintRef = useRef(paintTarget);
+  useEffect(() => { paintRef.current = paintTarget; if (controlsRef.current) controlsRef.current.enabled = !paintTarget; }, [paintTarget]);
   useEffect(() => { qualityRef.current = quality; }, [quality]);
   useEffect(() => { frameCallbackRef.current = onFrame; }, [onFrame]);
   const decalImageRef = useRef<{ url: string; image: HTMLImageElement | null } | null>(null);
@@ -95,6 +104,64 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     controls.dampingFactor = 0.05;
     controls.maxPolarAngle = Math.PI / 2 + 0.05; // Don't go completely below floor
     controlsRef.current = controls;
+    controls.enabled = !paintRef.current;
+
+    // Paint only the frontmost visible hit of the selected material. UV jumps and
+    // misses end a segment instead of drawing a line across unrelated islands.
+    const raycaster = new THREE.Raycaster();
+    let drawing: { pointer: number; target: SurfacePaintTarget; segments: {x:number;y:number}[][]; last: {x:number;y:number}|null } | null = null;
+    const surfacePoint = (event: PointerEvent, target: SurfacePaintTarget) => {
+      const group = productGroupRef.current, map = target.material.map;
+      if (!group || !map || map.channel > 1) return null;
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      raycaster.setFromCamera(new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1, -(event.clientY-rect.top)/rect.height*2+1), camera);
+      group.updateMatrixWorld(true);
+      const hit = raycaster.intersectObject(group, true).find(item => {
+        for (let node: THREE.Object3D|null=item.object;node;node=node.parent) if (!node.visible) return false;
+        return item.object instanceof THREE.Mesh;
+      });
+      if (!hit || !(hit.object instanceof THREE.Mesh)) return null;
+      const material = Array.isArray(hit.object.material) ? hit.object.material[hit.face?.materialIndex ?? 0] : hit.object.material;
+      if (material !== target.material) return null;
+      const source = map.channel === 1 ? (hit as THREE.Intersection & {uv1?:THREE.Vector2}).uv1 : hit.uv;
+      if (!source) return null;
+      if (map.matrixAutoUpdate) map.updateMatrix();
+      const uv = map.transformUv(source.clone());
+      return {x:uv.x,y:uv.y};
+    };
+    const sample = (event: PointerEvent) => {
+      if (!drawing || drawing.pointer !== event.pointerId || paintRef.current !== drawing.target) return;
+      const p = surfacePoint(event,drawing.target);
+      if (!p) {drawing.last=null;return;}
+      if (!drawing.last || Math.hypot(p.x-drawing.last.x,p.y-drawing.last.y)>.12) drawing.segments.push([p]);
+      else { const segment=drawing.segments[drawing.segments.length-1]; if(segment.length<10000)segment.push(p); }
+      drawing.last=p;
+    };
+    const paintDown = (event: PointerEvent) => {
+      const target=paintRef.current;
+      if(!target || event.button!==0 || drawing) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      drawing={pointer:event.pointerId,target,segments:[],last:null};
+      renderer.domElement.setPointerCapture(event.pointerId); sample(event);
+    };
+    const paintMove = (event: PointerEvent) => {
+      if(!drawing || drawing.pointer!==event.pointerId)return;
+      event.preventDefault();event.stopImmediatePropagation();sample(event);
+    };
+    const paintEnd = (event: PointerEvent) => {
+      if(!drawing || drawing.pointer!==event.pointerId)return;
+      event.preventDefault();event.stopImmediatePropagation();
+      if(event.type==='pointerup') sample(event);
+      const stroke=drawing;drawing=null;
+      if(renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
+      if(event.type==='pointerup' && paintRef.current===stroke.target && stroke.segments.length) stroke.target.onStroke(stroke.segments);
+    };
+    renderer.domElement.addEventListener('pointerdown',paintDown,true);
+    renderer.domElement.addEventListener('pointermove',paintMove,true);
+    renderer.domElement.addEventListener('pointerup',paintEnd,true);
+    renderer.domElement.addEventListener('pointercancel',paintEnd,true);
+
 
     // 5. Lighting setup
     // Procedural studio environment (no downloaded HDRI) so metals have something to reflect
@@ -188,6 +255,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      renderer.domElement.removeEventListener('pointerdown',paintDown,true);
+      renderer.domElement.removeEventListener('pointermove',paintMove,true);
+      renderer.domElement.removeEventListener('pointerup',paintEnd,true);
+      renderer.domElement.removeEventListener('pointercancel',paintEnd,true);
       controls.dispose();
       composer.dispose();
       bloomPass.dispose();
