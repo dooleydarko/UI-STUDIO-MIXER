@@ -13,10 +13,10 @@ export async function exportTexturePsd(session:TextureCanvasSession,doc:TextureD
   try{
     const children:Layer[]=layers.slice().reverse().map(({layer,image,mask})=>({
       name:layer.name, canvas:image, left:0,top:0,opacity:layer.opacity,hidden:!layer.visible,
-      blendMode:layer.blend??'normal',clipping:true,protected:{all:layer.locked},
+      blendMode:layer.blend??'normal',clipping:true,protected:{position:layer.locked,composite:layer.locked,transparency:layer.locked},
       ...(mask?{mask:{canvas:mask,top:0,left:0,defaultColor:255,disabled:layer.maskEnabled===false}}:{}),
     }));
-    children.push({name:BASE_NAME,canvas:base,protected:{all:true}});
+    children.push({name:BASE_NAME,canvas:base,protected:{position:true,composite:true,transparency:true}});
     const bytes=writePsd({width:doc.width,height:doc.height,children,canvas:session.output},{trimImageData:false,noBackground:true});
     return new Blob([bytes],{type:'image/vnd.adobe.photoshop'});
   }finally{base.width=base.height=1;for(const item of layers){item.image.width=item.image.height=1;if(item.mask)item.mask.width=item.mask.height=1;}}
@@ -83,7 +83,7 @@ export async function importTexturePsd(file:File,original:TextureDocument):Promi
     const maskImage=importMask(l,width,height);
     return {...layerDefaults(l.name||'PSD artwork'),kind:'image',image:image.toDataURL('image/png'),
       x:l.left??0,y:l.top??0,width:image.width,height:image.height,rotation:0,flipX:false,flipY:false,
-      visible:!l.hidden,locked:!!(l.protected?.all||l.protected?.position||l.protected?.composite||l.protected?.transparency||l.transparencyProtected),
+      visible:!l.hidden,locked:!!(l.protected?.position||l.protected?.composite||l.protected?.transparency||l.transparencyProtected),
       opacity:l.opacity??1,blend:(l.blendMode??'normal') as LayerBlend,
       ...(maskImage?{maskImage,maskEnabled:!l.mask?.disabled}:{}),
     };
