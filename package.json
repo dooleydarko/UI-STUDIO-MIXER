@@ -29,7 +29,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.6.0",
-    "three": "^0.173.0"
+    "three": "^0.173.0",
+    "xatlas-wasm": "0.1.3"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "^2.1.321",

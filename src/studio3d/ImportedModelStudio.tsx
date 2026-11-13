@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
+import { unwrapChartUV, type ChartResolution } from './chartUvRemapping';
 import { generateMeshUV, separateMesh, type SeparationMode } from './geometrySurfaceTools';
 import { GrayOutSession, inspectSurfaces, collectUVGuide, isolateMeshMaterial } from './surfaceEditing';
 import { TextureCanvasSession, type TextureDocument } from './textureCanvasEngine';
@@ -74,6 +75,10 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [geometryNode,setGeometryNode]=useState('');
   const [geometryStatus,setGeometryStatus]=useState('');
+  const [chartResolution,setChartResolution]=useState<ChartResolution>(1024);
+  const chartAbort=useRef<AbortController|null>(null);
+  const [chartRunning,setChartRunning]=useState(false);
+  useEffect(()=>()=>chartAbort.current?.abort(),[]);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -251,6 +256,20 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       setMaterialId(result.materialIds[0]??'');refreshGeometry();
       setGeometryStatus('Created '+result.grid+' × '+result.grid+' triangle atlas for '+result.triangles+' faces. Open Texture Canvas to edit.');
     }catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
+  const unwrapCharts=async()=>{
+    if(!model||!geometryNode||busy||grayActive||canvasSession)return;
+    if(!window.confirm('Create a chart atlas and bake the existing base-color texture onto it? The source file and other PBR maps are retained. This requires a static, single-material mesh and a free UV channel.'))return;
+    const controller=new AbortController();chartAbort.current=controller;
+    setBusy(true);setChartRunning(true);setError('');setGeometryStatus('Unwrapping charts and baking original base color…');
+    if(action.current)action.current.paused=true;setPlaying(false);
+    try{
+      const result=await unwrapChartUV(model.scene,geometryNode,chartResolution,controller.signal);
+      if(!mounted.current||current.current!==model)return;
+      setMaterialId(result.materialId);refreshGeometry();
+      setGeometryStatus(result.charts+' charts · '+result.width+' × '+result.height+' · '+Math.round(result.coverage*100)+'% atlas utilization · UV'+result.channel+' ready. Open Texture Canvas.');
+    }catch(e){if(mounted.current){setGeometryStatus(controller.signal.aborted?'Chart unwrap canceled.':'');if(!controller.signal.aborted)setError(e instanceof Error?e.message:String(e));}}
+    finally{if(chartAbort.current===controller)chartAbort.current=null;if(mounted.current){setBusy(false);setChartRunning(false);}}
   };
   const splitGeometry=(mode:SeparationMode)=>{
     if(!model||!geometryNode||busy||grayActive||canvasSession)return;
@@ -530,10 +549,16 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
               <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{setGeometryNode(e.target.value);setGeometryStatus('');}}>
                 <option value="">Select a mesh</option>{hierarchy.filter(n=>n.materials.length).map(n=><option key={n.id} value={n.id}>{'· '.repeat(Math.min(n.depth,5))}{n.name} ({n.uvSets.length?n.uvSets.join(', '):'no UV'})</option>)}
               </select>
-              <button className={button+' w-full'} disabled={!geometryNode||busy||grayActive} onClick={generateUV}>Generate missing UV0</button>
+              <div className="rounded-lg bg-white/5 p-2 space-y-2">
+                <label className="block text-[10px] text-neutral-400">Chart atlas size<select aria-label="Chart atlas resolution" className="w-full rounded bg-neutral-900 p-1" value={chartResolution} disabled={busy} onChange={e=>setChartResolution(Number(e.target.value) as ChartResolution)}>{[512,1024,2048].map(n=><option key={n} value={n}>{n}px</option>)}</select></label>
+                <button className={button+' w-full border-sky-500/40 text-sky-300'} disabled={!geometryNode||busy||grayActive} onClick={()=>void unwrapCharts()}>Unwrap charts + preserve artwork</button>
+                {chartRunning&&<button className={button+' w-full'} onClick={()=>chartAbort.current?.abort()}>Cancel unwrap</button>}
+                <p className="text-neutral-500">xatlas charts with independent UV0/UV1 artwork. Original PBR channels and existing UV coordinates are retained.</p>
+              </div>
+              <button className={button+' w-full'} disabled={!geometryNode||busy||grayActive} onClick={generateUV}>Generate missing UV0 (simple atlas)</button>
               <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('materials')}>Split materials</button><button className={button} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('connected')}>Split connected parts</button></div>
               <button className={button+' w-full'} disabled={!sourceFileRef.current||busy||grayActive} onClick={()=>{const original=sourceFileRef.current;if(original)void importFile(original);}}>Reload imported source</button>
-              <p className="text-neutral-500">Static meshes only. UV generation is a per-triangle atlas, not semantic unwrapping. Splitting keeps geometry attributes and original transforms; connected parts use exact coincident vertices.</p>
+              <p className="text-neutral-500">Static meshes only. Chart unwrapping uses xatlas; simple atlas is a per-triangle fallback. Splitting keeps geometry attributes and original transforms; connected parts use exact coincident vertices.</p>
               {geometryStatus&&<p role="status" className="text-sky-300">{geometryStatus}</p>}
             </section>
             {hierarchyOpen && <div className="mt-2 max-h-64 overflow-auto space-y-1">{hierarchy.map(node=><div key={node.id} style={{paddingLeft: Math.min(node.depth, 10)*8}}><div className="break-all text-neutral-200">{node.name}</div><div className="text-neutral-500">{node.kind}{node.uvSets.length ? ' · '+node.uvSets.join(', ') : ''}{node.groups ? ' · '+node.groups+' groups' : ''}</div>{node.materials.filter(id=>materials.some(m=>m.id===id)).map((id,i)=><div key={id+'-'+i} className="flex flex-wrap items-center gap-1"><button className="text-left text-sky-300 hover:underline" onClick={()=>setMaterialId(id)}>{materials.find(m=>m.id===id)?.name}</button>{(materials.find(m=>m.id===id)?.meshes.length??0)>1&&<button className="text-[10px] text-amber-300 hover:underline" disabled={busy||grayActive} onClick={()=>isolateMaterial(node.id,id)}>Isolate on mesh</button>}</div>)}</div>)}</div>}

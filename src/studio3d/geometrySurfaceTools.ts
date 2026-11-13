@@ -2,14 +2,14 @@ import * as THREE from 'three';
 
 export type SeparationMode='materials'|'connected';
 const MAX_TRIANGLES=50000,MAX_PARTS=64,MAX_UV_TRIANGLES=4096;
-type Face={indices:[number,number,number];slot:number};
-function meshFrom(root:THREE.Object3D,id:string):THREE.Mesh{
+export type Face={indices:[number,number,number];slot:number};
+export function meshFrom(root:THREE.Object3D,id:string):THREE.Mesh{
   const mesh=root.getObjectByProperty('uuid',id);
   if(!(mesh instanceof THREE.Mesh)||mesh instanceof THREE.SkinnedMesh||mesh instanceof THREE.InstancedMesh||mesh.morphTargetInfluences?.length||Object.keys(mesh.geometry.morphAttributes).length)throw new Error('Select a static mesh. Skinned, instanced and morph-target meshes are not supported by geometry tools.');
   if(mesh.geometry.getAttribute('skinIndex')||mesh.geometry.getAttribute('skinWeight'))throw new Error('Skin attributes are not supported by geometry tools.');
   return mesh;
 }
-function faces(mesh:THREE.Mesh):Face[]{
+export function faces(mesh:THREE.Mesh):Face[]{
   const geo=mesh.geometry,pos=geo.getAttribute('position'),index=geo.index,count=index?.count??pos?.count??0;
   if(!pos||pos.itemSize!==3||!count||count%3||count/3>MAX_TRIANGLES)throw new Error('Mesh requires valid triangle geometry with at most 50,000 triangles.');
   if(geo.drawRange.start!==0||geo.drawRange.count<count)throw new Error('Partial draw ranges are not supported.');
@@ -28,7 +28,7 @@ function faces(mesh:THREE.Mesh):Face[]{
     return {indices,slot};
   });
 }
-function disposeUnused(root:THREE.Object3D,geometry:THREE.BufferGeometry){
+export function disposeUnused(root:THREE.Object3D,geometry:THREE.BufferGeometry){
   let used=false;root.traverse(node=>{if(node instanceof THREE.Mesh&&node.geometry===geometry)used=true;});if(!used)geometry.dispose();
 }
 function copyAttribute(attribute:THREE.BufferAttribute|THREE.InterleavedBufferAttribute,indices:number[]):THREE.BufferAttribute{
@@ -42,7 +42,7 @@ function copyAttribute(attribute:THREE.BufferAttribute|THREE.InterleavedBufferAt
   for(let i=0;i<indices.length;i++)for(let j=0;j<attribute.itemSize;j++)result[i*attribute.itemSize+j]=array[indices[i]*stride+offset+j];
   const copy=new THREE.BufferAttribute(result,attribute.itemSize,attribute.normalized);copy.name=attribute.name;return copy;
 }
-function buildGeometry(source:THREE.BufferGeometry,selected:Face[],nonindexed=false):THREE.BufferGeometry{
+export function buildGeometry(source:THREE.BufferGeometry,selected:Face[],nonindexed=false):THREE.BufferGeometry{
   const output=new THREE.BufferGeometry(),indices:number[]=[],remap=new Map<number,number>(),outIndex:number[]=[];
   try{
     for(const face of selected)for(const index of face.indices){
@@ -57,7 +57,7 @@ function buildGeometry(source:THREE.BufferGeometry,selected:Face[],nonindexed=fa
     output.computeBoundingBox();output.computeBoundingSphere();return output;
   }catch(e){output.dispose();throw e;}
 }
-function assignGroups(geo:THREE.BufferGeometry,selected:Face[]){
+export function assignGroups(geo:THREE.BufferGeometry,selected:Face[]){
   let start=0,slot=selected[0].slot;
   for(let i=1;i<=selected.length;i++)if(i===selected.length||selected[i].slot!==slot){geo.addGroup(start*3,(i-start)*3,slot);start=i;slot=selected[i]?.slot??0;}
 }
