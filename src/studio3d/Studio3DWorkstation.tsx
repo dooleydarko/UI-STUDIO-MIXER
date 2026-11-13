@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Product3DProject, ProductPreset, LightingPreset } from '../types';
 import { Viewport3D } from './Viewport3D';
 import { ImportedModelStudio } from './ImportedModelStudio';
+import { listSavedModels, type SavedModelInfo } from './modelLibrary';
 import { DETAIL_PRESETS } from './detailedProducts';
 import { exportSceneToGlb } from './glbExporter';
 import { useUndoableState } from '../state/useUndoableState';
@@ -51,6 +52,14 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
 
   const isFrost = theme === 'frost';
   const [importMode, setImportMode] = useState(false);
+  const [initialModelId,setInitialModelId]=useState<string|undefined>();
+  const [surfaceProjects,setSurfaceProjects]=useState<SavedModelInfo[]>([]);
+  useEffect(()=>{
+    let canceled=false;
+    listSavedModels().then(items=>{if(!canceled)setSurfaceProjects(items.filter(i=>i.layered));}).catch(()=>{});
+    return()=>{canceled=true;};
+  },[importMode]);
+  const projectSurfaces=surfaceProjects.filter(item=>item.projectId===activeProject.id);
 
   // Keep the decal preview in sync when undo/redo changes the decal
   useEffect(() => {
@@ -185,7 +194,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
     }
   };
 
-  if (importMode) return <ImportedModelStudio project={activeProject} onExit={() => setImportMode(false)} />;
+  if (importMode) return <ImportedModelStudio project={activeProject} initialModelId={initialModelId} onSendBack={info=>setSurfaceProjects(prev=>[info,...prev.filter(item=>item.id!==info.id)])} onExit={() => {setImportMode(false);setInitialModelId(undefined);}} />;
 
   return (
     <div className={`w-full h-full flex flex-col ${isFrost ? 'bg-slate-50 text-slate-800' : 'bg-black text-neutral-100'}`}>
@@ -207,7 +216,7 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2.5">
-          <button type="button" onClick={() => setImportMode(true)} className="px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 text-xs font-medium">Import GLB</button>
+          <button type="button" onClick={() => {setInitialModelId(undefined);setImportMode(true);}} className="px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 text-xs font-medium">Import GLB</button>
           {/* Undo / Redo */}
           <div className="flex items-center gap-1">
             <button
@@ -341,6 +350,10 @@ export const Studio3DWorkstation: React.FC<Studio3DWorkstationProps> = ({
             </div>
           </div>
 
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">Edited GLB surfaces</span>
+            {projectSurfaces.length?projectSurfaces.map(item=><button key={item.id} onClick={()=>{setInitialModelId(item.id);setImportMode(true);}} className="mb-1 w-full rounded-xl border border-sky-500/30 bg-sky-500/10 p-2 text-left text-xs text-sky-400"><span className="block truncate font-semibold">{item.name}</span><span className="text-[10px] text-neutral-500">Reopen 3D + editable layers</span></button>):<p className="text-[10px] text-neutral-500">Use Send Back to Product Studio to keep edited GLBs with this project.</p>}
+          </div>
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">
               Scene Hierarchy
