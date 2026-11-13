@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Point, type LayerBlend, layerDefaults, moveLayer, addStroke, addMaskStroke, readArtwork, parseTextureDocument, downloadTextureFile } from './textureCanvasEngine';
 
 import type { SurfacePaintTarget } from './Viewport3D';
+import { exportTexturePsd, importTexturePsd } from './texturePsd';
 
 const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
 const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
@@ -19,6 +20,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarge
   const [original,setOriginal]=useState(false);
   const [pending,setPending]=useState(false);
   const [loading,setLoading]=useState(false);
+  const [compatibility,setCompatibility]=useState('');
   const [history,setHistory]=useState<{past:TextureDocument[];future:TextureDocument[]}>({past:[],future:[]});
   const view=useRef<HTMLCanvasElement>(null);
   const alive=useRef(true);
@@ -74,6 +76,16 @@ export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarge
       if(alive.current){commit(next);setSelected(next.layers[next.layers.length-1]?.id??'');}
     }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
   };
+  const exportPsd=async()=>{
+    if(loading||pending||busy)return;setLoading(true);setCompatibility('');
+    try{const blob=await exportTexturePsd(session,doc);if(alive.current){downloadTextureFile(blob,'surface.psd');setCompatibility('Exported layered PSD. Save the native layer document too to retain brush history and original artwork transforms.');}}
+    catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
+  };
+  const openPsd=async(file?:File)=>{
+    if(!file||loading||busy)return;setLoading(true);setCompatibility('');
+    try{const result=await importTexturePsd(file,session.initial);if(alive.current&&window.confirm(result.report+' Replace the current canvas layer stack? Undo is available.')){commit(result.document);setSelected(result.document.layers[result.document.layers.length-1]?.id??'');setMaskMode(false);setCompatibility(result.report);}}
+    catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
+  };
   const point=(e:React.PointerEvent<HTMLCanvasElement>):Point=>{const r=e.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(doc.width,(e.clientX-r.left)*doc.width/r.width)),y:Math.max(0,Math.min(doc.height,(e.clientY-r.top)*doc.height/r.height))};};
   const start=(e:React.PointerEvent<HTMLCanvasElement>)=>{
     if(!layer||layer.locked||!layer.visible||original||pending||loading||busy||e.button!==0)return;
@@ -98,9 +110,12 @@ export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarge
       <button className={button} onClick={()=>setOriginal(v=>!v)}>{original?'Show edited 3D':'Show original 3D'}</button>
       <button className={button} onClick={saveDocument} disabled={loading}>Save layers</button>
       <label className={button+' cursor-pointer'}>Open layers<input type="file" className="hidden" accept=".json" disabled={loading} onChange={e=>{void openDocument(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/></label>
+      <button className={button} disabled={pending||loading||busy} onClick={()=>void exportPsd()}>Export PSD</button>
+      <label className={button+' cursor-pointer'}>Import PSD<input type="file" className="hidden" accept=".psd" disabled={loading||busy} onChange={e=>{void openPsd(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/></label>
       <button className={button} disabled={pending||loading} onClick={()=>session.output.toBlob(b=>{if(b)downloadTextureFile(b,'texture.png');},'image/png')}>PNG</button>
       <button className={button} onClick={onClose}>Close / restore</button>
     </header>
+    {compatibility&&<div role="status" className="border-b border-white/10 px-2 py-1 text-[10px] text-sky-300">{compatibility}</div>}
     <div className="flex min-h-0 flex-1">
       <div className="flex w-12 shrink-0 flex-col gap-1 border-r border-white/10 p-1">
         {(['move','brush','eraser'] as const).map(t=><button key={t} title={t} aria-pressed={tool===t} className={button+(tool===t?' border-sky-500 text-sky-300':'')} onClick={()=>setTool(t)}>{t==='move'?'V':t==='brush'?'B':'E'}</button>)}
@@ -142,12 +157,12 @@ export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarge
             <strong>Layer mask</strong>
             <button className={button+" w-full "+(maskMode?'border-sky-500 text-sky-300':'')} disabled={layer.locked||loading} onClick={()=>{setMaskMode(v=>!v);setTool(maskMode?'move':'eraser');}}>{maskMode?'Exit mask editing':'Edit mask'}</button>
             {maskMode&&<p className="text-neutral-400">E hides · B reveals on 2D or 3D.</p>}
-            {!!layer.mask?.length&&<div className="flex gap-1"><button className={button} disabled={layer.locked||loading} onClick={()=>edit({maskEnabled:layer.maskEnabled===false})}>{layer.maskEnabled===false?'Enable':'Disable'}</button><button className={button} disabled={layer.locked||loading} onClick={()=>{if(window.confirm('Clear the layer mask?'))edit({mask:[],maskEnabled:true});}}>Clear</button></div>}
+            {(!!layer.mask?.length||!!layer.maskImage)&&<div className="flex gap-1"><button className={button} disabled={layer.locked||loading} onClick={()=>edit({maskEnabled:layer.maskEnabled===false})}>{layer.maskEnabled===false?'Enable':'Disable'}</button><button className={button} disabled={layer.locked||loading} onClick={()=>{if(window.confirm('Clear the layer mask?'))edit({mask:[],maskImage:undefined,maskEnabled:true});}}>Clear</button></div>}
           </div>
           {layer.kind==='gray'&&<input type="color" aria-label="Gray color" disabled={layer.locked||loading} value={layer.color} onChange={e=>edit({color:e.target.value})}/>}
           {layer.kind==='image'&&<><div className="grid grid-cols-2 gap-1">{numeric('X',layer.x,v=>edit({x:v}))}{numeric('Y',layer.y,v=>edit({y:v}))}{numeric('Width',layer.width,v=>edit({width:v}),1,16384)}{numeric('Height',layer.height,v=>edit({height:v}),1,16384)}{numeric('Rotation',layer.rotation,v=>edit({rotation:v}),-360,360)}</div><div className="flex gap-1"><button className={button} disabled={layer.locked||loading} onClick={()=>edit({flipX:!layer.flipX})}>Flip X</button><button className={button} disabled={layer.locked||loading} onClick={()=>edit({flipY:!layer.flipY})}>Flip Y</button></div></>}
         </div>}
-        <p className="text-[10px] text-neutral-500">Save layers separately before closing. PNG and GLB exports are flattened. Original alpha is preserved; shared UVs/materials share edits.</p>
+        <p className="text-[10px] text-neutral-500">Save layers separately before closing. PSD contains editable raster layers. PNG and GLB exports are flattened. Original alpha is preserved; shared UVs/materials share edits.</p>
       </aside>
     </div>
   </div>;
