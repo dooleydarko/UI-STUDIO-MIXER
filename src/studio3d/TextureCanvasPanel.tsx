@@ -4,6 +4,7 @@ import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Poi
 import type { UVGuide } from './surfaceEditing';
 import type { SurfacePaintTarget } from './Viewport3D';
 import { exportTexturePsd, importTexturePsd } from './texturePsd';
+import { TextureAiPanel } from './TextureAiPanel';
 
 const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
 const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
@@ -190,6 +191,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
           {layer.kind==='gray'&&<input type="color" aria-label="Gray color" disabled={layer.locked||loading} value={layer.color} onChange={e=>edit({color:e.target.value})}/>}
           {layer.kind==='image'&&<><div className="grid grid-cols-2 gap-1">{numeric('X',layer.x,v=>edit({x:v}))}{numeric('Y',layer.y,v=>edit({y:v}))}{numeric('Width',layer.width,v=>edit({width:v}),1,16384)}{numeric('Height',layer.height,v=>edit({height:v}),1,16384)}{numeric('Rotation',layer.rotation,v=>edit({rotation:v}),-360,360)}</div><div className="flex gap-1"><button className={button} disabled={layer.locked||loading} onClick={()=>edit({flipX:!layer.flipX})}>Flip X</button><button className={button} disabled={layer.locked||loading} onClick={()=>edit({flipY:!layer.flipY})}>Flip Y</button></div></>}
         </div>}
+        <TextureAiPanel session={session} doc={doc} selectedLayer={layer} disabled={busy||pending||loading||original} onAdd={add} onError={onError}/>
         <p className="text-[10px] text-neutral-500">Save layers separately before closing. PSD contains editable raster layers. PNG and GLB exports are flattened. Original alpha is preserved; shared UVs/materials share edits.</p>
       </aside>
     </div>
