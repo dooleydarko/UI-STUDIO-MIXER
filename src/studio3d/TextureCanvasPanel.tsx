@@ -24,7 +24,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
   const commit=(next:TextureDocument)=>{ if(next===doc)return; setHistory(h=>({past:[...h.past.slice(-19),doc],future:[]}));setDoc(next); };
   const patch=(id:string,update:Partial<TextureLayer>)=>commit({...doc,layers:doc.layers.map(l=>l.id===id?{...l,...update} as TextureLayer:l)});
   const edit=(update:Partial<TextureLayer>)=>{if(layer&&!layer.locked)patch(layer.id,update);};
-  const undo=()=>{const last=history.past.at(-1);if(!last)return;setHistory({past:history.past.slice(0,-1),future:[doc,...history.future]});setDoc(last);};
+  const undo=()=>{const last=history.past[history.past.length-1];if(!last)return;setHistory({past:history.past.slice(0,-1),future:[doc,...history.future]});setDoc(last);};
   const redo=()=>{const next=history.future[0];if(!next)return;setHistory({past:[...history.past,doc],future:history.future.slice(1)});setDoc(next);};
   const add=(next:TextureLayer)=>{if(doc.layers.length>=64){onError('Maximum 64 layers.');return;}commit({...doc,layers:[...doc.layers,next]});setSelected(next.id);};
   const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
@@ -57,7 +57,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
     if(!file||loading)return;setLoading(true);
     try{if(file.size>100*1024*1024)throw new Error('Texture document exceeds 100 MB.');const next=parseTextureDocument(await file.text());
       if(next.width!==doc.width||next.height!==doc.height||next.base!==session.initial.base)throw new Error('Document does not match the original selected texture. Open the original model and material.');
-      if(alive.current){commit(next);setSelected(next.layers.at(-1)?.id??'');}
+      if(alive.current){commit(next);setSelected(next.layers[next.layers.length-1]?.id??'');}
     }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
   };
   const point=(e:React.PointerEvent<HTMLCanvasElement>):Point=>{const r=e.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(doc.width,(e.clientX-r.left)*doc.width/r.width)),y:Math.max(0,Math.min(doc.height,(e.clientY-r.top)*doc.height/r.height))};};
@@ -68,7 +68,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
   };
   const move=(e:React.PointerEvent<HTMLCanvasElement>)=>{
     const g=gesture.current;if(!g)return;const p=point(e);if(g.points.length<10000)g.points.push(p);
-    if(g.tool==='brush'){const c=e.currentTarget.getContext('2d');if(c){c.save();c.strokeStyle=color;c.lineWidth=size;c.lineCap='round';c.globalAlpha=brushOpacity/100;c.beginPath();const prev=g.points.at(-2)??p;c.moveTo(prev.x,prev.y);c.lineTo(p.x,p.y);c.stroke();c.restore();}}
+    if(g.tool==='brush'){const c=e.currentTarget.getContext('2d');if(c){c.save();c.strokeStyle=color;c.lineWidth=size;c.lineCap='round';c.globalAlpha=brushOpacity/100;c.beginPath();const prev=g.points[g.points.length-2]??p;c.moveTo(prev.x,prev.y);c.lineTo(p.x,p.y);c.stroke();c.restore();}}
   };
   const end=(e:React.PointerEvent<HTMLCanvasElement>)=>{
     const g=gesture.current;gesture.current=null;if(!g||!layer||layer.id!==g.layer)return;
