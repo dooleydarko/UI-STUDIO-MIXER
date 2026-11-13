@@ -40,15 +40,15 @@ export const App: React.FC = () => {
   const storage = StorageManager.getInstance();
   const mixerEngine = CodeMixerEngine.getInstance();
 
-  const [activeWorkspace, setActiveWorkspace] = useState<'ui_playground' | '3d_studio' | 'discovery' | 'engine_foundry'>(() => {
+  const [activeWorkspace, setActiveWorkspace] = useState<'launcher' | 'ui_playground' | '3d_studio' | 'discovery' | 'engine_foundry'>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const room = params.get('room') || window.location.hash.replace('#', '');
-      if (room === 'engine_foundry' || room === '3d_studio' || room === 'discovery' || room === 'ui_playground') {
+      if (room === 'launcher' || room === 'engine_foundry' || room === '3d_studio' || room === 'discovery' || room === 'ui_playground') {
         return room;
       }
     }
-    return 'engine_foundry';
+    return 'launcher';
   });
   const [theme, setTheme] = useState<'obsidian' | 'frost'>('obsidian');
   const [components, setComponents] = useState<ComponentPackage[]>([]);
@@ -314,6 +314,7 @@ export const App: React.FC = () => {
             </div>
           </button>
 
+          <button type="button" onClick={() => setActiveWorkspace('launcher')} className="text-xs font-semibold text-neutral-400 hover:text-sky-400" title="Return to workspace selector">Workspaces</button>
           {/* Workspace Switcher */}
           <div className={`flex items-center p-1 rounded-2xl border ${
             isFrost ? 'bg-slate-100/90 border-slate-200' : 'bg-neutral-900/80 border-white/10'
@@ -341,7 +342,7 @@ export const App: React.FC = () => {
               }`}
             >
               <Box className="w-3.5 h-3.5 text-amber-400" />
-              <span>3D Product Studio</span>
+              <span>3D Studio</span>
             </button>
 
             <button
@@ -479,6 +480,32 @@ export const App: React.FC = () => {
 
       {/* Main Workspace Stage */}
       <main className="flex-1 overflow-hidden relative">
+        {activeWorkspace === 'launcher' && (
+          <div className="absolute inset-0 overflow-auto bg-black text-white flex items-center justify-center">
+            <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(ellipse at 50% 48%, #30204c 0%, #101222 38%, #000 75%)'}} />
+            <section className="relative w-full max-w-4xl px-8 py-12 text-center">
+              <p className="text-xs tracking-[0.35em] text-neutral-400 uppercase">Studio Mixer</p>
+              <h1 className="text-4xl font-semibold tracking-tight mt-4">Choose your workspace</h1>
+              <p className="text-sm text-neutral-400 mt-3">One studio. Every creative workflow.</p>
+              <div className="mt-12 flex flex-wrap items-center justify-center gap-8">
+                <button type="button" onClick={() => setActiveWorkspace('3d_studio')} className="group flex flex-col items-center gap-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400">
+                  <span className="w-40 h-40 rounded-full flex items-center justify-center border border-violet-300/40 bg-gradient-to-br from-violet-500/30 via-neutral-950 to-cyan-500/20 shadow-[0_0_65px_rgba(139,92,246,0.4)] transition-all duration-500 motion-reduce:transition-none hover:scale-105 hover:shadow-[0_0_95px_rgba(139,92,246,0.65)]"><Box className="w-14 h-14 text-violet-200" /></span>
+                  <span className="text-lg font-semibold">3D Studio</span><span className="text-xs text-violet-300">Flagship workspace</span>
+                </button>
+                <button type="button" onClick={() => setActiveWorkspace('ui_playground')} className="flex flex-col items-center gap-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400">
+                  <span className="w-28 h-28 rounded-full flex items-center justify-center border border-sky-300/30 bg-gradient-to-br from-sky-500/25 to-neutral-950 shadow-[0_0_35px_rgba(14,165,233,0.25)] transition-all duration-500 motion-reduce:transition-none hover:scale-105 hover:shadow-[0_0_65px_rgba(14,165,233,0.5)]"><Layers className="w-10 h-10 text-sky-200" /></span>
+                  <span className="text-base font-semibold">UI Studio</span><span className="text-xs text-neutral-400">Builder &amp; Code Mixer</span>
+                </button>
+                <button type="button" onClick={() => setActiveWorkspace('engine_foundry')} className="flex flex-col items-center gap-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400">
+                  <span className="w-28 h-28 rounded-full flex items-center justify-center border border-emerald-300/30 bg-gradient-to-br from-emerald-500/25 to-neutral-950 shadow-[0_0_35px_rgba(16,185,129,0.2)] transition-all duration-500 motion-reduce:transition-none hover:scale-105 hover:shadow-[0_0_65px_rgba(16,185,129,0.5)]"><Cpu className="w-10 h-10 text-emerald-200" /></span>
+                  <span className="text-base font-semibold">Engine</span><span className="text-xs text-neutral-400">Tools &amp; diagnostics</span>
+                </button>
+              </div>
+              <button type="button" onClick={() => setActiveWorkspace('discovery')} className="mt-12 text-sm text-neutral-400 hover:text-white inline-flex items-center gap-2"><Compass className="w-4 h-4" /> Discovery Room</button>
+            </section>
+          </div>
+        )}
+        
         {activeWorkspace === 'ui_playground' && (
           <>
             <NativePromptBar
