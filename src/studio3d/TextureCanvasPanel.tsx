@@ -7,10 +7,10 @@ import { exportTexturePsd, importTexturePsd } from './texturePsd';
 const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
 const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
 type Tool='move'|'brush'|'eraser';
-interface Props { session: TextureCanvasSession; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
-export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarget,busy}:Props) {
-  const [doc,setDoc]=useState<TextureDocument>(session.initial);
-  const [selected,setSelected]=useState('');
+interface Props { session: TextureCanvasSession; initialDocument?:TextureDocument; onDocument:(doc:TextureDocument)=>void; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
+export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,onReady,onError,onPaintTarget,busy}:Props) {
+  const [doc,setDoc]=useState<TextureDocument>(initialDocument??session.initial);
+  const [selected,setSelected]=useState(initialDocument?.layers[initialDocument.layers.length-1]?.id??'');
   const [tool,setTool]=useState<Tool>('move');
   const [maskMode,setMaskMode]=useState(false);
   const [color,setColor]=useState('#ffffff');
@@ -43,6 +43,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarge
     return()=>onPaintTarget(null);
   },[doc,layer,tool,original,pending,loading,busy,session,color,size,brushOpacity,onPaintTarget,maskMode]);
   const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
+  useEffect(()=>{onDocument(doc);},[doc,onDocument]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   useEffect(()=>{
     let canceled=false;setPending(true);onReady(false);
