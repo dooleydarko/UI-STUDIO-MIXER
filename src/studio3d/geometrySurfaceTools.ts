@@ -61,7 +61,7 @@ export function assignGroups(geo:THREE.BufferGeometry,selected:Face[]){
   let start=0,slot=selected[0].slot;
   for(let i=1;i<=selected.length;i++)if(i===selected.length||selected[i].slot!==slot){geo.addGroup(start*3,(i-start)*3,slot);start=i;slot=selected[i]?.slot??0;}
 }
-export function generateMeshUV(root:THREE.Object3D,nodeId:string):{triangles:number;materialIds:string[];grid:number}{
+export function generateMeshUV(root:THREE.Object3D,nodeId:string,retainOriginal=false):{triangles:number;materialIds:string[];grid:number}{
   const mesh=meshFrom(root,nodeId),source=mesh.geometry;
   if(source.getAttribute('uv'))throw new Error('This mesh already has UV0. Existing UVs are never overwritten.');
   const selected=faces(mesh);
@@ -92,7 +92,7 @@ export function generateMeshUV(root:THREE.Object3D,nodeId:string):{triangles:num
       if(!shared)return material;
       const clone=material.clone();clone.name=(material.name||'Material')+' — '+(mesh.name||'UV atlas');return clone;
     });
-    mesh.geometry=output;mesh.material=Array.isArray(mesh.material)?isolated:isolated[0];disposeUnused(root,source);
+    mesh.geometry=output;mesh.material=Array.isArray(mesh.material)?isolated:isolated[0];if(!retainOriginal)disposeUnused(root,source);
     return {triangles:selected.length,materialIds:isolated.map(m=>m.uuid),grid};
   }catch(e){output.dispose();throw e;}
 }
@@ -110,7 +110,7 @@ function connectedParts(selected:Face[],source:THREE.BufferGeometry):Face[][]{
   });
   const parts=new Map<number,Face[]>();selected.forEach((face,i)=>{const key=find(i),part=parts.get(key)??[];part.push(face);parts.set(key,part);});return [...parts.values()];
 }
-export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMode):{parts:THREE.Mesh[];triangles:number}{
+export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMode,retainOriginal=false):{parts:THREE.Mesh[];triangles:number}{
   const mesh=meshFrom(root,nodeId),source=mesh.geometry,selected=faces(mesh);
   const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
   let chunks:Face[][];
@@ -136,5 +136,5 @@ export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMo
     part.castShadow=mesh.castShadow;part.receiveShadow=mesh.receiveShadow;part.frustumCulled=mesh.frustumCulled;part.renderOrder=mesh.renderOrder;part.layers.mask=mesh.layers.mask;
     mesh.add(part);parts.push(part);
   }
-  disposeUnused(root,source);return {parts,triangles:selected.length};
+  if(!retainOriginal)disposeUnused(root,source);return {parts,triangles:selected.length};
 }
