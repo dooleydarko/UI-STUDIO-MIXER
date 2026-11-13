@@ -78,6 +78,24 @@ export async function readArtwork(file: File): Promise<{ url: string; width: num
   if (Math.max(img.width,img.height) > 4096) throw new Error('Artwork exceeds 4096 pixels per side.');
   return { url, width: img.width, height: img.height };
 }
+/** Clone from a fixed composite into a new transparent raster layer. */
+export function createClonePatch(source:HTMLCanvasElement,points:Point[],anchor:Point,diameter:number):string{
+  if(!points.length)throw new Error('Draw a clone stroke first.');
+  const patch=canvas(source.width,source.height),ctx=context(patch),r=Math.max(1,diameter/2);
+  const dx=anchor.x-points[0].x,dy=anchor.y-points[0].y;
+  let count=0;
+  const stamp=(p:Point)=>{
+    if(count++>=1500)return;
+    ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();
+    ctx.drawImage(source,p.x+dx-r,p.y+dy-r,r*2,r*2,p.x-r,p.y-r,r*2,r*2);ctx.restore();
+  };
+  stamp(points[0]);
+  for(let i=1;i<points.length&&count<1500;i++){
+    const a=points[i-1],b=points[i],steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/Math.max(1,r*.5)));
+    for(let j=1;j<=steps&&count<1500;j++)stamp({x:a.x+(b.x-a.x)*j/steps,y:a.y+(b.y-a.y)*j/steps});
+  }
+  const url=patch.toDataURL('image/png');patch.width=patch.height=1;return url;
+}
 export function downloadTextureFile(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob); const a = document.createElement('a');
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
