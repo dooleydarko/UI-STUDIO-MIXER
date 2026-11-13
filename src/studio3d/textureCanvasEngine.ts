@@ -103,7 +103,10 @@ export class TextureCanvasSession {
     context(this.output).drawImage(this.base,0,0);
     this.texture.needsUpdate=true; material.map=this.texture; material.color.set(0xffffff); material.needsUpdate=true;
   }
+  get paintMaterial(): THREE.MeshStandardMaterial { return this.material; }
+  get supports3DPaint(): boolean { return this.texture.channel <= 1; }
   async render(doc: TextureDocument): Promise<boolean> {
+    if (this.disposed) return false;
     const id=++this.renderId;
     const needed=new Set(doc.layers.filter((l):l is Extract<TextureLayer,{kind:'image'}>=>l.kind==='image').map(l=>l.image));
     for (const url of this.images.keys()) if (!needed.has(url)) this.images.delete(url);
