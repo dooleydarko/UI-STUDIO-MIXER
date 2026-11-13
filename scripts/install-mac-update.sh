@@ -20,5 +20,5 @@ node --test tests/glbStudio.test.mjs
 npm test
 # Only install after all checks; builder creates both bundles before installation.
 bash scripts/build-mac-apps.sh
-echo "Installed UI Studio Mixer 2.0.0 candidate. Open UI Mixer Studio from Applications."
+echo "Installed UI Studio Mixer 2.1.0 candidate. Open UI Mixer Studio from Applications."
 echo "If an old local server is running from a different checkout, stop that specific server before relaunching."

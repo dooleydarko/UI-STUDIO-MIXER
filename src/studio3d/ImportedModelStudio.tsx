@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
+import { StructuralHistory } from './structuralHistory';
 import { unwrapChartUV, type ChartResolution } from './chartUvRemapping';
 import { generateMeshUV, separateMesh, type SeparationMode } from './geometrySurfaceTools';
 import { GrayOutSession, inspectSurfaces, collectUVGuide, isolateMeshMaterial } from './surfaceEditing';
@@ -74,6 +75,9 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [grayStrength, setGrayStrength] = useState(100);
   const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [geometryNode,setGeometryNode]=useState('');
+  const [pickMode,setPickMode]=useState(false);
+  const [sharpAngle,setSharpAngle]=useState(45);
+  const historyRef=useRef<StructuralHistory|null>(null);
   const [geometryStatus,setGeometryStatus]=useState('');
   const [chartResolution,setChartResolution]=useState<ChartResolution>(1024);
   const chartAbort=useRef<AbortController|null>(null);
@@ -120,7 +124,8 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     mounted.current = true;
     return () => { mounted.current = false; request.current++; downloadController.current?.abort(); current.current = null; action.current = null; };
   }, []);
-  useEffect(() => () => { if (model) { if(canvasOwner.current===model){workspace.current.restoreAll(); canvasRef.current=null;canvasOwner.current=null;} graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
+  useEffect(() => () => { if (model) { if(canvasOwner.current===model){workspace.current.restoreAll(); canvasRef.current=null;canvasOwner.current=null;} graySession.current.restoreAll(); if(historyRef.current){historyRef.current.clear();historyRef.current=null;} releaseStudioModel(model); } }, [model]);
+  useEffect(()=>{if(model)historyRef.current=new StructuralHistory(model.scene);},[model]);
   useEffect(() => { listSavedModels().then(items => { if (mounted.current) setSavedModels(items); }).catch(() => { if (mounted.current) setLibraryStatus('Local model library unavailable. Export GLB files instead.'); }); }, []);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || grayActive || canvasSession) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty, grayActive, canvasSession]);
 
@@ -178,7 +183,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       graySession.current.restoreAll();
       setGrayActive(false);
       current.current = loaded;
-      workspace.current=new SurfaceWorkspace();setGeometryNode('');setGeometryStatus('');sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
+      workspace.current=new SurfaceWorkspace();setPickMode(false);setGeometryNode('');setGeometryStatus('');sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
       setOptimizationNote('');
       setSavedId(surface?undefined:libraryId);
       setDirty(!libraryId);
@@ -237,7 +242,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     const entry=materials.find(m=>m.id===id);
     if(!entry||entry.meshes.length<2)return;
     if(!window.confirm('Create an independent material instance on this mesh? The original file and other meshes stay unchanged.'))return;
-    try{const isolated=isolateMeshMaterial(model.scene,nodeId,id);sourceModified.current=true;sourceSnapshot.current=null;setMaterialId(isolated.uuid);setDirty(true);setRevision(v=>v+1);}
+    try{const history=historyRef.current,before=history?.begin();const isolated=isolateMeshMaterial(model.scene,nodeId,id);if(history&&before)history.commit('Isolate material',before);sourceModified.current=true;sourceSnapshot.current=null;setMaterialId(isolated.uuid);setDirty(true);setRevision(v=>v+1);}
     catch(e){setError(e instanceof Error?e.message:String(e));}
   };
   const refreshGeometry=()=>{
@@ -252,7 +257,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     if(!window.confirm('Create a new triangle UV atlas on this mesh? Existing UV0 and mapped materials are protected. Your source file is unchanged.'))return;
     setError('');setGeometryStatus('');
     try{
-      const result=generateMeshUV(model.scene,geometryNode);
+      const history=historyRef.current,before=history?.begin();const result=generateMeshUV(model.scene,geometryNode,!!history);if(history&&before)history.commit('Generate UV atlas',before);
       setMaterialId(result.materialIds[0]??'');refreshGeometry();
       setGeometryStatus('Created '+result.grid+' × '+result.grid+' triangle atlas for '+result.triangles+' faces. Open Texture Canvas to edit.');
     }catch(e){setError(e instanceof Error?e.message:String(e));}
@@ -264,7 +269,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     setBusy(true);setChartRunning(true);setError('');setGeometryStatus('Unwrapping charts and baking original base color…');
     if(action.current)action.current.paused=true;setPlaying(false);
     try{
-      const result=await unwrapChartUV(model.scene,geometryNode,chartResolution,controller.signal);
+      const history=historyRef.current,before=history?.begin();const result=await unwrapChartUV(model.scene,geometryNode,chartResolution,controller.signal,!!history);if(history&&before&&current.current===model&&mounted.current)history.commit('Unwrap chart atlas',before);
       if(!mounted.current||current.current!==model)return;
       setMaterialId(result.materialId);refreshGeometry();
       setGeometryStatus(result.charts+' charts · '+result.width+' × '+result.height+' · '+Math.round(result.coverage*100)+'% atlas utilization · UV'+result.channel+' ready. Open Texture Canvas.');
@@ -273,13 +278,23 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   };
   const splitGeometry=(mode:SeparationMode)=>{
     if(!model||!geometryNode||busy||grayActive||canvasSession)return;
-    if(!window.confirm('Separate this mesh into '+(mode==='materials'?'material groups':'connected parts')+'? The original node and transforms remain; save a new edited copy.'))return;
+    if(!window.confirm('Separate this mesh into '+(mode==='materials'?'material groups':mode==='sharp'?'sharp-edge surface groups':'connected parts')+'? The original node and transforms remain; save a new edited copy.'))return;
     setError('');setGeometryStatus('');
     try{
-      const result=separateMesh(model.scene,geometryNode,mode);
+      const history=historyRef.current,before=history?.begin();const result=separateMesh(model.scene,geometryNode,mode,!!history,sharpAngle);if(history&&before)history.commit('Split '+mode,before);
       refreshGeometry();const first=result.parts[0],mat=Array.isArray(first.material)?first.material[0]:first.material;
       setMaterialId(mat.uuid);setGeometryStatus('Separated '+result.triangles+' triangles into '+result.parts.length+' independently selectable meshes. Isolate shared materials to edit them separately.');
     }catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
+  const selectMesh=useCallback((id:string,matId:string)=>{setGeometryNode(id);setMaterialId(matId);setGeometryStatus('');},[]);
+  const moveHistory=(direction:'undo'|'redo')=>{
+    if(!model||busy||grayActive||canvasSession)return;
+    const history=historyRef.current;if(!history)return;
+    const label=direction==='undo'?history.undoLabel:history.redoLabel;
+    if(!label||!history[direction]())return;
+    const node=model.scene.getObjectByProperty('uuid',geometryNode);
+    if(node instanceof THREE.Mesh){const mat=Array.isArray(node.material)?node.material[0]:node.material;setMaterialId(mat.uuid);}else{setGeometryNode('');setMaterialId(inspectMaterials(model.scene)[0]?.id??'');}
+    refreshGeometry();setGeometryStatus((direction==='undo'?'Undid ':'Redid ')+label);
   };
   const requestUVGuide=()=>model&&canvasRef.current?collectUVGuide(model.scene,canvasRef.current.paintMaterial):{segments:[],truncated:false};
   const applyGray = () => {
@@ -313,6 +328,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     try{
       if(grayActive&&!window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?'))return;
       if(grayActive)restoreGray();
+      if(!canvasSession){historyRef.current?.clear();setPickMode(false);}
       const next=workspace.current.open(materials,index);
       if(canvasRef.current===next.session)return;
       setPaintTarget(null);canvasRef.current=next.session;canvasOwner.current=model;canvasDoc.current=next.document;
@@ -343,6 +359,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     setBusy(true);
     setError('');
     try {
+      historyRef.current?.clear();
       await replaceMaterialMap(source.scene, selected.material, channel, file,
         () => mounted.current && current.current === source);
       if (mounted.current) { sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }
@@ -355,6 +372,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     if (!window.confirm('Downscale textures larger than 2048px? This changes the edited export, not your original file.')) return;
     setError('');
     try {
+      historyRef.current?.clear();
       const count = downscaleModelTextures(model.scene, 2048);
       setOptimizationNote(count ? count + ' texture maps downscaled.' : 'No eligible oversized textures.');
       if (count) {sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);}
@@ -477,7 +495,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
         <main className={canvasSession && canvasMode==='2d' ? 'hidden' : 'relative flex-1 min-w-0'}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void importFile(e.dataTransfer.files[0]); }}>
-          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} paintTarget={busy ? null : paintTarget} /> :
+          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} paintTarget={busy ? null : paintTarget} selectedMeshId={!canvasSession?geometryNode:undefined} meshPickEnabled={pickMode&&!busy&&!canvasSession&&!grayActive} onMeshPick={selectMesh} /> :
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/10">
               <span className="text-lg font-medium">Drop a 3D model here</span>
               <span className="text-xs text-neutral-500">GLB or self-contained glTF · up to 100 MB</span>
@@ -546,7 +564,10 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             <button className={button + ' w-full text-left'} onClick={()=>setHierarchyOpen(v=>!v)}>{hierarchyOpen ? 'Hide' : 'Show'} object hierarchy · {hierarchy.length} nodes</button>
             <section className="mt-2 rounded-xl border border-white/10 p-2 space-y-2">
               <strong className="text-xs">Geometry Tools</strong>
-              <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{setGeometryNode(e.target.value);setGeometryStatus('');}}>
+              <button className={button+' w-full '+(pickMode?'border-sky-400 text-sky-300':'')} disabled={busy||grayActive} onClick={()=>setPickMode(v=>!v)}>{pickMode?'Pick mode on · click a mesh':'Pick mesh in 3D'}</button>
+              <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!historyRef.current?.undoLabel||busy||grayActive} title={historyRef.current?.undoLabel} onClick={()=>moveHistory('undo')}>Undo geometry</button><button className={button} disabled={!historyRef.current?.redoLabel||busy||grayActive} title={historyRef.current?.redoLabel} onClick={()=>moveHistory('redo')}>Redo geometry</button></div>
+              <p className="text-neutral-500">Geometry history lasts until opening a texture canvas, editing material properties, or reloading a model.</p>
+              <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{const node=model?.scene.getObjectByProperty('uuid',e.target.value);const mat=node instanceof THREE.Mesh?(Array.isArray(node.material)?node.material[0]:node.material):undefined;selectMesh(e.target.value,mat?.uuid??'');}}>
                 <option value="">Select a mesh</option>{hierarchy.filter(n=>n.materials.length).map(n=><option key={n.id} value={n.id}>{'· '.repeat(Math.min(n.depth,5))}{n.name} ({n.uvSets.length?n.uvSets.join(', '):'no UV'})</option>)}
               </select>
               <div className="rounded-lg bg-white/5 p-2 space-y-2">
@@ -557,6 +578,8 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
               </div>
               <button className={button+' w-full'} disabled={!geometryNode||busy||grayActive} onClick={generateUV}>Generate missing UV0 (simple atlas)</button>
               <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('materials')}>Split materials</button><button className={button} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('connected')}>Split connected parts</button></div>
+              <label className="block text-xs text-neutral-400">Sharp edge angle · {sharpAngle}°<input type="range" min={10} max={170} step={5} value={sharpAngle} disabled={busy||grayActive} className="w-full" onChange={e=>setSharpAngle(Number(e.target.value))}/></label>
+              <button className={button+' w-full'} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('sharp')}>Split sharp-edge surfaces</button>
               <button className={button+' w-full'} disabled={!sourceFileRef.current||busy||grayActive} onClick={()=>{const original=sourceFileRef.current;if(original)void importFile(original);}}>Reload imported source</button>
               <p className="text-neutral-500">Static meshes only. Chart unwrapping uses xatlas; simple atlas is a per-triangle fallback. Splitting keeps geometry attributes and original transforms; connected parts use exact coincident vertices.</p>
               {geometryStatus&&<p role="status" className="text-sky-300">{geometryStatus}</p>}
@@ -574,13 +597,13 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
               <p className="break-words text-xs text-neutral-500">Shared by: {selected.meshes.join(', ')}</p>
               <label className="flex items-center justify-between text-xs">Color tint
                 <input type="color" disabled={busy || grayActive} value={'#' + selected.material.color.getHexString()}
-                  onChange={(e) => { selected.material.color.set(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }} />
+                  onChange={(e) => { historyRef.current?.clear();selected.material.color.set(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }} />
               </label>
               {(['roughness', 'metalness'] as const).map((key) => <label key={key} className="block text-xs capitalize">
                 {key} · {selected.material[key].toFixed(2)}
                 <input className="block w-full accent-sky-500" type="range" min={0} max={1} step={0.01}
                   disabled={busy || grayActive} value={selected.material[key]} onChange={(e) => {
-                    selected.material[key] = Number(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true);
+                    historyRef.current?.clear();selected.material[key] = Number(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true);
                   }} />
               </label>)}
               {MAP_CHANNELS.map((channel) => <div key={channel} className="rounded-xl border border-white/10 p-2">

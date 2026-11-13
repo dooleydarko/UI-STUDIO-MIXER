@@ -12,6 +12,7 @@ import { disposeObject3D } from './disposal';
 import { createStudioLights, applyLightingRig, StudioLights } from './lightingRigs';
 import { createLabelTexture } from './labelTexture';
 import { StorageManager } from '../storage/storageManager';
+import { pickVisibleMesh } from './structuralHistory';
 import { PREVIEW_PROFILES, type PreviewQuality } from './modelPerformance';
 
 export interface SurfacePaintTarget {
@@ -27,6 +28,9 @@ interface Viewport3DProps {
   onFrame?: (delta: number) => void;
   quality?: PreviewQuality;
   paintTarget?: SurfacePaintTarget | null;
+  selectedMeshId?:string;
+  onMeshPick?:(id:string,materialId:string)=>void;
+  meshPickEnabled?:boolean;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -36,7 +40,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   importedGroup,
   onFrame,
   quality,
-  paintTarget,
+  paintTarget, selectedMeshId, onMeshPick, meshPickEnabled,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -54,6 +58,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const ownsProductRef = useRef(true);
   const qualityRef = useRef(quality);
   const paintRef = useRef(paintTarget);
+  const selectionRef=useRef({selectedMeshId,onMeshPick,meshPickEnabled});
+  useEffect(()=>{selectionRef.current={selectedMeshId,onMeshPick,meshPickEnabled};},[selectedMeshId,onMeshPick,meshPickEnabled]);
   useEffect(() => { paintRef.current = paintTarget; if (controlsRef.current) controlsRef.current.enabled = !paintTarget; }, [paintTarget]);
   useEffect(() => { qualityRef.current = quality; }, [quality]);
   useEffect(() => { frameCallbackRef.current = onFrame; }, [onFrame]);
@@ -109,6 +115,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     // Paint only the frontmost visible hit of the selected material. UV jumps and
     // misses end a segment instead of drawing a line across unrelated islands.
     const raycaster = new THREE.Raycaster();
+    const selectionBox=new THREE.Box3();const selectionHelper=new THREE.Box3Helper(selectionBox,0x60a5fa);selectionHelper.visible=false;selectionHelper.userData.exportExclude=true;scene.add(selectionHelper);
     let drawing: { pointer: number; target: SurfacePaintTarget; segments: {x:number;y:number}[][]; last: {x:number;y:number}|null } | null = null;
     const surfacePoint = (event: PointerEvent, target: SurfacePaintTarget) => {
       const group = productGroupRef.current, map = target.material.map;
@@ -140,6 +147,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     };
     const paintDown = (event: PointerEvent) => {
       const target=paintRef.current;
+      if(!target && event.button===0 && selectionRef.current.meshPickEnabled){
+        const group=productGroupRef.current,rect=renderer.domElement.getBoundingClientRect();if(!group||!rect.width||!rect.height)return;
+        event.preventDefault();event.stopImmediatePropagation();
+        raycaster.setFromCamera(new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1),camera);
+        const hit=pickVisibleMesh(group,raycaster);
+        if(hit){const mat=Array.isArray(hit.object.material)?hit.object.material[hit.face?.materialIndex??0]:hit.object.material;selectionRef.current.onMeshPick?.(hit.object.uuid,mat.uuid);}
+        else selectionRef.current.onMeshPick?.('','');
+        return;
+      }
       if(!target || event.button!==0 || drawing) return;
       event.preventDefault(); event.stopImmediatePropagation();
       drawing={pointer:event.pointerId,target,segments:[],last:null};
@@ -240,6 +256,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         productGroupRef.current.rotation.y += 0.006 * (liveState.rotationSpeed || 1);
       }
 
+      const selected=selectionRef.current.selectedMeshId&&productGroupRef.current?.getObjectByProperty('uuid',selectionRef.current.selectedMeshId);
+      selectionHelper.visible=false;
+      if(selected instanceof THREE.Mesh&&selected.visible){selected.updateWorldMatrix(true,false);if(!selected.geometry.boundingBox)selected.geometry.computeBoundingBox();if(selected.geometry.boundingBox){selectionBox.copy(selected.geometry.boundingBox).applyMatrix4(selected.matrixWorld);selectionHelper.visible=!selectionBox.isEmpty();}}
       // If bloom is enabled in state, render via composer; otherwise direct render
       if (liveState.bloomEnabled && (!qualityRef.current || PREVIEW_PROFILES[qualityRef.current].bloom)) {
         composer.render();
@@ -267,6 +286,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         if (ownsProductRef.current) disposeObject3D(productGroupRef.current);
         productGroupRef.current = null;
       }
+      scene.remove(selectionHelper);selectionHelper.geometry.dispose();(selectionHelper.material as THREE.Material).dispose();
       disposeObject3D(floor);
       disposeObject3D(disk);
       decalImageRef.current = null;

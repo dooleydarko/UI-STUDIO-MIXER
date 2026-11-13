@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type SeparationMode='materials'|'connected';
+export type SeparationMode='materials'|'connected'|'sharp';
 const MAX_TRIANGLES=50000,MAX_PARTS=64,MAX_UV_TRIANGLES=4096;
 export type Face={indices:[number,number,number];slot:number};
 export function meshFrom(root:THREE.Object3D,id:string):THREE.Mesh{
@@ -61,7 +61,7 @@ export function assignGroups(geo:THREE.BufferGeometry,selected:Face[]){
   let start=0,slot=selected[0].slot;
   for(let i=1;i<=selected.length;i++)if(i===selected.length||selected[i].slot!==slot){geo.addGroup(start*3,(i-start)*3,slot);start=i;slot=selected[i]?.slot??0;}
 }
-export function generateMeshUV(root:THREE.Object3D,nodeId:string):{triangles:number;materialIds:string[];grid:number}{
+export function generateMeshUV(root:THREE.Object3D,nodeId:string,retainOriginal=false):{triangles:number;materialIds:string[];grid:number}{
   const mesh=meshFrom(root,nodeId),source=mesh.geometry;
   if(source.getAttribute('uv'))throw new Error('This mesh already has UV0. Existing UVs are never overwritten.');
   const selected=faces(mesh);
@@ -92,7 +92,7 @@ export function generateMeshUV(root:THREE.Object3D,nodeId:string):{triangles:num
       if(!shared)return material;
       const clone=material.clone();clone.name=(material.name||'Material')+' — '+(mesh.name||'UV atlas');return clone;
     });
-    mesh.geometry=output;mesh.material=Array.isArray(mesh.material)?isolated:isolated[0];disposeUnused(root,source);
+    mesh.geometry=output;mesh.material=Array.isArray(mesh.material)?isolated:isolated[0];if(!retainOriginal)disposeUnused(root,source);
     return {triangles:selected.length,materialIds:isolated.map(m=>m.uuid),grid};
   }catch(e){output.dispose();throw e;}
 }
@@ -110,12 +110,28 @@ function connectedParts(selected:Face[],source:THREE.BufferGeometry):Face[][]{
   });
   const parts=new Map<number,Face[]>();selected.forEach((face,i)=>{const key=find(i),part=parts.get(key)??[];part.push(face);parts.set(key,part);});return [...parts.values()];
 }
-export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMode):{parts:THREE.Mesh[];triangles:number}{
+function sharpParts(selected:Face[],source:THREE.BufferGeometry,angle:number):Face[][]{
+  if(!Number.isFinite(angle)||angle<1||angle>179)throw new Error('Sharp separation angle must be between 1 and 179 degrees.');
+  const pos=source.getAttribute('position'),parent=selected.map((_,i)=>i),find=(i:number):number=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+  const edges=new Map<string,number[]>(),normals:THREE.Vector3[]=[];
+  const key=(i:number)=>[pos.getX(i),pos.getY(i),pos.getZ(i)].join(',');
+  selected.forEach((f,i)=>{
+    const [a,b,c]=f.indices.map(j=>new THREE.Vector3().fromBufferAttribute(pos,j));
+    const normal=b.sub(a).cross(c.sub(a));if(normal.lengthSq()<1e-20)throw new Error('Degenerate triangle prevents sharp-edge analysis.');normals.push(normal.normalize());
+    for(let j=0;j<3;j++){const p=key(f.indices[j]),q=key(f.indices[(j+1)%3]),edge=p<q?p+'|'+q:q+'|'+p;const list=edges.get(edge)??[];list.push(i);edges.set(edge,list);}
+  });
+  const threshold=Math.cos(angle*Math.PI/180);
+  for(const adjacent of edges.values())if(adjacent.length===2){const [a,b]=adjacent;if(selected[a].slot===selected[b].slot&&normals[a].dot(normals[b])>=threshold)parent[find(a)]=find(b);}
+  const groups=new Map<number,Face[]>();selected.forEach((face,i)=>{const id=find(i),group=groups.get(id)??[];group.push(face);groups.set(id,group);});
+  return [...groups.values()];
+}
+export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMode,retainOriginal=false,angle=45):{parts:THREE.Mesh[];triangles:number}{
   const mesh=meshFrom(root,nodeId),source=mesh.geometry,selected=faces(mesh);
   const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
   let chunks:Face[][];
   if(mode==='materials'){const map=new Map<number,Face[]>();for(const face of selected){const part=map.get(face.slot)??[];part.push(face);map.set(face.slot,part);}chunks=[...map.values()];}
   else if(mode==='connected')chunks=connectedParts(selected,source);
+  else if(mode==='sharp')chunks=sharpParts(selected,source,angle);
   else throw new Error('Unknown separation mode.');
   if(chunks.length<2)throw new Error('No separate parts found for this mode.');
   if(chunks.length>MAX_PARTS)throw new Error('Separation would create more than 64 parts.');
@@ -136,5 +152,5 @@ export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMo
     part.castShadow=mesh.castShadow;part.receiveShadow=mesh.receiveShadow;part.frustumCulled=mesh.frustumCulled;part.renderOrder=mesh.renderOrder;part.layers.mask=mesh.layers.mask;
     mesh.add(part);parts.push(part);
   }
-  disposeUnused(root,source);return {parts,triangles:selected.length};
+  if(!retainOriginal)disposeUnused(root,source);return {parts,triangles:selected.length};
 }

@@ -73,7 +73,7 @@ async function bakeMap(original:THREE.BufferGeometry,indices:number[],atlas:Char
   ctx.putImageData(data,0,0);return {canvas:result,width:w,height:h,coverage:covered/(w*h)};
 }
 /** Bake only base color onto a new independent atlas; retain original coordinates and all other PBR maps. */
-export async function unwrapChartUV(root:THREE.Object3D,nodeId:string,resolution:ChartResolution,signal:AbortSignal):Promise<ChartRemapResult>{
+export async function unwrapChartUV(root:THREE.Object3D,nodeId:string,resolution:ChartResolution,signal:AbortSignal,retainOriginal=false):Promise<ChartRemapResult>{
   if(![512,1024,2048].includes(resolution))throw new Error('Unsupported atlas resolution.');
   const mesh=meshFrom(root,nodeId),source=mesh.geometry,selected=faces(mesh),old=mesh.material;
   if(Array.isArray(old)||!(old instanceof THREE.MeshStandardMaterial))throw new Error('Select a single PBR material mesh. Split material groups first.');
@@ -97,11 +97,11 @@ export async function unwrapChartUV(root:THREE.Object3D,nodeId:string,resolution
     texture=new THREE.CanvasTexture(baked.canvas);texture.name='Chart remapped base color';texture.channel=channel;texture.flipY=false;texture.colorSpace=old.map?.colorSpace??THREE.SRGBColorSpace;
     texture.wrapS=texture.wrapT=THREE.ClampToEdgeWrapping;texture.needsUpdate=true;
     material.map=texture;material.needsUpdate=true;
-    mesh.geometry=output;mesh.material=material;disposeUnused(root,source);
+    mesh.geometry=output;mesh.material=material;if(!retainOriginal)disposeUnused(root,source);
     // Dispose the replaced material/texture only if not shared elsewhere.
     let materialUsed=false,textureUsed=false;
     root.traverse(node=>{if(node instanceof THREE.Mesh)for(const m of Array.isArray(node.material)?node.material:[node.material]){if(m===old)materialUsed=true;if(old.map&&Object.values(m).includes(old.map))textureUsed=true;}});
-    if(!materialUsed)old.dispose();if(old.map&&!textureUsed)old.map.dispose();
+    if(!retainOriginal){if(!materialUsed)old.dispose();if(old.map&&!textureUsed)old.map.dispose();}
     return {charts:atlas.charts,triangles:selected.length,width:baked.width,height:baked.height,materialId:material.uuid,channel,coverage:baked.coverage};
   }catch(e){output?.dispose();material?.dispose();texture?.dispose();baked.canvas.width=baked.canvas.height=1;throw e;}
 }

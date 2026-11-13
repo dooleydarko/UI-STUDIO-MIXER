@@ -16,7 +16,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(()=>!!window.surfaceTest,{timeout:30000});
   const results=await page.evaluate(async()=>{
-    const {charts,geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
+    const {structural,charts,geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
     const check=(value,message)=>{if(!value)throw new Error(message);};
     const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
     const base=canvas(16,16),ctx=base.getContext('2d');
@@ -230,8 +230,28 @@ try {
     const chartBlob=await encodeSceneGlb(chartRoot),chartLoaded=await loadStudioModel(new File([chartBlob],'chart.glb'));
     let loadedChart=false;chartLoaded.scene.traverse(node=>{if(node.isMesh&&node.geometry.getAttribute('uv1')&&node.material.map?.channel===1&&node.material.normalMap?.channel===0)loadedChart=true;});
     check(loadedChart,'GLB round-trip lost independent base-color and normal UV channels');releaseStudioModel(chartLoaded);
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip','real xatlas worker and texture-preserving UV remap'];
+    const hRoot=new THREE.Group(),hGeo=new THREE.BoxGeometry(),hMat=new THREE.MeshStandardMaterial(),hMesh=new THREE.Mesh(hGeo,hMat);
+    hMesh.name='History anchor';hMesh.position.set(1,2,3);hRoot.add(hMesh);
+    const history=new structural.StructuralHistory(hRoot),before=history.begin();
+    const sharp=geometry.separateMesh(hRoot,hMesh.uuid,'sharp',true,45);
+    check(sharp.parts.length===6&&sharp.parts[0]===hMesh,'Cube sharp-edge split did not yield six faces');
+    history.commit('Sharp split',before);
+    const splitGeometry=hMesh.geometry;
+    check(history.undo()&&hMesh.geometry===hGeo&&hMesh.children.length===0&&hMesh.position.equals(new THREE.Vector3(1,2,3)),'Structural undo did not restore mesh identity and geometry');
+    check(history.redo()&&hMesh.geometry===splitGeometry&&hMesh.children.length===5,'Structural redo did not restore separated parts');
+    check(history.undo(),'Second undo failed');
+    const next=history.begin();hMesh.geometry=new THREE.BoxGeometry(2,2,2);history.commit('New branch',next);
+    check(!history.redo()&&history.undoLabel==='New branch','New edit did not invalidate redo');
+    const frontMesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshStandardMaterial());
+    const rearMesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshStandardMaterial());frontMesh.position.z=1;
+    const pickRoot=new THREE.Group();pickRoot.add(frontMesh,rearMesh);
+    const ray=new THREE.Raycaster(new THREE.Vector3(0,0,4),new THREE.Vector3(0,0,-1));
+    check(structural.pickVisibleMesh(pickRoot,ray)?.object===frontMesh,'Mesh selection missed nearest hit');
+    frontMesh.visible=false;
+    check(structural.pickVisibleMesh(pickRoot,ray)?.object===rearMesh,'Mesh selection did not skip hidden object');
+    history.clear();
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip','real xatlas worker and texture-preserving UV remap','sharp separation, structural undo/redo and visible mesh selection'];
   });
-  assert.equal(results.length,10);
+  assert.equal(results.length,11);
   console.log('Browser acceptance passed:',results);
 }finally{await browser?.close();server.kill();}
