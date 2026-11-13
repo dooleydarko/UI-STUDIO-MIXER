@@ -3,7 +3,7 @@ import * as THREE from 'three';
 export type Point = { x: number; y: number };
 export type Stroke = { points: Point[]; color: string; size: number; opacity: number; erase: boolean };
 export type LayerBlend = 'normal' | 'multiply' | 'screen' | 'overlay';
-type Common = { id: string; name: string; visible: boolean; locked: boolean; opacity: number; blend?: LayerBlend; mask?: Stroke[]; maskEnabled?: boolean };
+type Common = { id: string; name: string; visible: boolean; locked: boolean; opacity: number; blend?: LayerBlend; mask?: Stroke[]; maskImage?: string; maskEnabled?: boolean };
 export type TextureLayer = Common & (
   | { kind: 'gray'; color: string }
   | { kind: 'image'; image: string; x: number; y: number; width: number; height: number; rotation: number; flipX: boolean; flipY: boolean }
@@ -47,6 +47,21 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, mask=false): 
   else{ctx.moveTo(stroke.points[0].x,stroke.points[0].y);for(const p of stroke.points.slice(1))ctx.lineTo(p.x,p.y);ctx.stroke();}
   ctx.restore();
 }
+function drawLayer(ctx:CanvasRenderingContext2D,layer:TextureLayer,w:number,h:number,images:Map<string,HTMLImageElement>):void {
+  ctx.clearRect(0,0,w,h);ctx.save();
+  if(layer.kind==='gray'){ctx.fillStyle=layer.color;ctx.fillRect(0,0,w,h);}
+  else if(layer.kind==='image'){
+    const image=images.get(layer.image);
+    if(image){ctx.translate(layer.x+layer.width/2,layer.y+layer.height/2);ctx.rotate(layer.rotation*Math.PI/180);ctx.scale(layer.flipX?-1:1,layer.flipY?-1:1);ctx.drawImage(image,-layer.width/2,-layer.height/2,layer.width,layer.height);}
+  }else for(const stroke of layer.strokes)drawStroke(ctx,stroke);
+  ctx.restore();
+}
+function drawMask(ctx:CanvasRenderingContext2D,layer:TextureLayer,w:number,h:number,images:Map<string,HTMLImageElement>):void {
+  ctx.clearRect(0,0,w,h);
+  const image=layer.maskImage?images.get(layer.maskImage):undefined;
+  if(image)ctx.drawImage(image,0,0,w,h);else{ctx.fillStyle='#ffffff';ctx.fillRect(0,0,w,h);}
+  for(const stroke of layer.mask??[])drawStroke(ctx,stroke,true);
+}
 function canvas(width: number, height: number): HTMLCanvasElement {
   const c = document.createElement('canvas'); c.width = width; c.height = height; return c;
 }
@@ -79,6 +94,7 @@ export function parseTextureDocument(raw: string): TextureDocument {
   for (const l of d.layers) {
     if (!l || typeof l.id !== 'string' || ids.has(l.id) || typeof l.name !== 'string' || typeof l.visible !== 'boolean' || typeof l.locked !== 'boolean' || !opacity(l.opacity)) throw new Error('Invalid layer.');
     if(l.blend!==undefined && !['normal','multiply','screen','overlay'].includes(l.blend))throw new Error('Invalid layer blend mode.');
+    if(l.maskImage!==undefined&&!image(l.maskImage))throw new Error('Invalid raster mask.');
     if(l.mask!==undefined && !validStrokes(l.mask) || l.maskEnabled!==undefined && typeof l.maskEnabled!=='boolean')throw new Error('Invalid layer mask.');
     ids.add(l.id);
     if (l.kind === 'gray') { if (!color(l.color)) throw new Error('Invalid gray adjustment.'); }
@@ -135,7 +151,7 @@ export class TextureCanvasSession {
   async render(doc: TextureDocument): Promise<boolean> {
     if (this.disposed) return false;
     const id=++this.renderId;
-    const needed=new Set(doc.layers.filter((l):l is Extract<TextureLayer,{kind:'image'}>=>l.kind==='image').map(l=>l.image));
+    const needed=new Set(doc.layers.flatMap(l=>[...(l.kind==='image'?[l.image]:[]),...(l.maskImage?[l.maskImage]:[])]));
     for (const url of this.images.keys()) if (!needed.has(url)) this.images.delete(url);
     const decoded=await Promise.all([...needed].filter(url=>!this.images.has(url)).map(async url=>[url,await loadImage(url)] as const));
     if (this.disposed || id!==this.renderId) return false;
@@ -144,17 +160,9 @@ export class TextureCanvasSession {
     ctx.clearRect(0,0,w,h); ctx.drawImage(this.base,0,0);
     for (const layer of doc.layers) {
       if (!layer.visible || layer.opacity===0) continue;
-      scratch.clearRect(0,0,w,h);scratch.save();
-      if(layer.kind==='gray'){scratch.fillStyle=layer.color;scratch.fillRect(0,0,w,h);}
-      else if(layer.kind==='image'){
-        const image=this.images.get(layer.image);
-        if(image){scratch.translate(layer.x+layer.width/2,layer.y+layer.height/2);scratch.rotate(layer.rotation*Math.PI/180);scratch.scale(layer.flipX?-1:1,layer.flipY?-1:1);scratch.drawImage(image,-layer.width/2,-layer.height/2,layer.width,layer.height);}
-      }else for(const stroke of layer.strokes)drawStroke(scratch,stroke);
-      scratch.restore();
-      if(layer.maskEnabled!==false && layer.mask?.length){
-        this.maskCanvas??=canvas(w,h);const mask=context(this.maskCanvas);
-        mask.clearRect(0,0,w,h);mask.fillStyle='#ffffff';mask.fillRect(0,0,w,h);
-        for(const stroke of layer.mask)drawStroke(mask,stroke,true);
+      drawLayer(scratch,layer,w,h,this.images);
+      if(layer.maskEnabled!==false && (layer.mask?.length||layer.maskImage)){
+        this.maskCanvas??=canvas(w,h);drawMask(context(this.maskCanvas),layer,w,h,this.images);
         scratch.save();scratch.globalCompositeOperation='destination-in';scratch.drawImage(this.maskCanvas,0,0);scratch.restore();
       }
       if(layer.blend && layer.blend!=='normal'){
@@ -163,6 +171,24 @@ export class TextureCanvasSession {
       }else{ctx.save();ctx.globalCompositeOperation='source-atop';ctx.globalAlpha=layer.opacity;ctx.drawImage(this.scratch,0,0);ctx.restore();}
     }
     this.texture.needsUpdate=true; return true;
+  }
+  async rasterLayers(doc:TextureDocument):Promise<{base:HTMLCanvasElement;layers:{layer:TextureLayer;image:HTMLCanvasElement;mask?:HTMLCanvasElement}[]}> {
+    const {width:w,height:h}=doc;
+    const count=1+doc.layers.length+doc.layers.filter(l=>l.mask?.length||l.maskImage).length;
+    if(w*h*4*count>160*1024*1024)throw new Error('PSD raster export exceeds the 160 MB working budget. Reduce layer count or texture dimensions.');
+    const images=new Map<string,HTMLImageElement>();
+    for(const url of new Set(doc.layers.flatMap(l=>[...(l.kind==='image'?[l.image]:[]),...(l.maskImage?[l.maskImage]:[])])))images.set(url,this.images.get(url)??await loadImage(url));
+    const base=canvas(w,h);context(base).drawImage(this.base,0,0);
+    const layers=doc.layers.map(layer=>{
+      const image=canvas(w,h);drawLayer(context(image),layer,w,h,images);
+      if(!layer.mask?.length&&!layer.maskImage)return {layer,image};
+      const mask=canvas(w,h),ctx=context(mask);drawMask(ctx,layer,w,h,images);
+      // PSD user masks are grayscale, while the native editor uses alpha.
+      const pixels=ctx.getImageData(0,0,w,h);
+      for(let i=0;i<pixels.data.length;i+=4){const a=pixels.data[i+3];pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=a;pixels.data[i+3]=255;}
+      ctx.putImageData(pixels,0,0);return {layer,image,mask};
+    });
+    return {base,layers};
   }
   showOriginal(show: boolean): void {
     if (this.disposed) return;
