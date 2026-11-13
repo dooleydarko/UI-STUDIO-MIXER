@@ -1,0 +1,133 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Point, layerDefaults, moveLayer, addStroke, readArtwork, parseTextureDocument, downloadTextureFile } from './textureCanvasEngine';
+
+const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
+const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
+type Tool='move'|'brush'|'eraser';
+interface Props { session: TextureCanvasSession; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; }
+export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
+  const [doc,setDoc]=useState<TextureDocument>(session.initial);
+  const [selected,setSelected]=useState('');
+  const [tool,setTool]=useState<Tool>('move');
+  const [color,setColor]=useState('#ffffff');
+  const [size,setSize]=useState(24);
+  const [brushOpacity,setBrushOpacity]=useState(100);
+  const [zoom,setZoom]=useState(1);
+  const [original,setOriginal]=useState(false);
+  const [pending,setPending]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [history,setHistory]=useState<{past:TextureDocument[];future:TextureDocument[]}>({past:[],future:[]});
+  const view=useRef<HTMLCanvasElement>(null);
+  const alive=useRef(true);
+  const gesture=useRef<{start:Point;points:Point[];layer:string;tool:Tool}|null>(null);
+  const layer=doc.layers.find(l=>l.id===selected);
+  const commit=(next:TextureDocument)=>{ if(next===doc)return; setHistory(h=>({past:[...h.past.slice(-19),doc],future:[]}));setDoc(next); };
+  const patch=(id:string,update:Partial<TextureLayer>)=>commit({...doc,layers:doc.layers.map(l=>l.id===id?{...l,...update} as TextureLayer:l)});
+  const edit=(update:Partial<TextureLayer>)=>{if(layer&&!layer.locked)patch(layer.id,update);};
+  const undo=()=>{const last=history.past.at(-1);if(!last)return;setHistory({past:history.past.slice(0,-1),future:[doc,...history.future]});setDoc(last);};
+  const redo=()=>{const next=history.future[0];if(!next)return;setHistory({past:[...history.past,doc],future:history.future.slice(1)});setDoc(next);};
+  const add=(next:TextureLayer)=>{if(doc.layers.length>=64){onError('Maximum 64 layers.');return;}commit({...doc,layers:[...doc.layers,next]});setSelected(next.id);};
+  const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+  useEffect(()=>{
+    let canceled=false;setPending(true);onReady(false);
+    session.render(doc).then(rendered=>{
+      if(!canceled&&rendered){const c=view.current;const ctx=c?.getContext('2d');if(c&&ctx){ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(session.output,0,0);}setPending(false);onReady(!original);}
+    }).catch(e=>{if(!canceled){setPending(false);onReady(false);onError(e instanceof Error?e.message:String(e));}});
+    return()=>{canceled=true;};
+  },[doc,session,original,onReady,onError]);
+  useEffect(()=>{session.showOriginal(original);},[session,original]);
+  useEffect(()=>{
+    const key=(e:KeyboardEvent)=>{
+      if(e.target instanceof HTMLElement&&(e.target.matches('input,textarea,select')||e.target.isContentEditable))return;
+      const cmd=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();
+      if(cmd&&k==='z'){e.preventDefault();e.stopImmediatePropagation();e.shiftKey?redo():undo();}
+      else if(cmd&&k==='s'){e.preventDefault();e.stopImmediatePropagation();saveDocument();}
+      else if(!cmd&&['v','b','e'].includes(k)){setTool(k==='v'?'move':k==='b'?'brush':'eraser');}
+    };
+    window.addEventListener('keydown',key,true);return()=>window.removeEventListener('keydown',key,true);
+  },[doc,history]);
+  const importArtwork=async(file?:File)=>{
+    if(!file||loading)return;setLoading(true);
+    try{const a=await readArtwork(file);if(!alive.current)return;const scale=Math.min(1,doc.width/a.width,doc.height/a.height);const w=a.width*scale,h=a.height*scale;
+      add({...layerDefaults(file.name),kind:'image',image:a.url,x:(doc.width-w)/2,y:(doc.height-h)/2,width:w,height:h,rotation:0,flipX:false,flipY:false});setTool('move');
+    }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
+  };
+  const openDocument=async(file?:File)=>{
+    if(!file||loading)return;setLoading(true);
+    try{if(file.size>100*1024*1024)throw new Error('Texture document exceeds 100 MB.');const next=parseTextureDocument(await file.text());
+      if(next.width!==doc.width||next.height!==doc.height||next.base!==session.initial.base)throw new Error('Document does not match the original selected texture. Open the original model and material.');
+      if(alive.current){commit(next);setSelected(next.layers.at(-1)?.id??'');}
+    }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
+  };
+  const point=(e:React.PointerEvent<HTMLCanvasElement>):Point=>{const r=e.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(doc.width,(e.clientX-r.left)*doc.width/r.width)),y:Math.max(0,Math.min(doc.height,(e.clientY-r.top)*doc.height/r.height))};};
+  const start=(e:React.PointerEvent<HTMLCanvasElement>)=>{
+    if(!layer||layer.locked||!layer.visible||original||pending||loading||e.button!==0)return;
+    if(tool==='move'&&layer.kind!=='image'||tool!=='move'&&layer.kind!=='paint')return;
+    e.currentTarget.setPointerCapture(e.pointerId);const p=point(e);gesture.current={start:p,points:[p],layer:layer.id,tool};
+  };
+  const move=(e:React.PointerEvent<HTMLCanvasElement>)=>{
+    const g=gesture.current;if(!g)return;const p=point(e);if(g.points.length<10000)g.points.push(p);
+    if(g.tool==='brush'){const c=e.currentTarget.getContext('2d');if(c){c.save();c.strokeStyle=color;c.lineWidth=size;c.lineCap='round';c.globalAlpha=brushOpacity/100;c.beginPath();const prev=g.points.at(-2)??p;c.moveTo(prev.x,prev.y);c.lineTo(p.x,p.y);c.stroke();c.restore();}}
+  };
+  const end=(e:React.PointerEvent<HTMLCanvasElement>)=>{
+    const g=gesture.current;gesture.current=null;if(!g||!layer||layer.id!==g.layer)return;
+    const p=point(e);
+    if(g.tool==='move'&&layer.kind==='image')edit({x:layer.x+p.x-g.start.x,y:layer.y+p.y-g.start.y});
+    else if(layer.kind==='paint')commit({...doc,layers:addStroke(doc.layers,layer.id,{points:g.points,color,size,opacity:brushOpacity/100,erase:g.tool==='eraser'})});
+  };
+  const numeric=(label:string,value:number,update:(v:number)=>void,min?:number,max?:number)=><label className="block text-[10px] text-neutral-400">{label}<input className={field} type="number" value={Math.round(value*100)/100} min={min} max={max} disabled={layer?.locked||loading} onChange={e=>{const n=Number(e.target.value);if(Number.isFinite(n))update(Math.max(min??-100000,Math.min(max??100000,n)));}}/></label>;
+  return <div className="flex h-full min-h-0 flex-col bg-[#101012] text-neutral-100">
+    <header className="flex flex-wrap items-center gap-1.5 border-b border-white/10 p-2 text-xs">
+      <strong className="mr-auto">2D Texture Canvas · {doc.width} × {doc.height}</strong>
+      <button className={button} onClick={undo} disabled={!history.past.length||loading}>Undo</button><button className={button} onClick={redo} disabled={!history.future.length||loading}>Redo</button>
+      <button className={button} onClick={()=>setOriginal(v=>!v)}>{original?'Show edited 3D':'Show original 3D'}</button>
+      <button className={button} onClick={saveDocument} disabled={loading}>Save layers</button>
+      <label className={button+' cursor-pointer'}>Open layers<input type="file" className="hidden" accept=".json" disabled={loading} onChange={e=>{void openDocument(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/></label>
+      <button className={button} disabled={pending||loading} onClick={()=>session.output.toBlob(b=>{if(b)downloadTextureFile(b,'texture.png');},'image/png')}>PNG</button>
+      <button className={button} onClick={onClose}>Close / restore</button>
+    </header>
+    <div className="flex min-h-0 flex-1">
+      <div className="flex w-12 shrink-0 flex-col gap-1 border-r border-white/10 p-1">
+        {(['move','brush','eraser'] as const).map(t=><button key={t} title={t} aria-pressed={tool===t} className={button+(tool===t?' border-sky-500 text-sky-300':'')} onClick={()=>setTool(t)}>{t==='move'?'V':t==='brush'?'B':'E'}</button>)}
+        <input title="Brush color" type="color" value={color} onChange={e=>setColor(e.target.value)} className="w-full"/>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-2 text-[10px]">
+          <label>Brush {size}px <input type="range" min="1" max="200" value={size} onChange={e=>setSize(Number(e.target.value))}/></label>
+          <label>Flow {brushOpacity}% <input type="range" min="1" max="100" value={brushOpacity} onChange={e=>setBrushOpacity(Number(e.target.value))}/></label>
+          <label>Zoom <select value={zoom} onChange={e=>setZoom(Number(e.target.value))} className="bg-neutral-900"><option value={.5}>50%</option><option value={1}>Fit</option><option value={2}>200%</option><option value={4}>400%</option></select></label>
+          {pending&&<span>Compositing…</span>}
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto bg-[#18181b] p-3" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importArtwork(e.dataTransfer.files[0]);}}>
+          <canvas ref={view} width={doc.width} height={doc.height} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{gesture.current=null;view.current?.getContext('2d')?.drawImage(session.output,0,0);}} style={{width:zoom===1?'100%':(zoom*100)+'%',height:'auto',touchAction:'none',backgroundColor:'#666',backgroundImage:'repeating-conic-gradient(#888 0% 25%, #666 0% 50%)',backgroundSize:'20px 20px',cursor:tool==='move'?'move':'crosshair'}}/>
+          <p className="mt-2 text-[10px] text-neutral-400">Select an artwork layer to drag it, or a paint layer to draw. Drop an image to add artwork.</p>
+        </div>
+      </div>
+      <aside className="w-48 shrink-0 overflow-auto border-l border-white/10 p-2 space-y-2">
+        <h3 className="font-semibold text-xs">Layers</h3>
+        <div className="flex flex-wrap gap-1">
+          <button className={button} disabled={loading} onClick={()=>add({...layerDefaults('Gray Out'),kind:'gray',color:'#b0b0b0'})}>Gray Out</button>
+          <button className={button} disabled={loading} onClick={()=>{add({...layerDefaults('Paint'),kind:'paint',strokes:[]});setTool('brush');}}>Paint</button>
+          <label className={button+' cursor-pointer'}>Artwork<input type="file" className="hidden" accept="image/png,image/jpeg,image/webp" disabled={loading} onChange={e=>{void importArtwork(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/></label>
+        </div>
+        {[...doc.layers].reverse().map(l=><div key={l.id} className={'flex items-center gap-1 rounded border p-1 text-xs '+(l.id===selected?'border-sky-500/60 bg-sky-500/10':'border-white/10')}>
+          <button title="Toggle visibility" disabled={loading} onClick={()=>patch(l.id,{visible:!l.visible})}>{l.visible?'●':'○'}</button><button className="min-w-0 flex-1 truncate text-left" onClick={()=>setSelected(l.id)}>{l.name}</button><button title="Lock layer" disabled={loading} onClick={()=>patch(l.id,{locked:!l.locked})}>{l.locked?'🔒':'🔓'}</button>
+        </div>)}
+        <div className="rounded border border-white/10 p-2 text-[10px] text-neutral-400">🔒 Original base color</div>
+        {layer&&<div className="space-y-2 border-t border-white/10 pt-2">
+          <input aria-label="Layer name" className={field} value={layer.name} disabled={layer.locked||loading} onChange={e=>edit({name:e.target.value})}/>
+          <div className="flex flex-wrap gap-1">
+            <button className={button} disabled={layer.locked||loading} onClick={()=>commit({...doc,layers:moveLayer(doc.layers,layer.id,1)})}>↑</button><button className={button} disabled={layer.locked||loading} onClick={()=>commit({...doc,layers:moveLayer(doc.layers,layer.id,-1)})}>↓</button>
+            <button className={button} disabled={loading} onClick={()=>add({...layer,id:crypto.randomUUID(),name:layer.name+' copy',locked:false})}>Copy</button>
+            <button className={button} disabled={layer.locked||loading} onClick={()=>{commit({...doc,layers:doc.layers.filter(l=>l.id!==layer.id)});setSelected('');}}>Delete</button>
+          </div>
+          <label className="block text-[10px]">Opacity {Math.round(layer.opacity*100)}%<input className="w-full" type="range" min="0" max="100" disabled={layer.locked||loading} value={layer.opacity*100} onChange={e=>edit({opacity:Number(e.target.value)/100})}/></label>
+          {layer.kind==='gray'&&<input type="color" aria-label="Gray color" disabled={layer.locked||loading} value={layer.color} onChange={e=>edit({color:e.target.value})}/>}
+          {layer.kind==='image'&&<><div className="grid grid-cols-2 gap-1">{numeric('X',layer.x,v=>edit({x:v}))}{numeric('Y',layer.y,v=>edit({y:v}))}{numeric('Width',layer.width,v=>edit({width:v}),1,16384)}{numeric('Height',layer.height,v=>edit({height:v}),1,16384)}{numeric('Rotation',layer.rotation,v=>edit({rotation:v}),-360,360)}</div><div className="flex gap-1"><button className={button} disabled={layer.locked||loading} onClick={()=>edit({flipX:!layer.flipX})}>Flip X</button><button className={button} disabled={layer.locked||loading} onClick={()=>edit({flipY:!layer.flipY})}>Flip Y</button></div></>}
+        </div>}
+        <p className="text-[10px] text-neutral-500">Save layers separately before closing. PNG and GLB exports are flattened. Original alpha is preserved; shared UVs/materials share edits.</p>
+      </aside>
+    </div>
+  </div>;
+}
