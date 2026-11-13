@@ -1,5 +1,9 @@
-export interface SavedModelInfo { id: string; name: string; savedAt: number; size: number }
-interface SavedModel extends SavedModelInfo { blob: Blob }
+import type { TextureDocument } from './textureCanvasEngine';
+import type { LightingPreset } from '../types';
+
+export interface SavedModelInfo { id: string; name: string; savedAt: number; size: number; layered?: boolean; projectId?: string }
+export interface SurfaceProjectData { source: Blob; sourceName: string; materialIndex: number; materialName: string; document: TextureDocument; lighting: LightingPreset; projectId: string }
+interface SavedModel extends SavedModelInfo { blob: Blob; surface?: SurfaceProjectData }
 const DATABASE = 'ui-studio-model-library';
 const STORE = 'models';
 
@@ -30,6 +34,15 @@ export async function saveModelSnapshot(name: string, blob: Blob, existingId?: s
   const { blob: _blob, ...info } = record;
   return info;
 }
+export async function saveSurfaceProject(name:string,baked:Blob,surface:SurfaceProjectData,existingId?:string):Promise<SavedModelInfo>{
+  if(existingId){const existing=await transact<SavedModel|undefined>('readonly',store=>store.get(existingId));if(!existing?.surface||existing.projectId!==surface.projectId)throw new Error('Cannot overwrite an unrelated saved model.');}
+  const record:SavedModel={id:existingId??crypto.randomUUID(),name,savedAt:Date.now(),size:baked.size,blob:baked,surface,layered:true,projectId:surface.projectId};
+  await transact('readwrite',store=>store.put(record));
+  const {blob:_blob,surface:_surface,...info}=record;return info;
+}
+export async function readSurfaceProject(id:string):Promise<SurfaceProjectData|undefined>{
+  const record=await transact<SavedModel|undefined>('readonly',store=>store.get(id));return record?.surface;
+}
 export async function listSavedModels(): Promise<SavedModelInfo[]> {
   // Cursor avoids returning all model blobs to the UI at once.
   const db = await openLibrary();
@@ -41,8 +54,8 @@ export async function listSavedModels(): Promise<SavedModelInfo[]> {
       request.onsuccess = () => {
         const cursor = request.result;
         if (cursor) {
-          const { id, name, savedAt, size } = cursor.value as SavedModel;
-          result.push({ id, name, savedAt, size }); cursor.continue();
+          const { id, name, savedAt, size, layered, projectId } = cursor.value as SavedModel;
+          result.push({ id, name, savedAt, size, layered, projectId }); cursor.continue();
         }
       };
       tx.oncomplete = () => resolve(result.sort((a,b) => b.savedAt-a.savedAt));
