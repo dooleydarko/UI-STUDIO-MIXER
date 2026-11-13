@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
-import { Viewport3D } from './Viewport3D';
+import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
 import { GrayOutSession, inspectSurfaces } from './surfaceEditing';
 import { TextureCanvasSession } from './textureCanvasEngine';
 import { TextureCanvasPanel } from './TextureCanvasPanel';
@@ -50,6 +50,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const canvasRef = useRef<TextureCanvasSession | null>(null);
   const [canvasSession, setCanvasSession] = useState<TextureCanvasSession | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [paintTarget, setPaintTarget] = useState<SurfacePaintTarget | null>(null);
   const [canvasMode, setCanvasMode] = useState<'split' | '2d' | '3d'>('split');
   const [grayScope, setGrayScope] = useState<'material' | 'object'>('material');
   const [grayColor, setGrayColor] = useState('#b0b0b0');
@@ -340,7 +341,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
         <main className={canvasSession && canvasMode==='2d' ? 'hidden' : 'relative flex-1 min-w-0'}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void importFile(e.dataTransfer.files[0]); }}>
-          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} /> :
+          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} paintTarget={busy ? null : paintTarget} /> :
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/10">
               <span className="text-lg font-medium">Drop a 3D model here</span>
               <span className="text-xs text-neutral-500">GLB or self-contained glTF · up to 100 MB</span>
@@ -363,7 +364,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
             </div>
           </div>}
         </main>
-        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} onClose={closeCanvas} onReady={setCanvasReady} onError={setError}/></div>}
+        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
