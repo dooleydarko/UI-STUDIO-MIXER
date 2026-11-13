@@ -240,7 +240,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     let count=0,triangles=0;
     model.scene.traverse(node=>{if(node instanceof THREE.Mesh){count++;triangles+=Math.floor((node.geometry.index?.count??node.geometry.getAttribute('position')?.count??0)/3);}});
     model.meshCount=count;model.triangles=triangles;
-    sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);setRevision(v=>v+1);
+    setSavedId(undefined);sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);setRevision(v=>v+1);
   };
   const generateUV=()=>{
     if(!model||!geometryNode||busy||grayActive||canvasSession)return;
