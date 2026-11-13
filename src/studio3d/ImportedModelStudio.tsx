@@ -566,8 +566,8 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
               <strong className="text-xs">Geometry Tools</strong>
               <button className={button+' w-full '+(pickMode?'border-sky-400 text-sky-300':'')} disabled={busy||grayActive} onClick={()=>setPickMode(v=>!v)}>{pickMode?'Pick mode on · click a mesh':'Pick mesh in 3D'}</button>
               <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!historyRef.current?.undoLabel||busy||grayActive} title={historyRef.current?.undoLabel} onClick={()=>moveHistory('undo')}>Undo geometry</button><button className={button} disabled={!historyRef.current?.redoLabel||busy||grayActive} title={historyRef.current?.redoLabel} onClick={()=>moveHistory('redo')}>Redo geometry</button></div>
-              <p className="text-neutral-500">Geometry history lasts until opening a texture canvas, changing material maps, or reloading a model.</p>
-              <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{setGeometryNode(e.target.value);setGeometryStatus('');}}>
+              <p className="text-neutral-500">Geometry history lasts until opening a texture canvas, editing material properties, or reloading a model.</p>
+              <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{const node=model?.scene.getObjectByProperty('uuid',e.target.value);const mat=node instanceof THREE.Mesh?(Array.isArray(node.material)?node.material[0]:node.material):undefined;selectMesh(e.target.value,mat?.uuid??'');}}>
                 <option value="">Select a mesh</option>{hierarchy.filter(n=>n.materials.length).map(n=><option key={n.id} value={n.id}>{'· '.repeat(Math.min(n.depth,5))}{n.name} ({n.uvSets.length?n.uvSets.join(', '):'no UV'})</option>)}
               </select>
               <div className="rounded-lg bg-white/5 p-2 space-y-2">
@@ -597,13 +597,13 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
               <p className="break-words text-xs text-neutral-500">Shared by: {selected.meshes.join(', ')}</p>
               <label className="flex items-center justify-between text-xs">Color tint
                 <input type="color" disabled={busy || grayActive} value={'#' + selected.material.color.getHexString()}
-                  onChange={(e) => { selected.material.color.set(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }} />
+                  onChange={(e) => { historyRef.current?.clear();selected.material.color.set(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true); }} />
               </label>
               {(['roughness', 'metalness'] as const).map((key) => <label key={key} className="block text-xs capitalize">
                 {key} · {selected.material[key].toFixed(2)}
                 <input className="block w-full accent-sky-500" type="range" min={0} max={1} step={0.01}
                   disabled={busy || grayActive} value={selected.material[key]} onChange={(e) => {
-                    selected.material[key] = Number(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true);
+                    historyRef.current?.clear();selected.material[key] = Number(e.target.value); sourceModified.current=true;sourceSnapshot.current=null;setRevision((v) => v + 1); setDirty(true);
                   }} />
               </label>)}
               {MAP_CHANNELS.map((channel) => <div key={channel} className="rounded-xl border border-white/10 p-2">
