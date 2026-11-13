@@ -198,6 +198,53 @@ export class TextureCanvasSession {
     }
     this.texture.needsUpdate=true; return true;
   }
+  /** Deterministic local fill, not an AI model. Produces an editable patch
+   * from the hidden region of a layer mask, sampling surrounding base color. */
+  async cleanMaskedRegion(doc:TextureDocument,layerId:string):Promise<{image:string;x:number;y:number;width:number;height:number}>{
+    const layer=doc.layers.find(l=>l.id===layerId);
+    if(!layer||(!layer.mask?.length&&!layer.maskImage))throw new Error('Paint a layer mask over the unwanted region first.');
+    const w=doc.width,h=doc.height,mask=canvas(w,h),mc=context(mask);
+    try{
+      const images=new Map<string,HTMLImageElement>();
+      if(layer.maskImage)images.set(layer.maskImage,this.images.get(layer.maskImage)??await loadImage(layer.maskImage));
+      drawMask(mc,layer,w,h,images);
+      const md=mc.getImageData(0,0,w,h).data;
+      let x0=w,y0=h,x1=-1,y1=-1;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(md[(y*w+x)*4+3]<250){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
+      if(x1<0)throw new Error('Mask has no hidden area. Use Eraser in mask mode to select the region.');
+      x0=Math.max(0,x0-3);y0=Math.max(0,y0-3);x1=Math.min(w-1,x1+3);y1=Math.min(h-1,y1+3);
+      const cw=x1-x0+1,ch=y1-y0+1,n=cw*ch;
+      if(n>1048576)throw new Error('Cleanup selection is too large. Select smaller regions (up to about one megapixel).');
+      const source=context(this.output).getImageData(x0,y0,cw,ch).data;
+      const target=new Uint8Array(n),visited=new Uint8Array(n),queue=new Int32Array(n);
+      const colors=new Uint8ClampedArray(source);let head=0,tail=0,affected=0;
+      for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
+        const p=y*cw+x,m=255-md[((y+y0)*w+x+x0)*4+3];
+        target[p]=source[p*4+3]?m:0;
+        if(target[p]>5)affected++;
+        else if(source[p*4+3]){visited[p]=1;queue[tail++]=p;}
+      }
+      if(!affected||!tail)throw new Error('Cleanup needs visible surrounding texture. Make a smaller mask.');
+      const neighbors=(p:number)=>{const x=p%cw,y=Math.floor(p/cw),out:number[]=[];if(x>0)out.push(p-1);if(x<cw-1)out.push(p+1);if(y>0)out.push(p-cw);if(y<ch-1)out.push(p+cw);return out;};
+      while(head<tail){
+        const p=queue[head++];
+        for(const q of neighbors(p)){if(visited[q]||target[q]<=5)continue;visited[q]=1;queue[tail++]=q;for(let k=0;k<3;k++)colors[q*4+k]=colors[p*4+k];}
+      }
+      // A few bounded diffusion passes soften hard nearest-neighbor seams.
+      for(let pass=0;pass<3;pass++){
+        const next=new Uint8ClampedArray(colors);
+        for(let p=0;p<n;p++)if(target[p]>5&&visited[p]){
+          const ns=neighbors(p).filter(q=>visited[q]);if(!ns.length)continue;
+          for(let k=0;k<3;k++)next[p*4+k]=Math.round(ns.reduce((sum,q)=>sum+colors[q*4+k],0)/ns.length);
+        }
+        colors.set(next);
+      }
+      const patch=canvas(cw,ch),pc=context(patch),result=pc.createImageData(cw,ch);
+      for(let p=0;p<n;p++)if(target[p]>5&&visited[p]){for(let k=0;k<3;k++)result.data[p*4+k]=colors[p*4+k];result.data[p*4+3]=target[p];}
+      pc.putImageData(result,0,0);const image=patch.toDataURL('image/png');patch.width=patch.height=1;
+      return {image,x:x0,y:y0,width:cw,height:ch};
+    }finally{mask.width=mask.height=1;}
+  }
   async rasterLayers(doc:TextureDocument):Promise<{base:HTMLCanvasElement;layers:{layer:TextureLayer;image:HTMLCanvasElement;mask?:HTMLCanvasElement}[]}> {
     const {width:w,height:h}=doc;
     const count=1+doc.layers.length+doc.layers.filter(l=>l.mask?.length||l.maskImage).length;
