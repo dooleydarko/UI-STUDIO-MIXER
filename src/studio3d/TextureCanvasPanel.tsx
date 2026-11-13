@@ -17,6 +17,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
   const [cloneAnchor,setCloneAnchor]=useState<Point|null>(null);
   const [uvGuide,setUVGuide]=useState<UVGuide|null>(null);
   const guideCanvas=useRef<HTMLCanvasElement>(null);
+  const maskPreview=useRef<HTMLCanvasElement>(null);
   const [color,setColor]=useState('#ffffff');
   const [size,setSize]=useState(24);
   const [brushOpacity,setBrushOpacity]=useState(100);
@@ -48,6 +49,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
   },[doc,layer,tool,original,pending,loading,busy,session,color,size,brushOpacity,onPaintTarget,maskMode]);
   const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
   useEffect(()=>{onDocument(doc);},[doc,onDocument]);
+  useEffect(()=>{if(maskMode&&layer&&maskPreview.current)void session.drawMaskPreview(layer,maskPreview.current).catch(e=>onError(e instanceof Error?e.message:String(e)));},[maskMode,layer,session,onError]);
   useEffect(()=>{const c=guideCanvas.current,ctx=c?.getContext('2d');if(!c||!ctx||!uvGuide)return;ctx.clearRect(0,0,c.width,c.height);ctx.strokeStyle='rgba(75,215,255,.85)';ctx.lineWidth=Math.max(1,c.width/1000);ctx.beginPath();for(const [x,y,x2,y2] of uvGuide.segments){ctx.moveTo(x*c.width,y*c.height);ctx.lineTo(x2*c.width,y2*c.height);}ctx.stroke();},[uvGuide,doc.width,doc.height]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   useEffect(()=>{
@@ -153,7 +155,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
           {uvGuide?.truncated&&<span>Partial guide · edge limit reached</span>}{tool==='clone'&&<span>{cloneAnchor?'Clone source set':'Option-click source'}</span>}{pending&&<span>Compositing…</span>}
         </div>
         <div className="flex-1 min-h-0 overflow-auto bg-[#18181b] p-3" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importArtwork(e.dataTransfer.files[0]);}}>
-          <div style={{position:"relative",width:zoom===1?"100%":(zoom*100)+"%"}}><canvas ref={view} width={doc.width} height={doc.height} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{gesture.current=null;view.current?.getContext('2d')?.drawImage(session.output,0,0);}} style={{width:'100%',display:'block',height:'auto',touchAction:'none',backgroundColor:'#666',backgroundImage:'repeating-conic-gradient(#888 0% 25%, #666 0% 50%)',backgroundSize:'20px 20px',cursor:tool==='move'?'move':'crosshair'}}/>{uvGuide&&<canvas ref={guideCanvas} width={doc.width} height={doc.height} style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}/>}</div>
+          <div style={{position:"relative",width:zoom===1?"100%":(zoom*100)+"%"}}><canvas ref={view} width={doc.width} height={doc.height} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{gesture.current=null;view.current?.getContext('2d')?.drawImage(session.output,0,0);}} style={{width:'100%',display:'block',height:'auto',touchAction:'none',backgroundColor:'#666',backgroundImage:'repeating-conic-gradient(#888 0% 25%, #666 0% 50%)',backgroundSize:'20px 20px',cursor:tool==='move'?'move':'crosshair'}}/>{maskMode&&layer&&<canvas ref={maskPreview} width={doc.width} height={doc.height} style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}/>}{uvGuide&&<canvas ref={guideCanvas} width={doc.width} height={doc.height} style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}/>}</div>
           <p className="mt-2 text-[10px] text-neutral-400">Select artwork to drag, or a paint layer to draw on either canvas or 3D surface (UV0/UV1). Mask editing works on any unlocked layer. Clone stamp (S) copies a sampled texture area to a new cleanup layer. Switch to Move to orbit. Shared UVs share edits. Drop an image to add artwork.</p>
         </div>
       </div>
