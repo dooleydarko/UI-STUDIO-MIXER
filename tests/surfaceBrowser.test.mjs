@@ -86,7 +86,8 @@ try {
     await a1.session.render(d1);await a2.session.render(d2);
     const pixel=(session)=>[...session.output.getContext('2d').getImageData(5,5,1,1).data];
     check(pixel(a1.session)[0]===255&&pixel(a2.session)[2]===255,'Independent canvas edits not retained');
-    check(ws.open(entries,0)===a1,'Switching recreated the first document');
+    ws.updateHistory(a1.session,{past:[a1.session.initial],future:[]});
+    check(ws.open(entries,0)===a1&&a1.history.past.length===1&&a2.history.past.length===0,'Switching lost or mixed the first material history');
     const bindings=ws.bindings();
     const multi={source:sourceGlb,sourceName:'multi.glb',materialIndex:1,materialName:'Back',document:d2,documents:bindings,lighting:'studio',projectId:'multi'};
     const bakedGlb=await encodeSceneGlb(root);
