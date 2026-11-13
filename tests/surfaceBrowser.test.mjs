@@ -16,7 +16,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(()=>!!window.surfaceTest,{timeout:30000});
   const results=await page.evaluate(async()=>{
-    const {geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
+    const {charts,geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
     const check=(value,message)=>{if(!value)throw new Error(message);};
     const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
     const base=canvas(16,16),ctx=base.getContext('2d');
@@ -196,8 +196,42 @@ try {
     reloadedGeom.scene.traverse(node=>{if(node.isMesh&&node.name.includes('Raw_box')&&node.geometry.getAttribute('uv'))generatedFound=true;if(node.isMesh&&node.name.includes('part'))splitFound=true;});
     check(generatedFound&&splitFound,'GLB export/reopen lost generated UV or separated parts');
     releaseStudioModel(reloadedGeom);
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip'];
+    // Actual xatlas WASM worker, base color reprojection and independent old UVs.
+    const originalArtwork=canvas(64,64),ac=originalArtwork.getContext('2d');
+    ac.fillStyle='#ff0000';ac.fillRect(0,0,32,64);ac.fillStyle='#0000ff';ac.fillRect(32,0,32,64);
+    ac.clearRect(0,0,8,64);
+    const oldMap=new THREE.CanvasTexture(originalArtwork);oldMap.flipY=false;oldMap.colorSpace=THREE.SRGBColorSpace;
+    const oldNormal=new THREE.CanvasTexture(canvas(16,16));oldNormal.flipY=false;oldNormal.channel=0;
+    const chartMaterial=new THREE.MeshStandardMaterial({name:'Chart cover',map:oldMap,normalMap:oldNormal,roughness:.4,metalness:.25});
+    const chartGeo=new THREE.PlaneGeometry(1,1,2,2);
+    const chartMesh=new THREE.Mesh(chartGeo,chartMaterial);chartMesh.name='Chart cover';
+    const chartSibling=new THREE.Mesh(chartGeo,chartMaterial);chartSibling.position.x=2;chartSibling.name='Chart original';
+    const chartRoot=new THREE.Group();chartRoot.add(chartMesh,chartSibling);
+    const remapped=await charts.unwrapChartUV(chartRoot,chartMesh.uuid,512,signal);
+    check(remapped.charts>=1&&remapped.charts<8&&remapped.channel===1,'xatlas failed to group connected planar faces: '+JSON.stringify(remapped));
+    check(chartMesh.material!==chartMaterial&&chartSibling.material===chartMaterial&&chartSibling.geometry===chartGeo,'Chart remap mutated shared source');
+    check(chartMesh.material.normalMap===oldNormal&&chartMesh.material.roughness===.4&&chartMesh.material.metalness===.25&&chartMesh.material.map.channel===1,'Physical PBR maps or values changed');
+    const oldUv=chartMesh.geometry.getAttribute('uv'),newUv=chartMesh.geometry.getAttribute('uv1'),bake=chartMesh.material.map.image;
+    const bc=bake.getContext('2d');
+    for(let i=0;i<oldUv.count;i+=3){
+      const u=(oldUv.getX(i)+oldUv.getX(i+1)+oldUv.getX(i+2))/3;
+      const x=Math.floor((newUv.getX(i)+newUv.getX(i+1)+newUv.getX(i+2))/3*bake.width),y=Math.floor((newUv.getY(i)+newUv.getY(i+1)+newUv.getY(i+2))/3*bake.height);
+      const p=bc.getImageData(x,y,1,1).data;
+      check(u<.5?p[0]>230&&p[2]<20:p[2]>230&&p[0]<20,'Baked artwork changed at corresponding triangle centroid');
+    }
+    const chartSession=new engine.TextureCanvasSession(chartMesh.material,chartMesh.material.name);
+    check(chartSession.supports3DPaint,'UV1 atlas is not compatible with live 3D painting');
+    chartSession.restore();
+    let occupiedRejected=false;try{await charts.unwrapChartUV(chartRoot,chartMesh.uuid,512,signal);}catch(e){occupiedRejected=String(e).includes('UV1');}
+    check(occupiedRejected,'Existing UV1 was not protected');
+    const canceled=new AbortController();canceled.abort();
+    let cancelRejected=false;try{await charts.unwrapChartUV(chartRoot,chartSibling.uuid,512,canceled.signal);}catch{cancelRejected=true;}
+    check(cancelRejected&&chartSibling.geometry===chartGeo&&chartSibling.material===chartMaterial,'Canceled unwrap modified original mesh');
+    const chartBlob=await encodeSceneGlb(chartRoot),chartLoaded=await loadStudioModel(new File([chartBlob],'chart.glb'));
+    let loadedChart=false;chartLoaded.scene.traverse(node=>{if(node.isMesh&&node.geometry.getAttribute('uv1')&&node.material.map?.channel===1&&node.material.normalMap?.channel===0)loadedChart=true;});
+    check(loadedChart,'GLB round-trip lost independent base-color and normal UV channels');releaseStudioModel(chartLoaded);
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip','real xatlas worker and texture-preserving UV remap'];
   });
-  assert.equal(results.length,9);
+  assert.equal(results.length,10);
   console.log('Browser acceptance passed:',results);
 }finally{await browser?.close();server.kill();}
