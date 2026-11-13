@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
 import { GrayOutSession, inspectSurfaces, collectUVGuide, isolateMeshMaterial } from './surfaceEditing';
-import { TextureCanvasSession, parseTextureDocument, type TextureDocument } from './textureCanvasEngine';
+import { TextureCanvasSession, type TextureDocument } from './textureCanvasEngine';
+import { SurfaceWorkspace } from './surfaceWorkspace';
 import { TextureCanvasPanel } from './TextureCanvasPanel';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
@@ -50,6 +51,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const graySession = useRef(new GrayOutSession());
   const [grayActive, setGrayActive] = useState(false);
   const canvasRef = useRef<TextureCanvasSession | null>(null);
+  const workspace=useRef(new SurfaceWorkspace());
   const canvasOwner = useRef<ImportedStudioModel | null>(null);
   const sourceFileRef = useRef<File | null>(null);
   const sourceModified = useRef(false);
@@ -59,7 +61,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [initialDocument, setInitialDocument] = useState<TextureDocument | undefined>();
   const [docRevision,setDocRevision]=useState(0);
   const lastPersisted=useRef<{document:TextureDocument;lighting:Product3DProject['state']['lighting']}|null>(null);
-  const onCanvasDocument = useCallback((doc:TextureDocument)=>{if(canvasDoc.current!==doc){canvasDoc.current=doc;setDocRevision(v=>v+1);}},[]);
+  const onCanvasDocument = useCallback((doc:TextureDocument)=>{const session=canvasRef.current;if(session&&workspace.current.update(session,doc)){canvasDoc.current=doc;setDocRevision(v=>v+1);}},[]);
   const [canvasSession, setCanvasSession] = useState<TextureCanvasSession | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
   const [paintTarget, setPaintTarget] = useState<SurfacePaintTarget | null>(null);
@@ -91,10 +93,11 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [lighting, setLighting] = useState(project.state.lighting);
   useEffect(()=>{
     const id=surfaceId.current,doc=canvasDoc.current;
-    if(!id||!doc||!canvasSession||!canvasReady||busy||lastPersisted.current?.document===doc&&lastPersisted.current?.lighting===lighting)return;
+    const bindings=workspace.current.bindings(),active=canvasRef.current&&workspace.current.getBySession(canvasRef.current);
+    if(!id||!doc||!active||!canvasSession||!canvasReady||busy||lastPersisted.current?.document===doc&&lastPersisted.current?.lighting===lighting)return;
     let canceled=false;
     const timer=window.setTimeout(()=>{
-      void saveSurfaceDraft(id,project.id,doc,lighting).then(timestamp=>{
+      void saveSurfaceDraft(id,project.id,doc,lighting,{documents:bindings,materialIndex:active.materialIndex,materialName:active.materialName}).then(timestamp=>{
         if(!canceled&&mounted.current&&surfaceId.current===id){lastPersisted.current={document:doc,lighting};setLibraryStatus('Editable draft autosaved · '+new Date(timestamp).toLocaleTimeString()+' · save project to refresh baked GLB');}
       }).catch(e=>{if(!canceled&&mounted.current)setLibraryStatus('Draft autosave failed: '+(e instanceof Error?e.message:String(e)));});
     },1400);
@@ -108,7 +111,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     mounted.current = true;
     return () => { mounted.current = false; request.current++; downloadController.current?.abort(); current.current = null; action.current = null; };
   }, []);
-  useEffect(() => () => { if (model) { if(canvasOwner.current===model){canvasRef.current?.restore(); canvasRef.current=null;canvasOwner.current=null;} graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
+  useEffect(() => () => { if (model) { if(canvasOwner.current===model){workspace.current.restoreAll(); canvasRef.current=null;canvasOwner.current=null;} graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
   useEffect(() => { listSavedModels().then(items => { if (mounted.current) setSavedModels(items); }).catch(() => { if (mounted.current) setLibraryStatus('Local model library unavailable. Export GLB files instead.'); }); }, []);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || grayActive || canvasSession) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty, grayActive, canvasSession]);
 
@@ -166,7 +169,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       graySession.current.restoreAll();
       setGrayActive(false);
       current.current = loaded;
-      sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
+      workspace.current=new SurfaceWorkspace();sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
       setOptimizationNote('');
       setSavedId(surface?undefined:libraryId);
       setDirty(!libraryId);
@@ -176,20 +179,18 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       setMaterialId(inspectMaterials(loaded.scene)[0]?.id ?? '');
       selectClip(loaded, loaded.clips.length ? 0 : -1);
       if(surface){
-        let session:TextureCanvasSession|undefined;
+        const candidate=workspace.current;
         try{
           if(surface.projectId!==project.id)throw new Error('Saved surface belongs to another Product Studio project.');
-          const binding=inspectMaterials(loaded.scene)[surface.materialIndex];
-          const doc=parseTextureDocument(JSON.stringify(surface.document));
-          if(!binding||binding.name!==surface.materialName||doc.material!==binding.name)throw new Error('Saved material binding does not match the source GLB.');
-          session=new TextureCanvasSession(binding.material,binding.name);
-          await session.restoreSavedBase(doc);
-          if(!mounted.current||id!==request.current){session.restore();return;}
+          const entries=inspectMaterials(loaded.scene);
+          const entry=await candidate.reopen(entries,surface);
+          if(!mounted.current||id!==request.current){candidate.restoreAll();return;}
+          const {session,document:doc}=entry;
           canvasRef.current=session;canvasOwner.current=loaded;canvasDoc.current=doc;surfaceId.current=libraryId;lastPersisted.current={document:doc,lighting:surface.lighting};
           sourceSnapshot.current=sourceFile;setInitialDocument(doc);setCanvasSession(session);setCanvasMode('split');setCanvasReady(false);
-          setMaterialId(binding.id);setLighting(surface.lighting);setLibraryOpen(false);
-          setLibraryStatus('Reopened editable surface project · original source retained');
-        }catch(e){session?.restore();if(mounted.current)setError('Could not reopen editable surface: '+(e instanceof Error?e.message:String(e))+' The original source is still open.');}
+          setMaterialId(entries[entry.materialIndex].id);setLighting(surface.lighting);setLibraryOpen(false);
+          setLibraryStatus('Reopened '+candidate.size+' editable material document(s) · source retained');
+        }catch(e){candidate.restoreAll();if(mounted.current)setError('Could not reopen editable surfaces: '+(e instanceof Error?e.message:String(e))+' The original source is still open.');}
       }
     } catch (e) {
       if (mounted.current && id === request.current) setError(e instanceof Error && e.name === 'AbortError' ? 'Product download canceled or timed out.' : e instanceof Error ? e.message : String(e));
@@ -247,27 +248,31 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     setGrayActive(false);
     setRevision(v => v + 1);
   };
-  const openCanvas = () => {
-    if (!model || !selected || busy || canvasSession) return;
+  const openCanvas = (id=materialId) => {
+    if (!model || busy || (canvasSession&&!canvasReady)) return;
+    const index=materials.findIndex(m=>m.id===id),entry=materials[index];
+    if(!entry)return;
     setError('');
-    const target = selected.material;
-    const uv = target.map?.channel ? 'uv' + target.map.channel : 'uv';
-    let missing = false;
-    model.scene.traverse(node => {
-      if (node instanceof THREE.Mesh && (Array.isArray(node.material) ? node.material : [node.material]).includes(target) && !node.geometry.getAttribute(uv)) missing = true;
+    const target=entry.material;
+    const uv=target.map?.channel?'uv'+target.map.channel:'uv';
+    let missing=false;
+    model.scene.traverse(node=>{
+      if(node instanceof THREE.Mesh&&(Array.isArray(node.material)?node.material:[node.material]).includes(target)&&!node.geometry.getAttribute(uv))missing=true;
     });
-    if (missing) { setError('Selected material has surfaces without suitable UVs. UV generation is not implemented yet.'); return; }
-    try {
-      if (grayActive && !window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?')) return;
-      if (grayActive) restoreGray();
-      const next = new TextureCanvasSession(target, selected.name);
-      canvasRef.current = next; canvasOwner.current=model;canvasDoc.current=next.initial;surfaceId.current=undefined;lastPersisted.current=null;setLibraryOpen(false);setCatalogOpen(false);setInitialDocument(undefined);setCanvasSession(next); setCanvasReady(false); setCanvasMode('split');
-      setRevision(v=>v+1);
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    if(missing){setError('Selected material has surfaces without suitable UVs. UV generation is not implemented yet.');return;}
+    try{
+      if(grayActive&&!window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?'))return;
+      if(grayActive)restoreGray();
+      const next=workspace.current.open(materials,index);
+      if(canvasRef.current===next.session)return;
+      setPaintTarget(null);canvasRef.current=next.session;canvasOwner.current=model;canvasDoc.current=next.document;
+      setInitialDocument(next.document);setCanvasSession(next.session);setCanvasReady(false);setMaterialId(id);
+      setLibraryOpen(false);setCatalogOpen(false);setCanvasMode('split');setRevision(v=>v+1);setDocRevision(v=>v+1);
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
   };
   const closeCanvas = () => {
-    if (!window.confirm('Close texture canvas and restore the original material? Save layers or export the edited GLB first.')) return;
-    canvasRef.current?.restore(); canvasRef.current=null;canvasOwner.current=null;canvasDoc.current=null;surfaceId.current=undefined;lastPersisted.current=null;setInitialDocument(undefined); setCanvasSession(null); setCanvasReady(false); setRevision(v=>v+1);
+    if(!window.confirm('Close all material canvases and restore original materials? Save the editable project first.'))return;
+    workspace.current.restoreAll();canvasRef.current=null;canvasOwner.current=null;canvasDoc.current=null;surfaceId.current=undefined;lastPersisted.current=null;setInitialDocument(undefined);setCanvasSession(null);setCanvasReady(false);setPaintTarget(null);setRevision(v=>v+1);
   };
   const duration = model?.clips[clipIndex]?.duration ?? 0;
   const togglePlay = () => {
@@ -324,14 +329,14 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
         if(!source){
           if(!sourceModified.current&&sourceFileRef.current)source=sourceFileRef.current;
           else{
-            session.showOriginal(true);
+            workspace.current.showOriginal(true);
             try{const original=await encodeSceneGlb(model.scene,model.clips);source=new File([original],model.name.replace(/\\.(glb|gltf)$/i,'')+'-source.glb',{type:'model/gltf-binary'});}
-            finally{session.showOriginal(false);}
+            finally{workspace.current.showOriginal(false);}
           }
           sourceSnapshot.current=source;
         }
         if(source.size>100*1024*1024)throw new Error('Original source exceeds the local reopen limit.');
-        info=await saveSurfaceProject(model.name,blob,{source,sourceName:source.name,materialIndex:binding,materialName:doc.material,document:doc,lighting,projectId:project.id},surfaceId.current);
+        info=await saveSurfaceProject(model.name,blob,{source,sourceName:source.name,materialIndex:binding,materialName:doc.material,document:doc,documents:workspace.current.bindings(),lighting,projectId:project.id},surfaceId.current);
         surfaceId.current=info.id;lastPersisted.current={document:doc,lighting};
       }else info=await saveModelSnapshot(model.name,blob,savedId);
       if (mounted.current) {
@@ -392,7 +397,8 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
         </label>
         <button className={button} onClick={() => { setCatalogOpen(v=>!v); setLibraryOpen(false); }} disabled={busy || !!canvasSession}>Product GLBs ({PRODUCT_GLB_CATALOG.length})</button>
         <button className={button} onClick={() => { setLibraryOpen(v=>!v); setCatalogOpen(false); }} disabled={busy || !!canvasSession}>Library ({savedModels.length})</button>
-        <button className={button+' border-sky-500/40 text-sky-300'} onClick={openCanvas} disabled={!selected || busy || !!canvasSession}>Open Texture Canvas</button>
+        <button className={button+' border-sky-500/40 text-sky-300'} onClick={()=>openCanvas()} disabled={!selected || busy || !!canvasSession}>Open Texture Canvas</button>
+        {canvasSession && <label className="flex items-center gap-1 text-xs">Material canvas · {workspace.current.size} open<select aria-label="Switch material canvas" className="max-w-44 rounded-lg bg-neutral-900 p-2" value={materialId} disabled={busy||!canvasReady} onChange={e=>openCanvas(e.target.value)}>{materials.map(m=><option key={m.id} value={m.id}>{workspace.current.get(m.id)?'● ':''}{m.name}</option>)}</select></label>}
         {canvasSession && <div className="flex gap-1">{(['split','2d','3d'] as const).map(mode=><button key={mode} className={button+(canvasMode===mode?' border-sky-500 text-sky-300':'')} onClick={()=>setCanvasMode(mode)}>{mode==='split'?'Split':mode==='2d'?'2D':'3D'}</button>)}</div>}
         <button className={button} onClick={()=>void saveSnapshot()} disabled={!model || busy || grayActive || (!!canvasSession&&!canvasReady)}>{canvasSession?'Save editable project':dirty?'Save model •':'Save model'}</button>
         {canvasSession&&<button className={button+' border-emerald-500/40 text-emerald-300'} disabled={busy||!canvasReady} onClick={()=>void saveSnapshot(true)}>Send Back to Product Studio</button>}
@@ -444,7 +450,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             </div>
           </div>}
         </main>
-        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} initialDocument={initialDocument} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
+        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
