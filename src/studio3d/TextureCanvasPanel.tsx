@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Point, layerDefaults, moveLayer, addStroke, readArtwork, parseTextureDocument, downloadTextureFile } from './textureCanvasEngine';
 
+import type { SurfacePaintTarget } from './Viewport3D';
+
 const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
 const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
 type Tool='move'|'brush'|'eraser';
-interface Props { session: TextureCanvasSession; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; }
-export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
+interface Props { session: TextureCanvasSession; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
+export function TextureCanvasPanel({session,onClose,onReady,onError,onPaintTarget,busy}:Props) {
   const [doc,setDoc]=useState<TextureDocument>(session.initial);
   const [selected,setSelected]=useState('');
   const [tool,setTool]=useState<Tool>('move');
@@ -27,6 +29,16 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
   const undo=()=>{const last=history.past[history.past.length-1];if(!last)return;setHistory({past:history.past.slice(0,-1),future:[doc,...history.future]});setDoc(last);};
   const redo=()=>{const next=history.future[0];if(!next)return;setHistory({past:[...history.past,doc],future:history.future.slice(1)});setDoc(next);};
   const add=(next:TextureLayer)=>{if(doc.layers.length>=64){onError('Maximum 64 layers.');return;}commit({...doc,layers:[...doc.layers,next]});setSelected(next.id);};
+  useEffect(()=>{
+    if(!layer || layer.kind!=='paint' || layer.locked || !layer.visible || tool==='move' || original || pending || loading || busy || !session.supports3DPaint) {onPaintTarget(null);return;}
+    const target:SurfacePaintTarget={material:session.paintMaterial,onStroke:segments=>{
+      let next=doc.layers;
+      for(const segment of segments) next=addStroke(next,layer.id,{points:segment.map(p=>({x:p.x*doc.width,y:p.y*doc.height})),color,size,opacity:brushOpacity/100,erase:tool==='eraser'});
+      commit({...doc,layers:next});
+    }};
+    onPaintTarget(target);
+    return()=>onPaintTarget(null);
+  },[doc,layer,tool,original,pending,loading,busy,session,color,size,brushOpacity,onPaintTarget]);
   const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   useEffect(()=>{
@@ -39,6 +51,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
   useEffect(()=>{session.showOriginal(original);},[session,original]);
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
+      if(busy||loading)return;
       if(e.target instanceof HTMLElement&&(e.target.matches('input,textarea,select')||e.target.isContentEditable))return;
       const cmd=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();
       if(cmd&&k==='z'){e.preventDefault();e.stopImmediatePropagation();e.shiftKey?redo():undo();}
@@ -46,15 +59,15 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
       else if(!cmd&&['v','b','e'].includes(k)){setTool(k==='v'?'move':k==='b'?'brush':'eraser');}
     };
     window.addEventListener('keydown',key,true);return()=>window.removeEventListener('keydown',key,true);
-  },[doc,history]);
+  },[doc,history,busy,loading]);
   const importArtwork=async(file?:File)=>{
-    if(!file||loading)return;setLoading(true);
+    if(!file||loading||busy)return;setLoading(true);
     try{const a=await readArtwork(file);if(!alive.current)return;const scale=Math.min(1,doc.width/a.width,doc.height/a.height);const w=a.width*scale,h=a.height*scale;
       add({...layerDefaults(file.name),kind:'image',image:a.url,x:(doc.width-w)/2,y:(doc.height-h)/2,width:w,height:h,rotation:0,flipX:false,flipY:false});setTool('move');
     }catch(e){if(alive.current)onError(e instanceof Error?e.message:String(e));}finally{if(alive.current)setLoading(false);}
   };
   const openDocument=async(file?:File)=>{
-    if(!file||loading)return;setLoading(true);
+    if(!file||loading||busy)return;setLoading(true);
     try{if(file.size>100*1024*1024)throw new Error('Texture document exceeds 100 MB.');const next=parseTextureDocument(await file.text());
       if(next.width!==doc.width||next.height!==doc.height||next.base!==session.initial.base)throw new Error('Document does not match the original selected texture. Open the original model and material.');
       if(alive.current){commit(next);setSelected(next.layers[next.layers.length-1]?.id??'');}
@@ -62,7 +75,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
   };
   const point=(e:React.PointerEvent<HTMLCanvasElement>):Point=>{const r=e.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(doc.width,(e.clientX-r.left)*doc.width/r.width)),y:Math.max(0,Math.min(doc.height,(e.clientY-r.top)*doc.height/r.height))};};
   const start=(e:React.PointerEvent<HTMLCanvasElement>)=>{
-    if(!layer||layer.locked||!layer.visible||original||pending||loading||e.button!==0)return;
+    if(!layer||layer.locked||!layer.visible||original||pending||loading||busy||e.button!==0)return;
     if(tool==='move'&&layer.kind!=='image'||tool!=='move'&&layer.kind!=='paint')return;
     e.currentTarget.setPointerCapture(e.pointerId);const p=point(e);gesture.current={start:p,points:[p],layer:layer.id,tool};
   };
@@ -77,7 +90,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
     else if(layer.kind==='paint')commit({...doc,layers:addStroke(doc.layers,layer.id,{points:g.points,color,size,opacity:brushOpacity/100,erase:g.tool==='eraser'})});
   };
   const numeric=(label:string,value:number,update:(v:number)=>void,min?:number,max?:number)=><label className="block text-[10px] text-neutral-400">{label}<input className={field} type="number" value={Math.round(value*100)/100} min={min} max={max} disabled={layer?.locked||loading} onChange={e=>{const n=Number(e.target.value);if(Number.isFinite(n))update(Math.max(min??-100000,Math.min(max??100000,n)));}}/></label>;
-  return <div className="flex h-full min-h-0 flex-col bg-[#101012] text-neutral-100">
+  return <div className={"flex h-full min-h-0 flex-col bg-[#101012] text-neutral-100 "+(busy?"pointer-events-none opacity-60":"")}>
     <header className="flex flex-wrap items-center gap-1.5 border-b border-white/10 p-2 text-xs">
       <strong className="mr-auto">2D Texture Canvas · {doc.width} × {doc.height}</strong>
       <button className={button} onClick={undo} disabled={!history.past.length||loading}>Undo</button><button className={button} onClick={redo} disabled={!history.future.length||loading}>Redo</button>
@@ -101,7 +114,7 @@ export function TextureCanvasPanel({session,onClose,onReady,onError}:Props) {
         </div>
         <div className="flex-1 min-h-0 overflow-auto bg-[#18181b] p-3" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importArtwork(e.dataTransfer.files[0]);}}>
           <canvas ref={view} width={doc.width} height={doc.height} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{gesture.current=null;view.current?.getContext('2d')?.drawImage(session.output,0,0);}} style={{width:zoom===1?'100%':(zoom*100)+'%',height:'auto',touchAction:'none',backgroundColor:'#666',backgroundImage:'repeating-conic-gradient(#888 0% 25%, #666 0% 50%)',backgroundSize:'20px 20px',cursor:tool==='move'?'move':'crosshair'}}/>
-          <p className="mt-2 text-[10px] text-neutral-400">Select an artwork layer to drag it, or a paint layer to draw. Drop an image to add artwork.</p>
+          <p className="mt-2 text-[10px] text-neutral-400">Select artwork to drag, or a paint layer to draw on either canvas or 3D surface (UV0/UV1). Switch to Move to orbit. Shared UVs share edits. Drop an image to add artwork.</p>
         </div>
       </div>
       <aside className="w-48 shrink-0 overflow-auto border-l border-white/10 p-2 space-y-2">
