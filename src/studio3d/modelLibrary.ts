@@ -1,5 +1,9 @@
-export interface SavedModelInfo { id: string; name: string; savedAt: number; size: number }
-interface SavedModel extends SavedModelInfo { blob: Blob }
+import type { TextureDocument } from './textureCanvasEngine';
+import type { LightingPreset } from '../types';
+
+export interface SavedModelInfo { id: string; name: string; savedAt: number; size: number; layered?: boolean; projectId?: string; draftSavedAt?: number }
+export interface SurfaceProjectData { source: Blob; sourceName: string; materialIndex: number; materialName: string; document: TextureDocument; lighting: LightingPreset; projectId: string }
+interface SavedModel extends SavedModelInfo { blob: Blob; surface?: SurfaceProjectData }
 const DATABASE = 'ui-studio-model-library';
 const STORE = 'models';
 
@@ -25,10 +29,33 @@ async function transact<T>(mode: IDBTransactionMode, perform: (store: IDBObjectS
   } finally { db.close(); }
 }
 export async function saveModelSnapshot(name: string, blob: Blob, existingId?: string): Promise<SavedModelInfo> {
+  if(existingId){const existing=await transact<SavedModel|undefined>('readonly',store=>store.get(existingId));if(existing?.surface)throw new Error('Save a new model copy rather than overwrite an editable surface project.');}
   const record: SavedModel = { id: existingId ?? crypto.randomUUID(), name, savedAt: Date.now(), size: blob.size, blob };
   await transact('readwrite', store => store.put(record));
   const { blob: _blob, ...info } = record;
   return info;
+}
+export async function saveSurfaceProject(name:string,baked:Blob,surface:SurfaceProjectData,existingId?:string):Promise<SavedModelInfo>{
+  if(existingId){const existing=await transact<SavedModel|undefined>('readonly',store=>store.get(existingId));if(!existing?.surface||existing.projectId!==surface.projectId)throw new Error('Cannot overwrite an unrelated saved model.');}
+  const record:SavedModel={id:existingId??crypto.randomUUID(),name,savedAt:Date.now(),size:baked.size,blob:baked,surface,layered:true,projectId:surface.projectId};
+  await transact('readwrite',store=>store.put(record));
+  const {blob:_blob,surface:_surface,...info}=record;return info;
+}
+export async function saveSurfaceDraft(id:string,projectId:string,document:TextureDocument,lighting:LightingPreset):Promise<number>{
+  const db=await openLibrary();
+  try{return await new Promise<number>((resolve,reject)=>{
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE),req=store.get(id);
+    let timestamp=0,reason:Error|undefined;
+    req.onsuccess=()=>{
+      const record=req.result as SavedModel|undefined;
+      if(!record?.surface||record.projectId!==projectId){reason=new Error('Saved surface project is missing or belongs to another project.');tx.abort();return;}
+      timestamp=Date.now();store.put({...record,draftSavedAt:timestamp,surface:{...record.surface,document,lighting}});
+    };
+    tx.oncomplete=()=>resolve(timestamp);tx.onerror=()=>reject(tx.error??req.error);tx.onabort=()=>reject(reason??tx.error??new Error('Surface draft autosave aborted.'));
+  });}finally{db.close();}
+}
+export async function readSurfaceProject(id:string):Promise<SurfaceProjectData|undefined>{
+  const record=await transact<SavedModel|undefined>('readonly',store=>store.get(id));return record?.surface;
 }
 export async function listSavedModels(): Promise<SavedModelInfo[]> {
   // Cursor avoids returning all model blobs to the UI at once.
@@ -41,8 +68,8 @@ export async function listSavedModels(): Promise<SavedModelInfo[]> {
       request.onsuccess = () => {
         const cursor = request.result;
         if (cursor) {
-          const { id, name, savedAt, size } = cursor.value as SavedModel;
-          result.push({ id, name, savedAt, size }); cursor.continue();
+          const { id, name, savedAt, size, layered, projectId, draftSavedAt } = cursor.value as SavedModel;
+          result.push({ id, name, savedAt, size, layered, projectId, draftSavedAt }); cursor.continue();
         }
       };
       tx.oncomplete = () => resolve(result.sort((a,b) => b.savedAt-a.savedAt));

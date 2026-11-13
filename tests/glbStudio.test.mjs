@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // Compile only the targeted modules, preserving normal package resolution.
 const temp = await mkdtemp(path.join(process.cwd(), '.glb-test-'));
 try {
-  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts']) {
+  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts', 'surfaceEditing', 'textureCanvasEngine']) {
     const source = await readFile(path.join(process.cwd(), 'src/studio3d', name + '.ts'), 'utf8');
     const compiled = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
@@ -20,6 +20,168 @@ try {
   const { inspectMaterials } = await import(pathToFileURL(path.join(temp, 'glbTextureSwapper.mjs')));
 
   const { estimateModelBudget, recommendQuality, scaledTextureSize } = await import(pathToFileURL(path.join(temp, 'modelPerformance.mjs')));
+
+  const { GrayOutSession, neutralizePixels, inspectSurfaces, collectUVGuide, isolateMeshMaterial } = await import(pathToFileURL(path.join(temp, 'surfaceEditing.mjs')));
+
+  await test('gray out pixel neutralization preserves transparency and supports intensity', () => {
+    const data = new Uint8ClampedArray([10, 20, 30, 0, 100, 120, 140, 180]);
+    neutralizePixels(data, [200, 200, 200], .5);
+    assert.deepEqual([...data], [105, 110, 115, 0, 150, 160, 170, 180]);
+    neutralizePixels(data, [64, 64, 64], 1);
+    assert.deepEqual([...data], [64,64,64,0,64,64,64,180]);
+  });
+
+  await test('gray out restores untextured PBR color without changing physical channels or geometry', () => {
+    const root = new THREE.Group();
+    const normal = new THREE.Texture();
+    const roughnessMap = new THREE.Texture();
+    const mat = new THREE.MeshPhysicalMaterial({ color: '#123456', normalMap: normal, roughnessMap, roughness: .4, metalness: .7, opacity: .6, transparent: true, clearcoat: .5 });
+    const geometry = new THREE.BoxGeometry();
+    const mesh = new THREE.Mesh(geometry, mat);
+    root.add(mesh);
+    const original = mat.color.clone();
+    const session = new GrayOutSession();
+    session.apply([mat], '#bbbbbb', 1);
+    assert(session.active);
+    assert.equal(mat.color.getHexString(), 'bbbbbb');
+    assert.equal(mat.normalMap, normal);
+    assert.equal(mat.roughnessMap, roughnessMap);
+    assert.equal(mat.roughness, .4);
+    assert.equal(mat.metalness, .7);
+    assert.equal(mat.clearcoat, .5);
+    assert.equal(mat.opacity, .6);
+    assert.equal(mat.transparent, true);
+    assert.equal(mesh.geometry, geometry);
+    session.restoreAll();
+    assert(!session.active);
+    assert(mat.color.equals(original));
+    geometry.dispose(); mat.dispose(); normal.dispose(); roughnessMap.dispose();
+  });
+
+  await test('gray out replaces only base color source and restores shared texture references', () => {
+    const image = { width: 1, height: 1 };
+    const base = new THREE.Texture(image);
+    base.offset.set(.2,.3); base.channel = 1; base.flipY = false;
+    base.colorSpace = THREE.SRGBColorSpace;
+    const first = new THREE.MeshStandardMaterial({ map: base, normalMap: base, color: '#123456' });
+    const other = new THREE.MeshStandardMaterial({ map: base });
+    const pixels = new Uint8ClampedArray([30,40,50,90]);
+    const previous = globalThis.document;
+    globalThis.document = { createElement: () => ({ getContext: () => ({
+      drawImage() {}, getImageData: () => ({ data: pixels }), putImageData() {},
+    }) }) };
+    const session = new GrayOutSession();
+    try {
+      session.apply([first], '#888888', 1);
+      assert.notEqual(first.map, base);
+      assert.notEqual(first.map.source, base.source);
+      assert.equal(first.map.channel, 1);
+      assert(first.map.offset.equals(base.offset));
+      assert.equal(first.map.flipY, false);
+      assert.equal(first.map.colorSpace, base.colorSpace);
+      assert.equal(first.normalMap, base);
+      assert.equal(other.map, base);
+      assert.deepEqual([...pixels], [136,136,136,90]);
+      assert.equal(base.image, image);
+      session.restoreAll();
+      assert.equal(first.map, base);
+      assert.equal(first.color.getHexString(), '123456');
+    } finally {
+      session.restoreAll();
+      if (previous === undefined) delete globalThis.document; else globalThis.document = previous;
+      first.dispose(); other.dispose(); base.dispose();
+    }
+  });
+
+  await test('surface hierarchy exposes nested meshes, UV sets and material slots', () => {
+    const root = new THREE.Group();
+    const group = new THREE.Group(); group.name = 'Packaging';
+    const geo = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial();
+    const mesh = new THREE.Mesh(geo, material); mesh.name = 'Cover';
+    group.add(mesh); root.add(group);
+    const items = inspectSurfaces(root);
+    assert.equal(items.length, 3);
+    assert.equal(items[2].depth, 2);
+    assert.equal(items[2].name, 'Cover');
+    assert.deepEqual(items[2].materials, [material.uuid]);
+    assert(items[2].uvSets.includes('uv'));
+    assert.equal(items[2].groups, geo.groups.length);
+    geo.dispose(); material.dispose();
+  });
+
+  const { TextureCanvasSession, parseTextureDocument, moveLayer, addStroke, addMaskStroke, blendPixels } = await import(pathToFileURL(path.join(temp, 'textureCanvasEngine.mjs')));
+  await test('layer document round-trips editable artwork and strokes, rejects unsupported data', () => {
+    const common = { visible:true, locked:false, opacity:1 };
+    const gray = { ...common, id:'a', name:'Gray Out', kind:'gray', color:'#808080' };
+    const paint = { ...common, id:'b', name:'Paint', kind:'paint', strokes:[] };
+    const artwork = { ...common, id:'c', name:'Artwork', kind:'image', image:'data:image/png;base64,AA==', x:10,y:20,width:100,height:100,rotation:15,flipX:true,flipY:false };
+    const base = { version:1, material:'Cover',width:1024,height:1024,base:'data:image/png;base64,AA==',layers:[gray,paint,artwork] };
+    assert.deepEqual(parseTextureDocument(JSON.stringify(base)),base);
+    assert.deepEqual(moveLayer(base.layers,'c',-1).map(l=>l.id),['a','c','b']);
+    const stroke = {points:[{x:1,y:2}],color:'#ffffff',size:20,opacity:.5,erase:false};
+    const edited=addStroke(base.layers,'b',stroke);
+    assert.equal(edited[1].strokes.length,1);assert.equal(paint.strokes.length,0);
+    assert.equal(addStroke([{...paint,locked:true}],'b',stroke)[0].strokes.length,0);
+    assert.throws(()=>parseTextureDocument(JSON.stringify({...base,layers:[gray,gray]})),/Invalid layer/);
+    assert.throws(()=>parseTextureDocument(JSON.stringify({...base,layers:[{...artwork,image:'https://example.com/image.png'}]})),/Invalid artwork/);
+    assert.throws(()=>parseTextureDocument(JSON.stringify({...base,width:99999})),/Unsupported/);
+  });
+  await test('canvas session retains PBR channels, toggles original and restores source', async () => {
+    const previous=globalThis.document;
+    const drawCalls=[];
+    globalThis.document={createElement:()=>({width:0,height:0,toDataURL:()=> 'data:image/png;base64,AA==',getContext:()=>({fillRect(){},clearRect(){},drawImage(){drawCalls.push(1);},save(){},restore(){}})})};
+    const normal=new THREE.Texture();
+    const material=new THREE.MeshPhysicalMaterial({color:'#123456',normalMap:normal,roughness:.35,metalness:.8,opacity:.5});
+    let session;
+    try {
+      session=new TextureCanvasSession(material,'Cover');
+      assert.equal(session.initial.width,1024);
+      assert.equal(material.map.image,session.output);
+      assert.equal(material.color.getHexString(),'ffffff');
+      assert.equal(material.normalMap,normal);assert.equal(material.roughness,.35);assert.equal(material.metalness,.8);assert.equal(material.opacity,.5);
+      assert(await session.render({...session.initial,layers:[{id:'g',name:'Gray',visible:true,locked:false,opacity:1,kind:'gray',color:'#777777'}]}));
+      session.showOriginal(true);assert.equal(material.map,null);assert.equal(material.color.getHexString(),'123456');
+      session.showOriginal(false);assert.equal(material.map.image,session.output);
+      session.restore();assert.equal(material.map,null);assert.equal(material.color.getHexString(),'123456');
+      assert.equal(await session.render(session.initial),false);
+      assert(drawCalls.length>0);
+    } finally {session?.restore();material.dispose();normal.dispose();if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+  });
+
+  await test('layer mask edits preserve source layer and blend operations preserve base alpha',()=>{
+    const layer={id:'a',name:'Gray',kind:'gray',color:'#808080',visible:true,locked:false,opacity:1};
+    const stroke={points:[{x:2,y:3}],color:'#ffffff',size:12,opacity:.5,erase:true};
+    const edited=addMaskStroke([layer],'a',stroke);
+    assert.equal(edited[0].mask.length,1);assert.equal(layer.mask,undefined);
+    const dest=new Uint8ClampedArray([100,120,140,90,50,60,70,0]),src=new Uint8ClampedArray([128,128,128,255,255,255,255,255]);
+    blendPixels(dest,src,'multiply',1);
+    assert.deepEqual([...dest],[50,60,70,90,50,60,70,0]);
+    assert.equal(addMaskStroke([{...layer,locked:true}],'a',stroke)[0].mask,undefined);
+  });
+  await test('UV outlines target the correct material and isolation preserves unrelated meshes',()=>{
+    const root=new THREE.Group(),geo=new THREE.PlaneGeometry(),otherGeo=new THREE.BoxGeometry();
+    const material=new THREE.MeshStandardMaterial({name:'Shared'}),other=new THREE.MeshStandardMaterial({name:'Other'});
+    const a=new THREE.Mesh(geo,material),b=new THREE.Mesh(geo,material),c=new THREE.Mesh(otherGeo,other);
+    root.add(a,b,c);
+    const guide=collectUVGuide(root,material);
+    assert.equal(guide.segments.length,5);assert.equal(guide.truncated,false);
+    assert.equal(collectUVGuide(root,material,2).truncated,true);
+    const isolated=isolateMeshMaterial(root,a.uuid,material.uuid);
+    assert.equal(a.material,isolated);assert.equal(b.material,material);assert.equal(c.material,other);assert.equal(a.geometry,geo);
+    assert.notEqual(isolated,material);
+    geo.dispose();otherGeo.dispose();material.dispose();other.dispose();isolated.dispose();
+  });
+  await test('PSD library writes a genuine layered 8-bit RGB binary and preserves layer names',async()=>{
+    const {writePsd,readPsd}=await import('ag-psd');
+    const imageData={width:2,height:1,data:new Uint8ClampedArray([255,0,0,255,0,255,0,255])};
+    const bytes=writePsd({width:2,height:1,children:[{name:'Artwork',imageData,opacity:.5,blendMode:'multiply'},{name:'Original',imageData}]},{noBackground:true});
+    assert.equal(new DataView(bytes).getUint32(0),0x38425053);
+    const decoded=readPsd(bytes,{skipLayerImageData:true,skipCompositeImageData:true,skipThumbnail:true});
+    assert.deepEqual(decoded.children.map(l=>l.name),['Artwork','Original']);
+    assert.equal(decoded.children[0].blendMode,'multiply');assert(Math.abs(decoded.children[0].opacity-.5)<.01);
+    // Real pixel decoding and comparison run in Chromium; Node has no native Canvas.
+  });
 
   await test('model budget counts shared buffers and textures once', () => {
     const root = new THREE.Group();

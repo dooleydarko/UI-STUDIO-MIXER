@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
@@ -29,6 +29,10 @@ jobs:
       - run: npm run build
       - run: node --test tests/glbStudio.test.mjs
       - run: node tests/verifyProductCatalog.mjs
+      - name: Install pinned browser test runner
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/surfaceBrowser.test.mjs
   mac-release-candidate:
     needs: build-and-test
     runs-on: macos-15-intel
@@ -48,16 +52,16 @@ jobs:
       - run: npm test
       - run: node --test tests/glbStudio.test.mjs
       - run: bash -n scripts/build-mac-apps.sh scripts/install-mac-update.sh
-      - run: SKIP_INSTALL=1 bash scripts/build-mac-apps.sh
+      - run: APP_VERSION=1.6.0 BUILD_NUMBER=4 SKIP_INSTALL=1 bash scripts/build-mac-apps.sh
       - run: |
           codesign --verify --strict "apps/UI Mixer Studio.app"
           codesign --verify --strict "apps/AI Engine Foundry.app"
           file "apps/UI Mixer Studio.app/Contents/MacOS/StudioAppHost"
           mkdir -p release
-          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.5.1/ -o release/UI-STUDIO-MIXER-1.5.1-source.zip HEAD
-          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.5.1-source.zip > SHA256SUMS.txt)
+          git archive --format=zip --prefix=UI-STUDIO-MIXER-1.6.0-surface/ -o release/UI-STUDIO-MIXER-1.6.0-surface-source.zip HEAD
+          (cd release && shasum -a 256 UI-STUDIO-MIXER-1.6.0-surface-source.zip > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: UI-STUDIO-MIXER-1.5.1-mac-update-candidate
+          name: UI-STUDIO-MIXER-1.6.0-surface-mac-update-candidate
           path: release/
           if-no-files-found: error
