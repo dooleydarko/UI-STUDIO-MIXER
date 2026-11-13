@@ -8,7 +8,7 @@ import { TextureCanvasPanel } from './TextureCanvasPanel';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
 import { encodeSceneGlb, exportSceneToGlb } from './glbExporter';
-import { listSavedModels, readSavedModel, removeSavedModel, saveModelSnapshot, saveSurfaceProject, readSurfaceProject, type SurfaceProjectData, type SavedModelInfo } from './modelLibrary';
+import { listSavedModels, readSavedModel, removeSavedModel, saveModelSnapshot, saveSurfaceProject, saveSurfaceDraft, readSurfaceProject, type SurfaceProjectData, type SavedModelInfo } from './modelLibrary';
 import { createLocalDracoLoader } from './localDraco';
 import { PRODUCT_GLB_CATALOG, fetchCatalogModel, type ProductGlbAsset } from './productCatalog';
 import { estimateModelBudget, recommendQuality, downscaleModelTextures, type QualityMode, type PreviewQuality } from './modelPerformance';
@@ -57,7 +57,9 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const surfaceId = useRef<string | undefined>();
   const canvasDoc = useRef<TextureDocument | null>(null);
   const [initialDocument, setInitialDocument] = useState<TextureDocument | undefined>();
-  const onCanvasDocument = useCallback((doc:TextureDocument)=>{canvasDoc.current=doc;},[]);
+  const [docRevision,setDocRevision]=useState(0);
+  const lastPersisted=useRef<{document:TextureDocument;lighting:Product3DProject['state']['lighting']}|null>(null);
+  const onCanvasDocument = useCallback((doc:TextureDocument)=>{if(canvasDoc.current!==doc){canvasDoc.current=doc;setDocRevision(v=>v+1);}},[]);
   const [canvasSession, setCanvasSession] = useState<TextureCanvasSession | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
   const [paintTarget, setPaintTarget] = useState<SurfacePaintTarget | null>(null);
@@ -87,6 +89,17 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     frameSample.current = { seconds: 0, frames: 0 };
   }, [qualityMode, budget]);
   const [lighting, setLighting] = useState(project.state.lighting);
+  useEffect(()=>{
+    const id=surfaceId.current,doc=canvasDoc.current;
+    if(!id||!doc||!canvasSession||!canvasReady||busy||lastPersisted.current?.document===doc&&lastPersisted.current?.lighting===lighting)return;
+    let canceled=false;
+    const timer=window.setTimeout(()=>{
+      void saveSurfaceDraft(id,project.id,doc,lighting).then(timestamp=>{
+        if(!canceled&&mounted.current&&surfaceId.current===id){lastPersisted.current={document:doc,lighting};setLibraryStatus('Editable draft autosaved · '+new Date(timestamp).toLocaleTimeString()+' · save project to refresh baked GLB');}
+      }).catch(e=>{if(!canceled&&mounted.current)setLibraryStatus('Draft autosave failed: '+(e instanceof Error?e.message:String(e)));});
+    },1400);
+    return()=>{canceled=true;window.clearTimeout(timer);};
+  },[docRevision,lighting,canvasSession,canvasReady,busy,project.id]);
   const viewportProject = React.useMemo(() => ({
     ...project, state: { ...project.state, rotationActive: rotation, lighting }
   }), [project, rotation, lighting]);
@@ -153,7 +166,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       graySession.current.restoreAll();
       setGrayActive(false);
       current.current = loaded;
-      sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;setInitialDocument(undefined);
+      sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
       setOptimizationNote('');
       setSavedId(surface?undefined:libraryId);
       setDirty(!libraryId);
@@ -172,7 +185,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
           session=new TextureCanvasSession(binding.material,binding.name);
           await session.restoreSavedBase(doc);
           if(!mounted.current||id!==request.current){session.restore();return;}
-          canvasRef.current=session;canvasOwner.current=loaded;canvasDoc.current=doc;surfaceId.current=libraryId;
+          canvasRef.current=session;canvasOwner.current=loaded;canvasDoc.current=doc;surfaceId.current=libraryId;lastPersisted.current={document:doc,lighting:surface.lighting};
           sourceSnapshot.current=sourceFile;setInitialDocument(doc);setCanvasSession(session);setCanvasMode('split');setCanvasReady(false);
           setMaterialId(binding.id);setLighting(surface.lighting);setLibraryOpen(false);
           setLibraryStatus('Reopened editable surface project · original source retained');
@@ -239,13 +252,13 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       if (grayActive && !window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?')) return;
       if (grayActive) restoreGray();
       const next = new TextureCanvasSession(target, selected.name);
-      canvasRef.current = next; canvasOwner.current=model;canvasDoc.current=next.initial;surfaceId.current=undefined;setInitialDocument(undefined);setCanvasSession(next); setCanvasReady(false); setCanvasMode('split');
+      canvasRef.current = next; canvasOwner.current=model;canvasDoc.current=next.initial;surfaceId.current=undefined;lastPersisted.current=null;setLibraryOpen(false);setCatalogOpen(false);setInitialDocument(undefined);setCanvasSession(next); setCanvasReady(false); setCanvasMode('split');
       setRevision(v=>v+1);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
   const closeCanvas = () => {
     if (!window.confirm('Close texture canvas and restore the original material? Save layers or export the edited GLB first.')) return;
-    canvasRef.current?.restore(); canvasRef.current=null;canvasOwner.current=null;canvasDoc.current=null;surfaceId.current=undefined;setInitialDocument(undefined); setCanvasSession(null); setCanvasReady(false); setRevision(v=>v+1);
+    canvasRef.current?.restore(); canvasRef.current=null;canvasOwner.current=null;canvasDoc.current=null;surfaceId.current=undefined;lastPersisted.current=null;setInitialDocument(undefined); setCanvasSession(null); setCanvasReady(false); setRevision(v=>v+1);
   };
   const duration = model?.clips[clipIndex]?.duration ?? 0;
   const togglePlay = () => {
@@ -294,6 +307,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       if (blob.size > 100 * 1024 * 1024) throw new Error('Saved GLB exceeds the current 100 MB reopen limit. Downscale textures or export it instead.');
       let info:SavedModelInfo;
       const session=canvasRef.current,doc=canvasDoc.current;
+      if(session&&!doc)throw new Error('Texture document is not ready.');
       if(session&&doc){
         const binding=inspectMaterials(model.scene).findIndex(entry=>entry.material===session.paintMaterial);
         if(binding<0)throw new Error('Active material no longer belongs to this model.');
@@ -309,7 +323,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
         }
         if(source.size>100*1024*1024)throw new Error('Original source exceeds the local reopen limit.');
         info=await saveSurfaceProject(model.name,blob,{source,sourceName:source.name,materialIndex:binding,materialName:doc.material,document:doc,lighting,projectId:project.id},surfaceId.current);
-        surfaceId.current=info.id;
+        surfaceId.current=info.id;lastPersisted.current={document:doc,lighting};
       }else info=await saveModelSnapshot(model.name,blob,savedId);
       if (mounted.current) {
         if(!canvasSession)setSavedId(info.id); setDirty(false); setLibraryStatus((canvasSession?'Saved editable surface locally · ':'Saved locally · ') + new Date(info.savedAt).toLocaleTimeString());
@@ -334,7 +348,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     return()=>{canceled=true;};
   },[initialModelId]);
   const deleteSnapshot = async (id: string) => {
-    if (busy || !window.confirm('Delete this saved local copy? The original file is not affected.')) return;
+    if (busy || canvasRef.current || !window.confirm('Delete this saved local copy? The original file is not affected.')) return;
     try {
       await removeSavedModel(id); setSavedModels(await listSavedModels());
       if (savedId === id) { setSavedId(undefined); setDirty(true); }
@@ -392,7 +406,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
         {!catalogItems.length && <p className="text-xs text-neutral-500">No matching products.</p>}
       </section>}
       {libraryStatus && <div role="status" className="px-4 py-2 text-xs text-sky-300">{libraryStatus}</div>}
-      {libraryOpen && <section className="max-h-52 overflow-y-auto border-b border-white/10 p-4 space-y-2"><h3 className="text-xs font-semibold">Saved models · local device</h3>{!savedModels.length && <p className="text-xs text-neutral-500">No saved models yet.</p>}{savedModels.map(item => <div key={item.id} className="flex items-center gap-2 text-xs"><span className="mr-auto truncate">{item.name} · {(item.size/1048576).toFixed(1)} MB{item.layered?' · layered':''}</span><button className={button} disabled={busy||!!canvasSession} onClick={()=>void openSnapshot(item.id)}>{item.layered?'Edit layers':'Open'}</button>{item.layered&&<button className={button} disabled={busy||!!canvasSession} onClick={()=>void openSnapshot(item.id,true)}>Open baked copy</button>}<button className={button} disabled={busy} onClick={()=>void deleteSnapshot(item.id)}>Delete</button></div>)}</section>}
+      {libraryOpen && <section className="max-h-52 overflow-y-auto border-b border-white/10 p-4 space-y-2"><h3 className="text-xs font-semibold">Saved models · local device</h3>{!savedModels.length && <p className="text-xs text-neutral-500">No saved models yet.</p>}{savedModels.map(item => <div key={item.id} className="flex items-center gap-2 text-xs"><span className="mr-auto truncate">{item.name} · {(item.size/1048576).toFixed(1)} MB{item.layered?' · layered':''}{item.draftSavedAt?' · newer draft':''}</span><button className={button} disabled={busy||!!canvasSession} onClick={()=>void openSnapshot(item.id)}>{item.layered?'Edit layers':'Open'}</button>{item.layered&&<button className={button} disabled={busy||!!canvasSession} onClick={()=>void openSnapshot(item.id,true)}>Open baked copy</button>}<button className={button} disabled={busy||!!canvasSession} onClick={()=>void deleteSnapshot(item.id)}>Delete</button></div>)}</section>}
       {error && <div role="alert" className="border-b border-red-500/30 bg-red-950/30 px-4 py-2 text-xs text-red-300">{error}</div>}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <main className={canvasSession && canvasMode==='2d' ? 'hidden' : 'relative flex-1 min-w-0'}
