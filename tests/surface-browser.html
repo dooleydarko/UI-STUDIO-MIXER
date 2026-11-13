@@ -3,5 +3,10 @@ import * as THREE from 'three';
 import * as engine from '../src/studio3d/textureCanvasEngine';
 import * as psd from '../src/studio3d/texturePsd';
 import * as library from '../src/studio3d/modelLibrary';
-window.surfaceTest={THREE,engine,psd,library};
+import * as workspace from '../src/studio3d/surfaceWorkspace';
+import * as ai from '../src/studio3d/textureAiProvider';
+import { inspectMaterials } from '../src/studio3d/glbTextureSwapper';
+import { encodeSceneGlb } from '../src/studio3d/glbExporter';
+import { loadStudioModel, releaseStudioModel } from '../src/studio3d/glbLoader';
+window.surfaceTest={THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel};
 </script></body></html>
