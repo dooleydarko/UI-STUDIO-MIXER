@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Point, type LayerBlend, layerDefaults, moveLayer, addStroke, addMaskStroke, createClonePatch, readArtwork, parseTextureDocument, downloadTextureFile } from './textureCanvasEngine';
 
+import type { SurfaceHistory } from './surfaceWorkspace';
 import type { UVGuide } from './surfaceEditing';
 import type { SurfacePaintTarget } from './Viewport3D';
 import { exportTexturePsd, importTexturePsd } from './texturePsd';
@@ -9,8 +10,8 @@ import { TextureAiPanel } from './TextureAiPanel';
 const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
 const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
 type Tool='move'|'brush'|'eraser'|'clone';
-interface Props { session: TextureCanvasSession; initialDocument?:TextureDocument; onDocument:(doc:TextureDocument)=>void; onRequestUVGuide:()=>UVGuide; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
-export function TextureCanvasPanel({session,initialDocument,onDocument,onRequestUVGuide,onClose,onReady,onError,onPaintTarget,busy}:Props) {
+interface Props { session: TextureCanvasSession; initialDocument?:TextureDocument; initialHistory?:SurfaceHistory; onHistory:(history:SurfaceHistory)=>void; onDocument:(doc:TextureDocument)=>void; onRequestUVGuide:()=>UVGuide; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
+export function TextureCanvasPanel({session,initialDocument,initialHistory,onHistory,onDocument,onRequestUVGuide,onClose,onReady,onError,onPaintTarget,busy}:Props) {
   const [doc,setDoc]=useState<TextureDocument>(initialDocument??session.initial);
   const [selected,setSelected]=useState(initialDocument?.layers[initialDocument.layers.length-1]?.id??'');
   const [tool,setTool]=useState<Tool>('move');
@@ -27,7 +28,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
   const [pending,setPending]=useState(false);
   const [loading,setLoading]=useState(false);
   const [compatibility,setCompatibility]=useState('');
-  const [history,setHistory]=useState<{past:TextureDocument[];future:TextureDocument[]}>({past:[],future:[]});
+  const [history,setHistory]=useState<SurfaceHistory>(initialHistory??{past:[],future:[]});
   const view=useRef<HTMLCanvasElement>(null);
   const alive=useRef(true);
   const gesture=useRef<{start:Point;points:Point[];layer:string;tool:Tool}|null>(null);
@@ -50,16 +51,17 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onRequest
   },[doc,layer,tool,original,pending,loading,busy,session,color,size,brushOpacity,onPaintTarget,maskMode]);
   const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
   useEffect(()=>{onDocument(doc);},[doc,onDocument]);
+  useEffect(()=>{onHistory(history);},[history,onHistory]);
   useEffect(()=>{if(maskMode&&layer&&maskPreview.current)void session.drawMaskPreview(layer,maskPreview.current).catch(e=>onError(e instanceof Error?e.message:String(e)));},[maskMode,layer,session,onError]);
   useEffect(()=>{const c=guideCanvas.current,ctx=c?.getContext('2d');if(!c||!ctx||!uvGuide)return;ctx.clearRect(0,0,c.width,c.height);ctx.strokeStyle='rgba(75,215,255,.85)';ctx.lineWidth=Math.max(1,c.width/1000);ctx.beginPath();for(const [x,y,x2,y2] of uvGuide.segments){ctx.moveTo(x*c.width,y*c.height);ctx.lineTo(x2*c.width,y2*c.height);}ctx.stroke();},[uvGuide,doc.width,doc.height]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   useEffect(()=>{
     let canceled=false;setPending(true);onReady(false);
     session.render(doc).then(rendered=>{
-      if(!canceled&&rendered){const c=view.current;const ctx=c?.getContext('2d');if(c&&ctx){ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(session.output,0,0);}setPending(false);onReady(!original);}
+      if(!canceled&&rendered){const c=view.current;const ctx=c?.getContext('2d');if(c&&ctx){ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(session.output,0,0);}setPending(false);onReady(!original&&!loading);}
     }).catch(e=>{if(!canceled){setPending(false);onReady(false);onError(e instanceof Error?e.message:String(e));}});
     return()=>{canceled=true;};
-  },[doc,session,original,onReady,onError]);
+  },[doc,session,original,loading,onReady,onError]);
   useEffect(()=>{session.showOriginal(original);},[session,original]);
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
