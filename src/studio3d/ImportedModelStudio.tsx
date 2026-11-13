@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D } from './Viewport3D';
+import { GrayOutSession, inspectSurfaces } from './surfaceEditing';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
 import { encodeSceneGlb, exportSceneToGlb } from './glbExporter';
@@ -42,6 +43,12 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const [time, setTime] = useState(0);
   const lastUpdate = useRef(0);
   const [materialId, setMaterialId] = useState('');
+  const graySession = useRef(new GrayOutSession());
+  const [grayActive, setGrayActive] = useState(false);
+  const [grayScope, setGrayScope] = useState<'material' | 'object'>('material');
+  const [grayColor, setGrayColor] = useState('#b0b0b0');
+  const [grayStrength, setGrayStrength] = useState(100);
+  const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -71,9 +78,9 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     mounted.current = true;
     return () => { mounted.current = false; request.current++; downloadController.current?.abort(); current.current = null; action.current = null; };
   }, []);
-  useEffect(() => () => { if (model) releaseStudioModel(model); }, [model]);
+  useEffect(() => () => { if (model) { graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
   useEffect(() => { listSavedModels().then(items => { if (mounted.current) setSavedModels(items); }).catch(() => { if (mounted.current) setLibraryStatus('Local model library unavailable. Export GLB files instead.'); }); }, []);
-  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty]);
+  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || grayActive) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty, grayActive]);
 
   const selectClip = (source: ImportedStudioModel, index: number) => {
     source.mixer.stopAllAction();
@@ -92,7 +99,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
 
   const importFile = async (file?: File, libraryId?: string, asset?: ProductGlbAsset) => {
     if ((!file && !asset) || busy) return;
-    if (dirty && !window.confirm('Discard unsaved model changes?')) return;
+    if ((dirty || grayActive) && !window.confirm('Discard unsaved model changes and Gray Out preview?')) return;
     const id = ++request.current;
     setBusy(true);
     setError('');
@@ -126,6 +133,8 @@ export function ImportedModelStudio({ project, onExit }: Props) {
         loaded.scene.add(attributionNode);
       }
       if (!mounted.current || id !== request.current) { releaseStudioModel(loaded); return; }
+      graySession.current.restoreAll();
+      setGrayActive(false);
       current.current = loaded;
       setOptimizationNote('');
       setSavedId(libraryId);
@@ -165,6 +174,23 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const modelCredit = React.useMemo(() => { let credit: { name: string; creator: string; license: string; source: string; note?: string } | undefined; model?.scene.traverse(node => { const value = node.userData.productCatalogCredit; if (value && typeof value.creator === 'string' && typeof value.license === 'string' && typeof value.source === 'string') credit = value; }); return credit; }, [model]);
   const materials = React.useMemo(() => model ? inspectMaterials(model.scene) : [], [model, revision]);
   const selected = materials.find((entry) => entry.id === materialId);
+  const hierarchy = React.useMemo(() => model ? inspectSurfaces(model.scene) : [], [model]);
+  const applyGray = () => {
+    if (!model || busy) return;
+    const targets = grayScope === 'object' ? materials : selected ? [selected] : [];
+    if (!targets.length) return;
+    setError('');
+    try {
+      graySession.current.apply(targets.map(entry => entry.material), grayColor, grayStrength / 100);
+      setGrayActive(graySession.current.active);
+      setRevision(v => v + 1);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  const restoreGray = () => {
+    graySession.current.restoreAll();
+    setGrayActive(false);
+    setRevision(v => v + 1);
+  };
   const duration = model?.clips[clipIndex]?.duration ?? 0;
   const togglePlay = () => {
     if (!action.current) return;
@@ -179,7 +205,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     setTime(active.time);
   };
   const swap = async (channel: MapChannel, file?: File) => {
-    if (!file || !model || !selected || busy) return;
+    if (!file || !model || !selected || busy || grayActive) return;
     const source = model;
     setBusy(true);
     setError('');
@@ -192,7 +218,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     } finally { if (mounted.current) setBusy(false); }
   };
   const optimizeTextures = () => {
-    if (!model || busy) return;
+    if (!model || busy || grayActive) return;
     if (!window.confirm('Downscale textures larger than 2048px? This changes the edited export, not your original file.')) return;
     setError('');
     try {
@@ -203,7 +229,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     finally { setRevision((v) => v + 1); }
   };
   const saveSnapshot = async () => {
-    if (!model || busy) return;
+    if (!model || busy || grayActive) return;
     setBusy(true); setError(''); setLibraryStatus('');
     if (action.current) action.current.paused = true;
     setPlaying(false);
@@ -229,9 +255,10 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       if (savedId === id) { setSavedId(undefined); setDirty(true); }
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)); }
   };
-  const exit = () => { if (!dirty || window.confirm('Leave without saving this model?')) onExit(); };
+  const exit = () => { if ((!dirty && !grayActive) || window.confirm('Leave without saving this model or Gray Out preview?')) onExit(); };
   const exportModel = async () => {
     if (!model || busy) return;
+    if (grayActive && !window.confirm('Export a baked Gray Out GLB copy? The source remains unchanged, but the preview adjustment cannot be restored from the exported file.')) return;
     setBusy(true);
     setError('');
     if (action.current) action.current.paused = true;
@@ -256,7 +283,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
         </label>
         <button className={button} onClick={() => { setCatalogOpen(v=>!v); setLibraryOpen(false); }} disabled={busy}>Product GLBs ({PRODUCT_GLB_CATALOG.length})</button>
         <button className={button} onClick={() => { setLibraryOpen(v=>!v); setCatalogOpen(false); }} disabled={busy}>Library ({savedModels.length})</button>
-        <button className={button} onClick={saveSnapshot} disabled={!model || busy}>{dirty ? 'Save model •' : 'Save model'}</button>
+        <button className={button} onClick={saveSnapshot} disabled={!model || busy || grayActive}>{dirty ? 'Save model •' : 'Save model'}</button>
         <button className={button} onClick={exportModel} disabled={!model || busy}>Export edited GLB</button>
       </header>
       {downloadStatus && <div role="status" className="flex items-center justify-between gap-2 bg-sky-500/10 px-4 py-2 text-xs text-sky-300"><span>{downloadStatus}</span><button className={button} onClick={()=>downloadController.current?.abort()}>Cancel download</button></div>}
@@ -323,7 +350,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
               <p>Estimated texture memory: {(budget.estimatedTextureBytes / 1048576).toFixed(1)} MB</p>
               <p>Geometry buffers: {(budget.geometryBytes / 1048576).toFixed(1)} MB</p>
               <p>Largest texture: {budget.largestTexture}px</p>
-              <button className={button + ' w-full'} disabled={busy || budget.largestTexture <= 2048} onClick={optimizeTextures}>Downscale textures to 2K</button>
+              <button className={button + ' w-full'} disabled={busy || grayActive || budget.largestTexture <= 2048} onClick={optimizeTextures}>Downscale textures to 2K</button>
               <p className="text-neutral-500">Optional; changes exported textures. Original file stays intact.</p>
               {optimizationNote && <p role="status" className="text-sky-300">{optimizationNote}</p>}
             </div>}
@@ -333,6 +360,23 @@ export function ImportedModelStudio({ project, onExit }: Props) {
               <option value="studio">Studio</option><option value="neon">Neon</option><option value="daylight">Daylight</option><option value="dramatic_rim">Dramatic rim</option>
             </select>
           </label>
+          {model && <section className="space-y-3 rounded-xl border border-sky-500/30 p-3 text-xs">
+            <h3 className="font-semibold text-sky-300">Surface Editor · Gray Out</h3>
+            <label className="block">Scope
+              <select className="mt-1 w-full rounded-lg bg-neutral-900 p-2" value={grayScope} onChange={e=>setGrayScope(e.target.value as 'material' | 'object')}>
+                <option value="material">Selected material</option><option value="object">Entire object (PBR materials)</option>
+              </select>
+            </label>
+            <label className="flex items-center justify-between">Neutral color <input type="color" value={grayColor} onChange={e=>setGrayColor(e.target.value)}/></label>
+            <label className="block">Intensity · {grayStrength}% <input className="block w-full accent-sky-500" type="range" min={0} max={100} value={grayStrength} onChange={e=>setGrayStrength(Number(e.target.value))}/></label>
+            <div className="flex gap-2"><button className={button + ' flex-1'} disabled={busy || (grayScope === 'material' ? !selected : !materials.length)} onClick={applyGray}>{grayActive ? 'Update preview' : 'Gray Out'}</button><button className={button} disabled={busy || !grayActive} onClick={restoreGray}>Restore original</button></div>
+            <p className="text-neutral-400">Base color only. Normal, roughness, metallic, geometry and alpha remain untouched. Artwork baked into other maps, vertex colors, or geometry needs separate cleanup. Shared materials affect every linked mesh.</p>
+            {grayActive && <p role="status" className="text-amber-300">Edited preview active. Restore to compare or change materials; export a baked copy. Layered saving is not implemented yet.</p>}
+          </section>}
+          {model && <section className="rounded-xl border border-white/10 p-3 text-xs">
+            <button className={button + ' w-full text-left'} onClick={()=>setHierarchyOpen(v=>!v)}>{hierarchyOpen ? 'Hide' : 'Show'} object hierarchy · {hierarchy.length} nodes</button>
+            {hierarchyOpen && <div className="mt-2 max-h-64 overflow-auto space-y-1">{hierarchy.map(node=><div key={node.id} style={{paddingLeft: Math.min(node.depth, 10)*8}}><div className="break-all text-neutral-200">{node.name}</div><div className="text-neutral-500">{node.kind}{node.uvSets.length ? ' · '+node.uvSets.join(', ') : ''}{node.groups ? ' · '+node.groups+' groups' : ''}</div>{node.materials.filter(id=>materials.some(m=>m.id===id)).map((id,i)=><button key={id+'-'+i} className="block text-left text-sky-300 hover:underline" onClick={()=>setMaterialId(id)}>{materials.find(m=>m.id===id)?.name}</button>)}</div>)}</div>}
+          </section>}
           <div className="border-t border-white/10 pt-4">
             <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-neutral-400">PBR material library</h3>
             <select aria-label="Material" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={materialId}
@@ -343,13 +387,13 @@ export function ImportedModelStudio({ project, onExit }: Props) {
             {selected && <div className="mt-3 space-y-3">
               <p className="break-words text-xs text-neutral-500">Shared by: {selected.meshes.join(', ')}</p>
               <label className="flex items-center justify-between text-xs">Color tint
-                <input type="color" disabled={busy} value={'#' + selected.material.color.getHexString()}
+                <input type="color" disabled={busy || grayActive} value={'#' + selected.material.color.getHexString()}
                   onChange={(e) => { selected.material.color.set(e.target.value); setRevision((v) => v + 1); setDirty(true); }} />
               </label>
               {(['roughness', 'metalness'] as const).map((key) => <label key={key} className="block text-xs capitalize">
                 {key} · {selected.material[key].toFixed(2)}
                 <input className="block w-full accent-sky-500" type="range" min={0} max={1} step={0.01}
-                  disabled={busy} value={selected.material[key]} onChange={(e) => {
+                  disabled={busy || grayActive} value={selected.material[key]} onChange={(e) => {
                     selected.material[key] = Number(e.target.value); setRevision((v) => v + 1); setDirty(true);
                   }} />
               </label>)}
@@ -360,7 +404,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
                 </div>
                 <label className="mt-2 block cursor-pointer rounded-lg bg-white/5 p-2 text-center text-xs text-sky-300">
                   Replace image
-                  <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} className="hidden"
+                  <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || grayActive} className="hidden"
                     onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; void swap(channel, f); }} />
                 </label>
               </div>)}
