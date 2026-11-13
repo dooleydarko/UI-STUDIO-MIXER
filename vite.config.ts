@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   // Relative asset paths so the built app loads from file:// inside Electron
   base: './',
+  optimizeDeps: { include: ['xatlas-wasm'] },
   server: {
     port: 5173,
     strictPort: true,
