@@ -41,6 +41,14 @@ try {
     check(material.normalMap===normal&&material.roughness===.4&&material.metalness===.3,'Physical channels changed');
     const clone=engine.createClonePatch(session.output,[{x:10,y:10}],{x:6,y:6},2);
     check(clone.startsWith('data:image/png;base64,'),'Clone patch not exported');
+    const inputs=await session.generationInputs(masked,16,16);
+    const imagePixel=async(url,x,y)=>{
+      const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=url;});
+      const tmp=canvas(image.width,image.height),context=tmp.getContext('2d');context.drawImage(image,0,0);
+      return [...context.getImageData(x,y,1,1).data];
+    };
+    check((await imagePixel(inputs.mask,12,3))[0]===255&&(await imagePixel(inputs.mask,4,4))[0]===0,'AI inpainting mask polarity incorrect');
+    check((await imagePixel(inputs.layerMask,12,3))[3]===255&&(await imagePixel(inputs.layerMask,4,4))[3]===0,'Accepted AI patch mask would alter unselected region');
     const cleaned=await session.cleanMaskedRegion(doc,masked.id);
     const cleanup={...engine.layerDefaults('Cleanup patch'),kind:'image',...cleaned,rotation:0,flipX:false,flipY:false};
     await session.render({...doc,layers:[...doc.layers,cleanup]});
@@ -92,6 +100,11 @@ try {
     check(pixel(reopened.get(restoredEntries[0].id).session)[0]===255&&pixel(active.session)[2]===255,'Actual GLB reopen lost material edits');
     const legacy=workspace.surfaceBindings({materialIndex:0,materialName:'Front',document:d1});
     check(legacy.length===1,'Legacy saved workspace incompatible');
+    let rejectedDuplicate=false;try{workspace.surfaceBindings({...multi,documents:[bindings[0],bindings[0]]});}catch{rejectedDuplicate=true;}
+    check(rejectedDuplicate,'Duplicate material binding accepted');
+    await library.saveSurfaceDraft(savedMulti.id,'multi',d1,'neon',{documents:bindings,materialIndex:0,materialName:'Front'});
+    const latest=await library.readSurfaceProject(savedMulti.id);
+    check(latest.documents.length===2&&latest.materialName==='Front'&&latest.lighting==='neon','Multi-material autosave discarded a document');
     await library.removeSavedModel(savedMulti.id);reopened.restoreAll();releaseStudioModel(loaded);ws.restoreAll();
 
     const size=ai.generationSize(4096,2048);
