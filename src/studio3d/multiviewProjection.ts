@@ -57,6 +57,7 @@ function collect(root:THREE.Object3D,material:THREE.MeshStandardMaterial){
         if(triangles.length>=50000)throw new Error('360° projection is limited to 50,000 visible triangles in this version.');
         const p=[0,1,2].map(j=>{position.fromBufferAttribute(positions,index(i+j)).applyMatrix4(node.matrixWorld);bounds.expandByPoint(position);return position.toArray() as V3;}) as [V3,V3,V3];
         const normal=unit(cross(sub(p[1],p[0]),sub(p[2],p[0])));
+        if(node.matrixWorld.determinant()<0){normal[0]*=-1;normal[1]*=-1;normal[2]*=-1;}
         if(!Math.hypot(...normal))continue;
         let coords:Triangle['uv'];
         if(selected)coords=[0,1,2].map(j=>{
@@ -119,7 +120,7 @@ export async function projectViews(capture:ProjectionCapture,images:Partial<Reco
   const views=await Promise.all(capture.frames.filter(f=>images[f.name]).map(async frame=>({frame,pixels:await readView(images[frame.name]!,size)})));
   if(!views.length)throw new Error('Add at least one aligned view image.');
   const occupied=new Uint8Array(n),ambiguous=new Uint8Array(n),positions=new Float32Array(n*3),result=new Uint8ClampedArray(n*4);
-  const budget={remaining:20000000},tolerance=radius/size*4;
+  const budget={remaining:20000000},tolerance=radius/size*4,overlapTolerance=Math.max(1e-8,radius*1e-5);
   let processed=0;
   for(const t of triangles){
     if(!t.uv)continue;
@@ -129,7 +130,7 @@ export async function projectViews(capture:ProjectionCapture,images:Partial<Reco
       const i=y*w+x,p=mix(t.p,a,b,c);
       if(occupied[i]){
         const d=Math.hypot(p[0]-positions[i*3],p[1]-positions[i*3+1],p[2]-positions[i*3+2]);
-        if(d>tolerance||ambiguous[i]){ambiguous[i]=1;result[i*4+3]=0;return;}
+        if(d>overlapTolerance||ambiguous[i]){ambiguous[i]=1;result[i*4+3]=0;return;}
       }else{occupied[i]=1;positions.set(p,i*3);}
       let sum=0,r=0,g=0,bv=0;
       for(const {frame,pixels} of views){
