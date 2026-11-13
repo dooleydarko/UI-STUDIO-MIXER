@@ -20,7 +20,8 @@ export function surfaceBindings(data:SurfaceWorkspaceData):SurfaceBinding[]{
     return {...entry,document};
   });
 }
-type Entry={session:TextureCanvasSession;document:TextureDocument;materialIndex:number;materialName:string};
+export interface SurfaceHistory {past:TextureDocument[];future:TextureDocument[]}
+type Entry={session:TextureCanvasSession;document:TextureDocument;materialIndex:number;materialName:string;history:SurfaceHistory};
 export class SurfaceWorkspace{
   private entries=new Map<string,Entry>();
   get size(){return this.entries.size;}
@@ -36,13 +37,14 @@ export class SurfaceWorkspace{
     const image=material.material.map?.image;
     this.checkBudget(image?.naturalWidth||image?.width||1024,image?.naturalHeight||image?.height||1024);
     const session=new TextureCanvasSession(material.material,material.name);
-    const entry={session,document:session.initial,materialIndex:index,materialName:material.name};
+    const entry:Entry={session,document:session.initial,materialIndex:index,materialName:material.name,history:{past:[],future:[]}};
     this.entries.set(material.id,entry);return entry;
   }
   update(session:TextureCanvasSession,document:TextureDocument):boolean{
     const entry=this.getBySession(session);if(!entry||entry.document===document)return false;
     entry.document=document;return true;
   }
+  updateHistory(session:TextureCanvasSession,history:SurfaceHistory):void{const entry=this.getBySession(session);if(entry)entry.history=history;}
   bindings():SurfaceBinding[]{return [...this.entries.values()].map(({materialIndex,materialName,document})=>({materialIndex,materialName,document}));}
   async reopen(materials:MaterialEntry[],data:SurfaceWorkspaceData):Promise<Entry>{
     if(this.size)throw new Error('Workspace must be empty before reopening.');
