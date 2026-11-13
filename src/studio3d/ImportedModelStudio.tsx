@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
+import { generateMeshUV, separateMesh, type SeparationMode } from './geometrySurfaceTools';
 import { GrayOutSession, inspectSurfaces, collectUVGuide, isolateMeshMaterial } from './surfaceEditing';
 import { TextureCanvasSession, type TextureDocument } from './textureCanvasEngine';
 import { SurfaceWorkspace, type SurfaceHistory } from './surfaceWorkspace';
@@ -71,6 +72,8 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [grayColor, setGrayColor] = useState('#b0b0b0');
   const [grayStrength, setGrayStrength] = useState(100);
   const [hierarchyOpen, setHierarchyOpen] = useState(false);
+  const [geometryNode,setGeometryNode]=useState('');
+  const [geometryStatus,setGeometryStatus]=useState('');
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -170,7 +173,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       graySession.current.restoreAll();
       setGrayActive(false);
       current.current = loaded;
-      workspace.current=new SurfaceWorkspace();sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
+      workspace.current=new SurfaceWorkspace();setGeometryNode('');setGeometryStatus('');sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
       setOptimizationNote('');
       setSavedId(surface?undefined:libraryId);
       setDirty(!libraryId);
@@ -232,6 +235,33 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     try{const isolated=isolateMeshMaterial(model.scene,nodeId,id);sourceModified.current=true;sourceSnapshot.current=null;setMaterialId(isolated.uuid);setDirty(true);setRevision(v=>v+1);}
     catch(e){setError(e instanceof Error?e.message:String(e));}
   };
+  const refreshGeometry=()=>{
+    if(!model)return;
+    let count=0,triangles=0;
+    model.scene.traverse(node=>{if(node instanceof THREE.Mesh){count++;triangles+=Math.floor((node.geometry.index?.count??node.geometry.getAttribute('position')?.count??0)/3);}});
+    model.meshCount=count;model.triangles=triangles;
+    setSavedId(undefined);sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);setRevision(v=>v+1);
+  };
+  const generateUV=()=>{
+    if(!model||!geometryNode||busy||grayActive||canvasSession)return;
+    if(!window.confirm('Create a new triangle UV atlas on this mesh? Existing UV0 and mapped materials are protected. Your source file is unchanged.'))return;
+    setError('');setGeometryStatus('');
+    try{
+      const result=generateMeshUV(model.scene,geometryNode);
+      setMaterialId(result.materialIds[0]??'');refreshGeometry();
+      setGeometryStatus('Created '+result.grid+' × '+result.grid+' triangle atlas for '+result.triangles+' faces. Open Texture Canvas to edit.');
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
+  const splitGeometry=(mode:SeparationMode)=>{
+    if(!model||!geometryNode||busy||grayActive||canvasSession)return;
+    if(!window.confirm('Separate this mesh into '+(mode==='materials'?'material groups':'connected parts')+'? The original node and transforms remain; save a new edited copy.'))return;
+    setError('');setGeometryStatus('');
+    try{
+      const result=separateMesh(model.scene,geometryNode,mode);
+      refreshGeometry();const first=result.parts[0],mat=Array.isArray(first.material)?first.material[0]:first.material;
+      setMaterialId(mat.uuid);setGeometryStatus('Separated '+result.triangles+' triangles into '+result.parts.length+' independently selectable meshes. Isolate shared materials to edit them separately.');
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
   const requestUVGuide=()=>model&&canvasRef.current?collectUVGuide(model.scene,canvasRef.current.paintMaterial):{segments:[],truncated:false};
   const applyGray = () => {
     if (!model || busy || canvasSession) return;
@@ -260,7 +290,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     model.scene.traverse(node=>{
       if(node instanceof THREE.Mesh&&(Array.isArray(node.material)?node.material:[node.material]).includes(target)&&!node.geometry.getAttribute(uv))missing=true;
     });
-    if(missing){setError('Selected material has surfaces without suitable UVs. UV generation is not implemented yet.');return;}
+    if(missing){setError('Selected material has surfaces without suitable UVs. Choose the mesh in Geometry Tools and generate missing UV0, or repair mapped UVs externally.');return;}
     try{
       if(grayActive&&!window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?'))return;
       if(grayActive)restoreGray();
@@ -495,6 +525,17 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
           </section>}
           {model && <section className="rounded-xl border border-white/10 p-3 text-xs">
             <button className={button + ' w-full text-left'} onClick={()=>setHierarchyOpen(v=>!v)}>{hierarchyOpen ? 'Hide' : 'Show'} object hierarchy · {hierarchy.length} nodes</button>
+            <section className="mt-2 rounded-xl border border-white/10 p-2 space-y-2">
+              <strong className="text-xs">Geometry Tools</strong>
+              <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{setGeometryNode(e.target.value);setGeometryStatus('');}}>
+                <option value="">Select a mesh</option>{hierarchy.filter(n=>n.materials.length).map(n=><option key={n.id} value={n.id}>{'· '.repeat(Math.min(n.depth,5))}{n.name} ({n.uvSets.length?n.uvSets.join(', '):'no UV'})</option>)}
+              </select>
+              <button className={button+' w-full'} disabled={!geometryNode||busy||grayActive} onClick={generateUV}>Generate missing UV0</button>
+              <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('materials')}>Split materials</button><button className={button} disabled={!geometryNode||busy||grayActive} onClick={()=>splitGeometry('connected')}>Split connected parts</button></div>
+              <button className={button+' w-full'} disabled={!sourceFileRef.current||busy||grayActive} onClick={()=>{const original=sourceFileRef.current;if(original)void importFile(original);}}>Reload imported source</button>
+              <p className="text-neutral-500">Static meshes only. UV generation is a per-triangle atlas, not semantic unwrapping. Splitting keeps geometry attributes and original transforms; connected parts use exact coincident vertices.</p>
+              {geometryStatus&&<p role="status" className="text-sky-300">{geometryStatus}</p>}
+            </section>
             {hierarchyOpen && <div className="mt-2 max-h-64 overflow-auto space-y-1">{hierarchy.map(node=><div key={node.id} style={{paddingLeft: Math.min(node.depth, 10)*8}}><div className="break-all text-neutral-200">{node.name}</div><div className="text-neutral-500">{node.kind}{node.uvSets.length ? ' · '+node.uvSets.join(', ') : ''}{node.groups ? ' · '+node.groups+' groups' : ''}</div>{node.materials.filter(id=>materials.some(m=>m.id===id)).map((id,i)=><div key={id+'-'+i} className="flex flex-wrap items-center gap-1"><button className="text-left text-sky-300 hover:underline" onClick={()=>setMaterialId(id)}>{materials.find(m=>m.id===id)?.name}</button>{(materials.find(m=>m.id===id)?.meshes.length??0)>1&&<button className="text-[10px] text-amber-300 hover:underline" disabled={busy||grayActive} onClick={()=>isolateMaterial(node.id,id)}>Isolate on mesh</button>}</div>)}</div>)}</div>}
           </section>}
           <div className="border-t border-white/10 pt-4">
