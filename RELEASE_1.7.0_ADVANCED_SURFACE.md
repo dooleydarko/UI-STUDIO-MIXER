@@ -6,7 +6,7 @@ Base: tested v1.6.0 Surface Editor, commit 731a719db01325505506929846b13b5455873
 
 - Open a GLB, select a material, and open Texture Canvas. Use the Material canvas selector in the top bar to open or switch to another material. Existing canvases stay applied in 3D; each has its own native editable layer document. The active material and all opened documents save together in the local library.
 - Save editable project or Send Back to Product Studio as before. Legacy v1.6 single-document projects reopen with the same workflow. Draft autosave after the initial save retains all opened material documents; explicitly save again to update the baked GLB.
-- Close/restore restores all original materials; do not close before saving. Original comparison in the active canvas must be switched back to edited preview before saving or switching materials. Undo history is local to the currently mounted panel and resets on material switch, but its committed layers stay intact.
+- Close/restore restores all original materials; do not close before saving. Original comparison in the active canvas must be switched back to edited preview before saving or switching materials. Undo/redo histories are kept independently for each material during the current workspace session. Saved projects preserve committed layers, not undo histories.
 - Memory is bounded to eight active documents and approximately 320 MiB of estimated canvas backing buffers (not a guarantee of total process/GPU memory). Full-resolution 4096px square textures can consume the entire estimated budget; use smaller textures for multi-material work on Intel hardware.
 
 ## Optional local AI texture provider
