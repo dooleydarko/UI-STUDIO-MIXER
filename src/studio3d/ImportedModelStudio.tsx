@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
+import { toggleFace,createFaceRegionMask,type FaceSelection } from './faceRegionTools';
 import { StructuralHistory } from './structuralHistory';
 import { unwrapChartUV, type ChartResolution } from './chartUvRemapping';
 import { generateMeshUV, separateMesh, type SeparationMode } from './geometrySurfaceTools';
@@ -76,6 +77,8 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [geometryNode,setGeometryNode]=useState('');
   const [pickMode,setPickMode]=useState(false);
+  const [faceMode,setFaceMode]=useState(false);
+  const [faceSelection,setFaceSelection]=useState<FaceSelection|null>(null);
   const [sharpAngle,setSharpAngle]=useState(45);
   const historyRef=useRef<StructuralHistory|null>(null);
   const [geometryStatus,setGeometryStatus]=useState('');
@@ -183,7 +186,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       graySession.current.restoreAll();
       setGrayActive(false);
       current.current = loaded;
-      workspace.current=new SurfaceWorkspace();setPickMode(false);setGeometryNode('');setGeometryStatus('');sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
+      workspace.current=new SurfaceWorkspace();setPickMode(false);setFaceMode(false);setFaceSelection(null);setGeometryNode('');setGeometryStatus('');sourceFileRef.current=sourceFile; sourceModified.current=!!asset;sourceSnapshot.current=null;surfaceId.current=undefined;canvasDoc.current=null;lastPersisted.current=null;setInitialDocument(undefined);
       setOptimizationNote('');
       setSavedId(surface?undefined:libraryId);
       setDirty(!libraryId);
@@ -250,7 +253,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     let count=0,triangles=0;
     model.scene.traverse(node=>{if(node instanceof THREE.Mesh){count++;triangles+=Math.floor((node.geometry.index?.count??node.geometry.getAttribute('position')?.count??0)/3);}});
     model.meshCount=count;model.triangles=triangles;
-    setSavedId(undefined);sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);setRevision(v=>v+1);
+    setFaceSelection(null);setSavedId(undefined);sourceModified.current=true;sourceSnapshot.current=null;setDirty(true);setRevision(v=>v+1);
   };
   const generateUV=()=>{
     if(!model||!geometryNode||busy||grayActive||canvasSession)return;
@@ -286,7 +289,16 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
       setMaterialId(mat.uuid);setGeometryStatus('Separated '+result.triangles+' triangles into '+result.parts.length+' independently selectable meshes. Isolate shared materials to edit them separately.');
     }catch(e){setError(e instanceof Error?e.message:String(e));}
   };
-  const selectMesh=useCallback((id:string,matId:string)=>{setGeometryNode(id);setMaterialId(matId);setGeometryStatus('');},[]);
+  const selectMesh=useCallback((id:string,matId:string)=>{setGeometryNode(id);setMaterialId(matId);setFaceSelection(null);setGeometryStatus('');},[]);
+  const selectFace=useCallback((mesh:THREE.Mesh,face:number,matId:string,add:boolean)=>{setGeometryNode(mesh.uuid);setMaterialId(matId);setGeometryStatus('');setFaceSelection(previous=>toggleFace(previous,mesh,face,add));},[]);
+  const separateRegion=()=>{
+    if(!model||!faceSelection?.indices.length||busy||grayActive||canvasSession)return;
+    const mesh=model.scene.getObjectByProperty('uuid',faceSelection.meshId);if(!(mesh instanceof THREE.Mesh)||mesh.geometry.uuid!==faceSelection.geometryId)return;
+    if(!window.confirm('Separate selected faces into a new mesh with independent material instances? Existing UVs are retained.'))return;
+    try{const h=historyRef.current,before=h?.begin(),result=separateMesh(model.scene,mesh.uuid,'manual',!!h,45,faceSelection.indices);if(h&&before)h.commit('Separate selected faces',before);refreshGeometry();const part=result.parts[1],mat=Array.isArray(part.material)?part.material[0]:part.material;setGeometryNode(part.uuid);setMaterialId(mat.uuid);setGeometryStatus('Separated '+faceSelection.indices.length+' faces. Open Texture Canvas on the new region.');}
+    catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
+  const requestRegionMask=(width:number,height:number)=>{if(!model||!faceSelection||!canvasRef.current)throw new Error('Select a region before opening Texture Canvas.');return createFaceRegionMask(model.scene,faceSelection,canvasRef.current.paintMaterial,width,height);};
   const moveHistory=(direction:'undo'|'redo')=>{
     if(!model||busy||grayActive||canvasSession)return;
     const history=historyRef.current;if(!history)return;
@@ -328,7 +340,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
     try{
       if(grayActive&&!window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?'))return;
       if(grayActive)restoreGray();
-      if(!canvasSession){historyRef.current?.clear();setPickMode(false);}
+      if(!canvasSession){historyRef.current?.clear();setPickMode(false);setFaceMode(false);}
       const next=workspace.current.open(materials,index);
       if(canvasRef.current===next.session)return;
       setPaintTarget(null);canvasRef.current=next.session;canvasOwner.current=model;canvasDoc.current=next.document;
@@ -495,7 +507,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
         <main className={canvasSession && canvasMode==='2d' ? 'hidden' : 'relative flex-1 min-w-0'}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void importFile(e.dataTransfer.files[0]); }}>
-          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} paintTarget={busy ? null : paintTarget} selectedMeshId={!canvasSession?geometryNode:undefined} meshPickEnabled={pickMode&&!busy&&!canvasSession&&!grayActive} onMeshPick={selectMesh} /> :
+          {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} paintTarget={busy ? null : paintTarget} selectedMeshId={!canvasSession?geometryNode:undefined} meshPickEnabled={pickMode&&!busy&&!canvasSession&&!grayActive} onMeshPick={selectMesh} faceSelection={!canvasSession?faceSelection:null} facePickEnabled={faceMode&&!busy&&!canvasSession&&!grayActive} onFacePick={selectFace} /> :
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/10">
               <span className="text-lg font-medium">Drop a 3D model here</span>
               <span className="text-xs text-neutral-500">GLB or self-contained glTF · up to 100 MB</span>
@@ -518,7 +530,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             </div>
           </div>}
         </main>
-        {canvasSession && model && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel root={model.scene} key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} initialHistory={workspace.current.getBySession(canvasSession)?.history} onHistory={onCanvasHistory} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
+        {canvasSession && model && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel root={model.scene} key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} initialHistory={workspace.current.getBySession(canvasSession)?.history} onHistory={onCanvasHistory} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onRequestRegionMask={faceSelection?.indices.length?requestRegionMask:undefined} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
@@ -564,7 +576,11 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             <button className={button + ' w-full text-left'} onClick={()=>setHierarchyOpen(v=>!v)}>{hierarchyOpen ? 'Hide' : 'Show'} object hierarchy · {hierarchy.length} nodes</button>
             <section className="mt-2 rounded-xl border border-white/10 p-2 space-y-2">
               <strong className="text-xs">Geometry Tools</strong>
-              <button className={button+' w-full '+(pickMode?'border-sky-400 text-sky-300':'')} disabled={busy||grayActive} onClick={()=>setPickMode(v=>!v)}>{pickMode?'Pick mode on · click a mesh':'Pick mesh in 3D'}</button>
+              <button className={button+' w-full '+(pickMode?'border-sky-400 text-sky-300':'')} disabled={busy||grayActive} onClick={()=>{setPickMode(v=>!v);setFaceMode(false);}}>{pickMode?'Pick mode on · click a mesh':'Pick mesh in 3D'}</button>
+              <button className={button+' w-full '+(faceMode?'border-sky-400 text-sky-300':'')} disabled={busy||grayActive} onClick={()=>{setFaceMode(v=>!v);setPickMode(false);}}>{faceMode?'Face mode on · click triangles':'Select individual faces'}</button>
+              <p className="text-neutral-500">Click a triangle; Shift-click to add or remove. {faceSelection?.indices.length??0} selected. Toggle mode off to orbit.</p>
+              <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!faceSelection?.indices.length||busy||grayActive} onClick={separateRegion}>Separate selected</button><button className={button} disabled={!faceSelection?.indices.length||busy} onClick={()=>setFaceSelection(null)}>Clear selection</button></div>
+              <p className="text-neutral-500">Keep a selection and open Texture Canvas to create a region mask on an editable layer.</p>
               <div className="grid grid-cols-2 gap-1"><button className={button} disabled={!historyRef.current?.undoLabel||busy||grayActive} title={historyRef.current?.undoLabel} onClick={()=>moveHistory('undo')}>Undo geometry</button><button className={button} disabled={!historyRef.current?.redoLabel||busy||grayActive} title={historyRef.current?.redoLabel} onClick={()=>moveHistory('redo')}>Redo geometry</button></div>
               <p className="text-neutral-500">Geometry history lasts until opening a texture canvas, editing material properties, or reloading a model.</p>
               <select aria-label="Geometry mesh" className="w-full rounded-lg bg-neutral-900 p-2 text-xs" value={geometryNode} disabled={busy||grayActive} onChange={e=>{const node=model?.scene.getObjectByProperty('uuid',e.target.value);const mat=node instanceof THREE.Mesh?(Array.isArray(node.material)?node.material[0]:node.material):undefined;selectMesh(e.target.value,mat?.uuid??'');}}>
