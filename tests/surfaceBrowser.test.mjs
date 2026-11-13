@@ -16,7 +16,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(()=>!!window.surfaceTest,{timeout:30000});
   const results=await page.evaluate(async()=>{
-    const {projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
+    const {geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
     const check=(value,message)=>{if(!value)throw new Error(message);};
     const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
     const base=canvas(16,16),ctx=base.getContext('2d');
@@ -152,8 +152,52 @@ try {
     check(occludedResult.coverage>.45&&occludedResult.coverage<.55,'Occluder depth not respected: '+occludedResult.coverage);
     const viewPayload=ai.generationPayload({mode:'reference',prompt:'paper',width:512,height:512,reference:solid('#ffffff'),viewDirection:'Front'});
     check(viewPayload.prompt.startsWith('Orthographic Front')&&viewPayload.denoising_strength===.35,'Aligned view provider request incorrect');
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion'];
+    // Real GLB geometry edits: missing UVs, shared geometry protection, split attributes and transforms.
+    const rawGeo=new THREE.BoxGeometry(1,1,1);rawGeo.deleteAttribute('uv');
+    const rawMat=new THREE.MeshStandardMaterial({name:'Plain'});
+    const rawMesh=new THREE.Mesh(rawGeo,rawMat);rawMesh.name='Raw box';
+    const sibling=new THREE.Mesh(rawGeo,rawMat);sibling.name='Shared box';sibling.position.x=2;
+    const geometryRoot=new THREE.Group();geometryRoot.add(rawMesh,sibling);
+    const uvResult=geometry.generateMeshUV(geometryRoot,rawMesh.uuid);
+    check(uvResult.triangles===12&&rawMesh.geometry.getAttribute('uv').count===36,'UV atlas failed');
+    check(sibling.geometry===rawGeo&&!sibling.geometry.getAttribute('uv')&&rawMesh.material!==rawMat,'Shared source geometry or material mutated');
+    check(rawMesh.geometry.getAttribute('normal').count===36,'Normals lost during UV generation');
+    const generatedUV=rawMesh.geometry.getAttribute('uv');
+    check(Array.from(generatedUV.array).every(x=>x>0&&x<1),'UV atlas exceeds tile bounds');
+    for(let i=0;i<12;i++){const cells=new Set([0,1,2].map(j=>Math.floor(generatedUV.getX(i*3+j)*uvResult.grid)+','+Math.floor(generatedUV.getY(i*3+j)*uvResult.grid)));check(cells.size===1,'UV triangle crossed its atlas tile');}
+    let protectedUV=false;try{geometry.generateMeshUV(geometryRoot,rawMesh.uuid);}catch{protectedUV=true;}
+    check(protectedUV,'Existing UV atlas could be overwritten');
+    const uvSession=new engine.TextureCanvasSession(rawMesh.material,rawMesh.material.name);
+    const uvDoc={...uvSession.initial,layers:[{...engine.layerDefaults('Generated atlas artwork'),kind:'gray',color:'#d02040'}]};
+    await uvSession.render(uvDoc);
+    check((await imagePixel(uvSession.output.toDataURL(),16,16))[0]===208,'Generated UV texture canvas did not render');
+    uvSession.restore();
+    const splitGeo=new THREE.BufferGeometry();
+    splitGeo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,1,0,0,0,1,0,2,0,0,3,0,0,2,1,0],3));
+    splitGeo.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,0,1,0,0,1,0,0,1],2));
+    splitGeo.setAttribute('color',new THREE.BufferAttribute(new Uint8Array(18).fill(127),3,true));
+    splitGeo.setIndex([0,1,2,3,4,5]);splitGeo.computeVertexNormals();splitGeo.addGroup(0,3,0);splitGeo.addGroup(3,3,1);
+    const redMat=new THREE.MeshStandardMaterial({name:'Red',color:0xff0000}),blueMat=new THREE.MeshStandardMaterial({name:'Blue',color:0x0000ff});
+    const splitMesh=new THREE.Mesh(splitGeo,[redMat,blueMat]);splitMesh.name='Two islands';splitMesh.position.set(4,2,-1);splitMesh.rotation.y=.5;
+    geometryRoot.add(splitMesh);geometryRoot.updateMatrixWorld(true);
+    const world=splitMesh.matrixWorld.clone();
+    const parts=geometry.separateMesh(geometryRoot,splitMesh.uuid,'materials');
+    geometryRoot.updateMatrixWorld(true);
+    check(parts.parts.length===2&&parts.parts[0]===splitMesh&&parts.parts[1].matrixWorld.equals(world),'Mesh split changed parent transform');
+    check(parts.parts[0].material===redMat&&parts.parts[1].material===blueMat,'Material groups were not preserved');
+    check(parts.parts.every(p=>p.geometry.index.count===3&&p.geometry.getAttribute('color').normalized&&p.geometry.getAttribute('color').array[0]===127),'Indexed attributes lost during split');
+    const disconnected=new THREE.Mesh(splitGeo.clone(),redMat);disconnected.name='Disconnected';
+    geometryRoot.add(disconnected);
+    const connected=geometry.separateMesh(geometryRoot,disconnected.uuid,'connected');
+    check(connected.parts.length===2,'Disconnected components not separated');
+    const geomBlob=await encodeSceneGlb(geometryRoot);
+    const reloadedGeom=await loadStudioModel(new File([geomBlob],'geometry-tools.glb'));
+    let generatedFound=false,splitFound=false;
+    reloadedGeom.scene.traverse(node=>{if(node.isMesh&&node.name.includes('Raw_box')&&node.geometry.getAttribute('uv'))generatedFound=true;if(node.isMesh&&node.name.includes('part'))splitFound=true;});
+    check(generatedFound&&splitFound,'GLB export/reopen lost generated UV or separated parts');
+    releaseStudioModel(reloadedGeom);
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip'];
   });
-  assert.equal(results.length,8);
+  assert.equal(results.length,9);
   console.log('Browser acceptance passed:',results);
 }finally{await browser?.close();server.kill();}
