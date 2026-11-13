@@ -1,18 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Point, type LayerBlend, layerDefaults, moveLayer, addStroke, addMaskStroke, readArtwork, parseTextureDocument, downloadTextureFile } from './textureCanvasEngine';
+import { TextureCanvasSession, type TextureDocument, type TextureLayer, type Point, type LayerBlend, layerDefaults, moveLayer, addStroke, addMaskStroke, createClonePatch, readArtwork, parseTextureDocument, downloadTextureFile } from './textureCanvasEngine';
 
+import type { UVGuide } from './surfaceEditing';
 import type { SurfacePaintTarget } from './Viewport3D';
 import { exportTexturePsd, importTexturePsd } from './texturePsd';
 
 const button='rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-xs hover:bg-white/10 disabled:opacity-40';
 const field='w-full rounded-lg bg-neutral-900 p-1.5 text-xs';
-type Tool='move'|'brush'|'eraser';
-interface Props { session: TextureCanvasSession; initialDocument?:TextureDocument; onDocument:(doc:TextureDocument)=>void; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
-export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,onReady,onError,onPaintTarget,busy}:Props) {
+type Tool='move'|'brush'|'eraser'|'clone';
+interface Props { session: TextureCanvasSession; initialDocument?:TextureDocument; onDocument:(doc:TextureDocument)=>void; onRequestUVGuide:()=>UVGuide; onClose:()=>void; onReady:(ready:boolean)=>void; onError:(message:string)=>void; onPaintTarget:(target:SurfacePaintTarget|null)=>void; busy:boolean; }
+export function TextureCanvasPanel({session,initialDocument,onDocument,onRequestUVGuide,onClose,onReady,onError,onPaintTarget,busy}:Props) {
   const [doc,setDoc]=useState<TextureDocument>(initialDocument??session.initial);
   const [selected,setSelected]=useState(initialDocument?.layers[initialDocument.layers.length-1]?.id??'');
   const [tool,setTool]=useState<Tool>('move');
   const [maskMode,setMaskMode]=useState(false);
+  const [cloneAnchor,setCloneAnchor]=useState<Point|null>(null);
+  const [uvGuide,setUVGuide]=useState<UVGuide|null>(null);
+  const guideCanvas=useRef<HTMLCanvasElement>(null);
   const [color,setColor]=useState('#ffffff');
   const [size,setSize]=useState(24);
   const [brushOpacity,setBrushOpacity]=useState(100);
@@ -33,7 +37,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
   const redo=()=>{const next=history.future[0];if(!next)return;setHistory({past:[...history.past,doc],future:history.future.slice(1)});setDoc(next);};
   const add=(next:TextureLayer)=>{if(doc.layers.length>=64){onError('Maximum 64 layers.');return;}commit({...doc,layers:[...doc.layers,next]});setSelected(next.id);setMaskMode(false);};
   useEffect(()=>{
-    if(!layer || (!maskMode && layer.kind!=='paint') || layer.locked || !layer.visible || tool==='move' || original || pending || loading || busy || !session.supports3DPaint) {onPaintTarget(null);return;}
+    if(!layer || (!maskMode && layer.kind!=='paint') || layer.locked || !layer.visible || (tool==='move'||tool==='clone') || original || pending || loading || busy || !session.supports3DPaint) {onPaintTarget(null);return;}
     const target:SurfacePaintTarget={material:session.paintMaterial,onStroke:segments=>{
       let next=doc.layers;
       for(const segment of segments) next=(maskMode?addMaskStroke:addStroke)(next,layer.id,{points:segment.map(p=>({x:p.x*doc.width,y:p.y*doc.height})),color,size,opacity:brushOpacity/100,erase:tool==='eraser'});
@@ -44,6 +48,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
   },[doc,layer,tool,original,pending,loading,busy,session,color,size,brushOpacity,onPaintTarget,maskMode]);
   const saveDocument=()=>downloadTextureFile(new Blob([JSON.stringify(doc)],{type:'application/json'}),'surface.texture.json');
   useEffect(()=>{onDocument(doc);},[doc,onDocument]);
+  useEffect(()=>{const c=guideCanvas.current,ctx=c?.getContext('2d');if(!c||!ctx||!uvGuide)return;ctx.clearRect(0,0,c.width,c.height);ctx.strokeStyle='rgba(75,215,255,.85)';ctx.lineWidth=Math.max(1,c.width/1000);ctx.beginPath();for(const [x,y,x2,y2] of uvGuide.segments){ctx.moveTo(x*c.width,y*c.height);ctx.lineTo(x2*c.width,y2*c.height);}ctx.stroke();},[uvGuide,doc.width,doc.height]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   useEffect(()=>{
     let canceled=false;setPending(true);onReady(false);
@@ -60,7 +65,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
       const cmd=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();
       if(cmd&&k==='z'){e.preventDefault();e.stopImmediatePropagation();e.shiftKey?redo():undo();}
       else if(cmd&&k==='s'){e.preventDefault();e.stopImmediatePropagation();saveDocument();}
-      else if(!cmd&&['v','b','e'].includes(k)){setTool(k==='v'?'move':k==='b'?'brush':'eraser');}
+      else if(!cmd&&['v','b','e','s'].includes(k)){setTool(k==='v'?'move':k==='b'?'brush':k==='e'?'eraser':'clone');if(k==='s')setMaskMode(false);}
     };
     window.addEventListener('keydown',key,true);return()=>window.removeEventListener('keydown',key,true);
   },[doc,history,busy,loading]);
@@ -89,7 +94,13 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
   };
   const point=(e:React.PointerEvent<HTMLCanvasElement>):Point=>{const r=e.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(doc.width,(e.clientX-r.left)*doc.width/r.width)),y:Math.max(0,Math.min(doc.height,(e.clientY-r.top)*doc.height/r.height))};};
   const start=(e:React.PointerEvent<HTMLCanvasElement>)=>{
-    if(!layer||layer.locked||!layer.visible||original||pending||loading||busy||e.button!==0)return;
+    if(original||pending||loading||busy||e.button!==0)return;
+    if(tool==='clone'){
+      if(e.altKey){setCloneAnchor(point(e));return;}
+      if(!cloneAnchor){onError('Option/Alt-click the texture to set a clone source first.');return;}
+      e.currentTarget.setPointerCapture(e.pointerId);const p=point(e);gesture.current={start:p,points:[p],layer:'',tool};return;
+    }
+    if(!layer||layer.locked||!layer.visible)return;
     if(tool==='move'&&layer.kind!=='image'||tool!=='move'&&!maskMode&&layer.kind!=='paint')return;
     e.currentTarget.setPointerCapture(e.pointerId);const p=point(e);gesture.current={start:p,points:[p],layer:layer.id,tool};
   };
@@ -98,7 +109,9 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
     if(g.tool==='brush'&&!maskMode){const c=e.currentTarget.getContext('2d');if(c){c.save();c.strokeStyle=color;c.lineWidth=size;c.lineCap='round';c.globalAlpha=brushOpacity/100;c.beginPath();const prev=g.points[g.points.length-2]??p;c.moveTo(prev.x,prev.y);c.lineTo(p.x,p.y);c.stroke();c.restore();}}
   };
   const end=(e:React.PointerEvent<HTMLCanvasElement>)=>{
-    const g=gesture.current;gesture.current=null;if(!g||!layer||layer.id!==g.layer)return;
+    const g=gesture.current;gesture.current=null;if(!g)return;
+    if(g.tool==='clone'&&cloneAnchor){try{const image=createClonePatch(session.output,g.points,cloneAnchor,size);add({...layerDefaults('Clone cleanup'),kind:'image',image,x:0,y:0,width:doc.width,height:doc.height,rotation:0,flipX:false,flipY:false,opacity:brushOpacity/100});}catch(e){onError(e instanceof Error?e.message:String(e));}return;}
+    if(!layer||layer.id!==g.layer)return;
     const p=point(e);
     if(g.tool==='move'&&layer.kind==='image')edit({x:layer.x+p.x-g.start.x,y:layer.y+p.y-g.start.y});
     else if(maskMode||layer.kind==='paint')commit({...doc,layers:(maskMode?addMaskStroke:addStroke)(doc.layers,layer.id,{points:g.points,color,size,opacity:brushOpacity/100,erase:g.tool==='eraser'})});
@@ -119,7 +132,7 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
     {compatibility&&<div role="status" className="border-b border-white/10 px-2 py-1 text-[10px] text-sky-300">{compatibility}</div>}
     <div className="flex min-h-0 flex-1">
       <div className="flex w-12 shrink-0 flex-col gap-1 border-r border-white/10 p-1">
-        {(['move','brush','eraser'] as const).map(t=><button key={t} title={t} aria-pressed={tool===t} className={button+(tool===t?' border-sky-500 text-sky-300':'')} onClick={()=>setTool(t)}>{t==='move'?'V':t==='brush'?'B':'E'}</button>)}
+        {(['move','brush','eraser','clone'] as const).map(t=><button key={t} title={t} aria-pressed={tool===t} className={button+(tool===t?' border-sky-500 text-sky-300':'')} onClick={()=>{setTool(t);if(t==='clone')setMaskMode(false);}}>{t==='move'?'V':t==='brush'?'B':t==='eraser'?'E':'S'}</button>)}
         <input title="Brush color" type="color" value={color} onChange={e=>setColor(e.target.value)} className="w-full"/>
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -127,11 +140,12 @@ export function TextureCanvasPanel({session,initialDocument,onDocument,onClose,o
           <label>Brush {size}px <input type="range" min="1" max="200" value={size} onChange={e=>setSize(Number(e.target.value))}/></label>
           <label>Flow {brushOpacity}% <input type="range" min="1" max="100" value={brushOpacity} onChange={e=>setBrushOpacity(Number(e.target.value))}/></label>
           <label>Zoom <select value={zoom} onChange={e=>setZoom(Number(e.target.value))} className="bg-neutral-900"><option value={.5}>50%</option><option value={1}>Fit</option><option value={2}>200%</option><option value={4}>400%</option></select></label>
-          {pending&&<span>Compositing…</span>}
+          <button className={button} onClick={()=>setUVGuide(g=>g?null:onRequestUVGuide())}>{uvGuide?'Hide UV':'Show UV'}</button>{uvGuide&&<button className={button} onClick={()=>guideCanvas.current?.toBlob(b=>{if(b)downloadTextureFile(b,'uv-guide.png');},'image/png')}>UV PNG</button>}
+          {uvGuide?.truncated&&<span>Partial guide · edge limit reached</span>}{tool==='clone'&&<span>{cloneAnchor?'Clone source set':'Option-click source'}</span>}{pending&&<span>Compositing…</span>}
         </div>
         <div className="flex-1 min-h-0 overflow-auto bg-[#18181b] p-3" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importArtwork(e.dataTransfer.files[0]);}}>
-          <canvas ref={view} width={doc.width} height={doc.height} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{gesture.current=null;view.current?.getContext('2d')?.drawImage(session.output,0,0);}} style={{width:zoom===1?'100%':(zoom*100)+'%',height:'auto',touchAction:'none',backgroundColor:'#666',backgroundImage:'repeating-conic-gradient(#888 0% 25%, #666 0% 50%)',backgroundSize:'20px 20px',cursor:tool==='move'?'move':'crosshair'}}/>
-          <p className="mt-2 text-[10px] text-neutral-400">Select artwork to drag, or a paint layer to draw on either canvas or 3D surface (UV0/UV1). Mask editing works on any unlocked layer. Switch to Move to orbit. Shared UVs share edits. Drop an image to add artwork.</p>
+          <div style={{position:"relative",width:zoom===1?"100%":(zoom*100)+"%"}}><canvas ref={view} width={doc.width} height={doc.height} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{gesture.current=null;view.current?.getContext('2d')?.drawImage(session.output,0,0);}} style={{width:'100%',display:'block',height:'auto',touchAction:'none',backgroundColor:'#666',backgroundImage:'repeating-conic-gradient(#888 0% 25%, #666 0% 50%)',backgroundSize:'20px 20px',cursor:tool==='move'?'move':'crosshair'}}/>{uvGuide&&<canvas ref={guideCanvas} width={doc.width} height={doc.height} style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}/>}</div>
+          <p className="mt-2 text-[10px] text-neutral-400">Select artwork to drag, or a paint layer to draw on either canvas or 3D surface (UV0/UV1). Mask editing works on any unlocked layer. Clone stamp (S) copies a sampled texture area to a new cleanup layer. Switch to Move to orbit. Shared UVs share edits. Drop an image to add artwork.</p>
         </div>
       </div>
       <aside className="w-48 shrink-0 overflow-auto border-l border-white/10 p-2 space-y-2">
