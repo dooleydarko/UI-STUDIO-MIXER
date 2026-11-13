@@ -146,6 +146,14 @@ export class TextureCanvasSession {
     context(this.output).drawImage(this.base,0,0);
     this.texture.needsUpdate=true; material.map=this.texture; material.color.set(0xffffff); material.needsUpdate=true;
   }
+  async restoreSavedBase(doc:TextureDocument):Promise<void>{
+    if(doc.width!==this.initial.width||doc.height!==this.initial.height||doc.material!==this.initial.material)throw new Error('Saved texture document binding does not match the original material.');
+    if(doc.base===this.initial.base)return;
+    const image=await loadImage(doc.base);
+    if(this.disposed||image.width!==doc.width||image.height!==doc.height)throw new Error('Saved texture base dimensions do not match.');
+    const ctx=context(this.base);ctx.clearRect(0,0,doc.width,doc.height);ctx.drawImage(image,0,0);
+    this.initial.base=doc.base;
+  }
   get paintMaterial(): THREE.MeshStandardMaterial { return this.material; }
   get supports3DPaint(): boolean { return this.texture.channel <= 1; }
   async render(doc: TextureDocument): Promise<boolean> {
