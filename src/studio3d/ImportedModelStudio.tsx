@@ -451,7 +451,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             </div>
           </div>}
         </main>
-        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} initialHistory={workspace.current.getBySession(canvasSession)?.history} onHistory={onCanvasHistory} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
+        {canvasSession && model && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel root={model.scene} key={canvasSession.paintMaterial.uuid} session={canvasSession} initialDocument={initialDocument} initialHistory={workspace.current.getBySession(canvasSession)?.history} onHistory={onCanvasHistory} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>

@@ -16,7 +16,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(()=>!!window.surfaceTest,{timeout:30000});
   const results=await page.evaluate(async()=>{
-    const {THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
+    const {projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
     const check=(value,message)=>{if(!value)throw new Error(message);};
     const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
     const base=canvas(16,16),ctx=base.getContext('2d');
@@ -119,8 +119,41 @@ try {
     check(sent.url.endsWith('/sdapi/v1/img2img')&&sent.body.mask&&result.seed===42&&result.image.startsWith('data:image/png'),'Local provider contract failed');
     let refused=false;try{new ai.Automatic1111Provider('https://example.com');}catch{refused=true;}
     check(refused,'Remote AI endpoint was not rejected');
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract'];
+    const signal=new AbortController().signal;
+    const atlas=canvas(96,64);atlas.getContext('2d').fillRect(0,0,96,64);
+    const cubeGeo=new THREE.BoxGeometry(1,1,1);
+    const uv=cubeGeo.getAttribute('uv');
+    for(let i=0;i<uv.count;i++){
+      const face=Math.floor(i/4);uv.setXY(i,(uv.getX(i)+face%3)/3,(uv.getY(i)+Math.floor(face/3))/2);
+    }
+    const cubeMap=new THREE.CanvasTexture(atlas);cubeMap.flipY=false;
+    const cubeMat=new THREE.MeshStandardMaterial({map:cubeMap});
+    const cube=new THREE.Mesh(cubeGeo,cubeMat);
+    const capture=await projection.captureProjection(cube,cubeMat,atlas,signal,128);
+    check(capture.frames.length===6,'Six view capture missing');
+    const solid=(color)=>{const c=canvas(128,128),ctx=c.getContext('2d');ctx.fillStyle=color;ctx.fillRect(0,0,128,128);return c.toDataURL();};
+    const projected=await projection.projectViews(capture,{Right:solid('#ff0000'),Left:solid('#00ff00'),Top:solid('#0000ff'),Bottom:solid('#ffff00'),Front:solid('#ff00ff'),Back:solid('#00ffff')},signal);
+    check(projected.coverage>.97&&projected.ambiguous===0,'Distinct cube UV faces did not project correctly: '+JSON.stringify({coverage:projected.coverage,ambiguous:projected.ambiguous}));
+    const front=await imagePixel(projected.image,48,48);
+    check(front[0]===255&&front[1]===0&&front[2]===255,'Front view did not land on correct atlas tile');
+    const one=await projection.projectViews(capture,{Front:solid('#ff00ff')},signal);
+    check(one.coverage>.15&&one.coverage<.19,'Single view incorrectly changed hidden faces');
+    check((await imagePixel(one.image,16,16))[3]===0,'Uncovered UV pixel not transparent');
+    const shared=new THREE.Mesh(new THREE.BoxGeometry(),cubeMat);
+    const sharedCapture=await projection.captureProjection(shared,cubeMat,atlas,signal,64);
+    let overlapRejected=false;
+    try{await projection.projectViews(sharedCapture,{Front:solid('#ffffff')},signal);}catch(e){overlapRejected=String(e).includes('No visible UV pixels');}
+    check(overlapRejected,'Overlapping cube UVs were not protected');
+    const target=new THREE.Mesh(new THREE.PlaneGeometry(1,1),cubeMat);
+    const blocker=new THREE.Mesh(new THREE.PlaneGeometry(.5,1),new THREE.MeshStandardMaterial());blocker.position.set(-.25,0,.2);
+    const occluded=new THREE.Group();occluded.add(target,blocker);
+    const occludedCapture=await projection.captureProjection(occluded,cubeMat,atlas,signal,128);
+    const occludedResult=await projection.projectViews(occludedCapture,{Front:solid('#ff0000')},signal);
+    check(occludedResult.coverage>.45&&occludedResult.coverage<.55,'Occluder depth not respected: '+occludedResult.coverage);
+    const viewPayload=ai.generationPayload({mode:'reference',prompt:'paper',width:512,height:512,reference:solid('#ffffff'),viewDirection:'Front'});
+    check(viewPayload.prompt.startsWith('Orthographic Front')&&viewPayload.denoising_strength===.35,'Aligned view provider request incorrect');
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion'];
   });
-  assert.equal(results.length,7);
+  assert.equal(results.length,8);
   console.log('Browser acceptance passed:',results);
 }finally{await browser?.close();server.kill();}

@@ -1,7 +1,7 @@
 export type TextureGenerationMode='generate'|'reference'|'inpaint';
 export interface TextureGenerationRequest{
   mode:TextureGenerationMode; prompt:string; width:number; height:number;
-  reference?:string; mask?:string; seed?:number; steps?:number;
+  reference?:string; mask?:string; seed?:number; steps?:number; viewDirection?:string;
 }
 export interface TextureGenerationResult{image:string;provider:string;seed:number|undefined}
 export interface TextureProvider{
@@ -29,8 +29,10 @@ export function generationPayload(request:TextureGenerationRequest):Record<strin
   const {width,height}=generationSize(request.width,request.height);
   const seed=request.seed??-1,steps=request.steps??20;
   if(!Number.isInteger(seed)||seed< -1||seed>4294967295||!Number.isInteger(steps)||steps<1||steps>40)throw new Error('Invalid generation seed or steps.');
-  const payload:Record<string,unknown>={prompt:'Flat UV texture sheet, seamless material texture, no perspective, no lighting baked into artwork. '+prompt,negative_prompt:'perspective, photograph of product, cast shadow, watermark',width,height,seed,steps,batch_size:1,n_iter:1,send_images:true,save_images:false,tiling:request.mode==='generate'};
-  if(request.mode!=='generate'){payload.init_images=[checkImage(request.reference,'Reference')];payload.denoising_strength=request.mode==='inpaint'?.65:.45;}
+  const view=request.viewDirection;
+  if(view!==undefined&&(!['Front','Back','Left','Right','Top','Bottom'].includes(view)||request.mode!=='reference'))throw new Error('Invalid multiview request.');
+  const payload:Record<string,unknown>={prompt:(view?'Orthographic '+view+' view of the exact reference object, same silhouette, placement, camera and proportions, unlit base color, change surface only. ':'Flat UV texture sheet, seamless material texture, no perspective, no lighting baked into artwork. ')+prompt,negative_prompt:view?'changed silhouette, camera movement, perspective, cast shadow, watermark':'perspective, photograph of product, cast shadow, watermark',width,height,seed,steps,batch_size:1,n_iter:1,send_images:true,save_images:false,tiling:request.mode==='generate'};
+  if(request.mode!=='generate'){payload.init_images=[checkImage(request.reference,'Reference')];payload.denoising_strength=request.mode==='inpaint'?.65:view?.35:.45;}
   if(request.mode==='inpaint'){payload.mask=checkImage(request.mask,'Mask');payload.inpainting_mask_invert=0;payload.inpaint_full_res=false;payload.mask_blur=4;}
   return payload;
 }
