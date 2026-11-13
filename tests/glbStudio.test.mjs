@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // Compile only the targeted modules, preserving normal package resolution.
 const temp = await mkdtemp(path.join(process.cwd(), '.glb-test-'));
 try {
-  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts']) {
+  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts', 'surfaceEditing']) {
     const source = await readFile(path.join(process.cwd(), 'src/studio3d', name + '.ts'), 'utf8');
     const compiled = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
@@ -20,6 +20,95 @@ try {
   const { inspectMaterials } = await import(pathToFileURL(path.join(temp, 'glbTextureSwapper.mjs')));
 
   const { estimateModelBudget, recommendQuality, scaledTextureSize } = await import(pathToFileURL(path.join(temp, 'modelPerformance.mjs')));
+
+  const { GrayOutSession, neutralizePixels, inspectSurfaces } = await import(pathToFileURL(path.join(temp, 'surfaceEditing.mjs')));
+
+  await test('gray out pixel neutralization preserves transparency and supports intensity', () => {
+    const data = new Uint8ClampedArray([10, 20, 30, 0, 100, 120, 140, 180]);
+    neutralizePixels(data, [200, 200, 200], .5);
+    assert.deepEqual([...data], [105, 110, 115, 0, 150, 160, 170, 180]);
+    neutralizePixels(data, [64, 64, 64], 1);
+    assert.deepEqual([...data], [64,64,64,0,64,64,64,180]);
+  });
+
+  await test('gray out restores untextured PBR color without changing physical channels or geometry', () => {
+    const root = new THREE.Group();
+    const normal = new THREE.Texture();
+    const roughnessMap = new THREE.Texture();
+    const mat = new THREE.MeshPhysicalMaterial({ color: '#123456', normalMap: normal, roughnessMap, roughness: .4, metalness: .7, opacity: .6, transparent: true, clearcoat: .5 });
+    const geometry = new THREE.BoxGeometry();
+    const mesh = new THREE.Mesh(geometry, mat);
+    root.add(mesh);
+    const original = mat.color.clone();
+    const session = new GrayOutSession();
+    session.apply([mat], '#bbbbbb', 1);
+    assert(session.active);
+    assert.equal(mat.color.getHexString(), 'bbbbbb');
+    assert.equal(mat.normalMap, normal);
+    assert.equal(mat.roughnessMap, roughnessMap);
+    assert.equal(mat.roughness, .4);
+    assert.equal(mat.metalness, .7);
+    assert.equal(mat.clearcoat, .5);
+    assert.equal(mat.opacity, .6);
+    assert.equal(mat.transparent, true);
+    assert.equal(mesh.geometry, geometry);
+    session.restoreAll();
+    assert(!session.active);
+    assert(mat.color.equals(original));
+    geometry.dispose(); mat.dispose(); normal.dispose(); roughnessMap.dispose();
+  });
+
+  await test('gray out replaces only base color source and restores shared texture references', () => {
+    const image = { width: 1, height: 1 };
+    const base = new THREE.Texture(image);
+    base.offset.set(.2,.3); base.channel = 1; base.flipY = false;
+    base.colorSpace = THREE.SRGBColorSpace;
+    const first = new THREE.MeshStandardMaterial({ map: base, normalMap: base, color: '#123456' });
+    const other = new THREE.MeshStandardMaterial({ map: base });
+    const pixels = new Uint8ClampedArray([30,40,50,90]);
+    const previous = globalThis.document;
+    globalThis.document = { createElement: () => ({ getContext: () => ({
+      drawImage() {}, getImageData: () => ({ data: pixels }), putImageData() {},
+    }) }) };
+    const session = new GrayOutSession();
+    try {
+      session.apply([first], '#888888', 1);
+      assert.notEqual(first.map, base);
+      assert.notEqual(first.map.source, base.source);
+      assert.equal(first.map.channel, 1);
+      assert(first.map.offset.equals(base.offset));
+      assert.equal(first.map.flipY, false);
+      assert.equal(first.map.colorSpace, base.colorSpace);
+      assert.equal(first.normalMap, base);
+      assert.equal(other.map, base);
+      assert.deepEqual([...pixels], [136,136,136,90]);
+      assert.equal(base.image, image);
+      session.restoreAll();
+      assert.equal(first.map, base);
+      assert.equal(first.color.getHexString(), '123456');
+    } finally {
+      session.restoreAll();
+      if (previous === undefined) delete globalThis.document; else globalThis.document = previous;
+      first.dispose(); other.dispose(); base.dispose();
+    }
+  });
+
+  await test('surface hierarchy exposes nested meshes, UV sets and material slots', () => {
+    const root = new THREE.Group();
+    const group = new THREE.Group(); group.name = 'Packaging';
+    const geo = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial();
+    const mesh = new THREE.Mesh(geo, material); mesh.name = 'Cover';
+    group.add(mesh); root.add(group);
+    const items = inspectSurfaces(root);
+    assert.equal(items.length, 3);
+    assert.equal(items[2].depth, 2);
+    assert.equal(items[2].name, 'Cover');
+    assert.deepEqual(items[2].materials, [material.uuid]);
+    assert(items[2].uvSets.includes('uv'));
+    assert.equal(items[2].groups, geo.groups.length);
+    geo.dispose(); material.dispose();
+  });
 
   await test('model budget counts shared buffers and textures once', () => {
     const root = new THREE.Group();
