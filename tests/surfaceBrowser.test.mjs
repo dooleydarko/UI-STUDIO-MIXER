@@ -16,7 +16,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(()=>!!window.surfaceTest,{timeout:30000});
   const results=await page.evaluate(async()=>{
-    const {structural,charts,geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
+    const {regions,structural,charts,geometry,projection,THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
     const check=(value,message)=>{if(!value)throw new Error(message);};
     const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
     const base=canvas(16,16),ctx=base.getContext('2d');
@@ -250,8 +250,29 @@ try {
     frontMesh.visible=false;
     check(structural.pickVisibleMesh(pickRoot,ray)?.object===rearMesh,'Mesh selection did not skip hidden object');
     history.clear();
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip','real xatlas worker and texture-preserving UV remap','sharp separation, structural undo/redo and visible mesh selection'];
+    const regionRoot=new THREE.Group(),regionGeo=new THREE.PlaneGeometry(1,1,2,1),regionMat=new THREE.MeshStandardMaterial({name:'Region',map:new THREE.CanvasTexture(base)});
+    regionMat.map.flipY=false;const regionMesh=new THREE.Mesh(regionGeo,regionMat);regionRoot.add(regionMesh);
+    let selection=regions.toggleFace(null,regionMesh,0,false);selection=regions.toggleFace(selection,regionMesh,1,true);
+    check(selection.indices.join(',')==='0,1','Face multi-selection failed');
+    selection=regions.toggleFace(selection,regionMesh,1,true);check(selection.indices.length===1,'Face deselection failed');
+    selection=regions.toggleFace(selection,regionMesh,1,true);
+    const overlay=regions.faceRegionGeometry(regionMesh,selection);check(overlay.getAttribute('position').count===6,'Face overlay triangle count incorrect');overlay.dispose();
+    const mask=regions.createFaceRegionMask(regionRoot,selection,regionMat,64,64);
+    check(mask.coverage>1700&&mask.coverage<2200,'Half-plane UV mask coverage incorrect: '+mask.coverage);
+    const selectedPixel=await imagePixel(mask.image,8,32),unselectedPixel=await imagePixel(mask.image,56,32);
+    check(selectedPixel[3]===255&&unselectedPixel[3]===0,'Region mask leaked into unselected half');
+    const duplicateMesh=new THREE.Mesh(regionGeo,regionMat);regionRoot.add(duplicateMesh);
+    let sharedRejected=false;try{regions.createFaceRegionMask(regionRoot,selection,regionMat,64,64);}catch(e){sharedRejected=String(e).includes('overlap');}
+    check(sharedRejected,'Shared UV region was not protected');regionRoot.remove(duplicateMesh);
+    const regionHistory=new structural.StructuralHistory(regionRoot),regionBefore=regionHistory.begin();
+    const separated=geometry.separateMesh(regionRoot,regionMesh.uuid,'manual',true,45,selection.indices);
+    regionHistory.commit('Manual selection',regionBefore);
+    check(separated.parts.length===2&&separated.parts[1].material!==regionMat&&separated.parts[1].material.map===regionMat.map,'Selected region material not independent');
+    check(separated.parts.every(p=>p.geometry.index.count===6),'Region separation changed triangle count');
+    check(regionHistory.undo()&&regionMesh.geometry===regionGeo&&regionMesh.children.length===0,'Region separation undo failed');
+    check(regionHistory.redo()&&regionMesh.children.length===1,'Region separation redo failed');regionHistory.clear();
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract','six-view UV projection, overlap and depth occlusion','automatic UV and mesh separation GLB round-trip','real xatlas worker and texture-preserving UV remap','sharp separation, structural undo/redo and visible mesh selection','manual face region separation and shared-UV-safe mask'];
   });
-  assert.equal(results.length,11);
+  assert.equal(results.length,12);
   console.log('Browser acceptance passed:',results);
 }finally{await browser?.close();server.kill();}
