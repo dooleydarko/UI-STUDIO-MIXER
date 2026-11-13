@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D } from './Viewport3D';
 import { GrayOutSession, inspectSurfaces } from './surfaceEditing';
+import { TextureCanvasSession } from './textureCanvasEngine';
+import { TextureCanvasPanel } from './TextureCanvasPanel';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
 import { inspectMaterials, MAP_CHANNELS, replaceMaterialMap, type MapChannel } from './glbTextureSwapper';
 import { encodeSceneGlb, exportSceneToGlb } from './glbExporter';
@@ -45,6 +47,10 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const [materialId, setMaterialId] = useState('');
   const graySession = useRef(new GrayOutSession());
   const [grayActive, setGrayActive] = useState(false);
+  const canvasRef = useRef<TextureCanvasSession | null>(null);
+  const [canvasSession, setCanvasSession] = useState<TextureCanvasSession | null>(null);
+  const [canvasReady, setCanvasReady] = useState(false);
+  const [canvasMode, setCanvasMode] = useState<'split' | '2d' | '3d'>('split');
   const [grayScope, setGrayScope] = useState<'material' | 'object'>('material');
   const [grayColor, setGrayColor] = useState('#b0b0b0');
   const [grayStrength, setGrayStrength] = useState(100);
@@ -78,9 +84,9 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     mounted.current = true;
     return () => { mounted.current = false; request.current++; downloadController.current?.abort(); current.current = null; action.current = null; };
   }, []);
-  useEffect(() => () => { if (model) { graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
+  useEffect(() => () => { if (model) { canvasRef.current?.restore(); canvasRef.current = null; graySession.current.restoreAll(); releaseStudioModel(model); } }, [model]);
   useEffect(() => { listSavedModels().then(items => { if (mounted.current) setSavedModels(items); }).catch(() => { if (mounted.current) setLibraryStatus('Local model library unavailable. Export GLB files instead.'); }); }, []);
-  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || grayActive) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty, grayActive]);
+  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || grayActive || canvasSession) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty, grayActive, canvasSession]);
 
   const selectClip = (source: ImportedStudioModel, index: number) => {
     source.mixer.stopAllAction();
@@ -98,7 +104,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   };
 
   const importFile = async (file?: File, libraryId?: string, asset?: ProductGlbAsset) => {
-    if ((!file && !asset) || busy) return;
+    if ((!file && !asset) || busy || canvasRef.current) return;
     if ((dirty || grayActive) && !window.confirm('Discard unsaved model changes and Gray Out preview?')) return;
     const id = ++request.current;
     setBusy(true);
@@ -176,7 +182,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
   const selected = materials.find((entry) => entry.id === materialId);
   const hierarchy = React.useMemo(() => model ? inspectSurfaces(model.scene) : [], [model]);
   const applyGray = () => {
-    if (!model || busy) return;
+    if (!model || busy || canvasSession) return;
     const targets = grayScope === 'object' ? materials : selected ? [selected] : [];
     if (!targets.length) return;
     setError('');
@@ -190,6 +196,28 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     graySession.current.restoreAll();
     setGrayActive(false);
     setRevision(v => v + 1);
+  };
+  const openCanvas = () => {
+    if (!model || !selected || busy || canvasSession) return;
+    setError('');
+    const target = selected.material;
+    const uv = target.map?.channel ? 'uv' + target.map.channel : 'uv';
+    let missing = false;
+    model.scene.traverse(node => {
+      if (node instanceof THREE.Mesh && (Array.isArray(node.material) ? node.material : [node.material]).includes(target) && !node.geometry.getAttribute(uv)) missing = true;
+    });
+    if (missing) { setError('Selected material has surfaces without suitable UVs. UV generation is not implemented yet.'); return; }
+    try {
+      if (grayActive && !window.confirm('Restore the current preview and use editable Gray Out layers in the canvas instead?')) return;
+      if (grayActive) restoreGray();
+      const next = new TextureCanvasSession(target, selected.name);
+      canvasRef.current = next; setCanvasSession(next); setCanvasReady(false); setCanvasMode('split');
+      setRevision(v=>v+1);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  const closeCanvas = () => {
+    if (!window.confirm('Close texture canvas and restore the original material? Save layers or export the edited GLB first.')) return;
+    canvasRef.current?.restore(); canvasRef.current=null; setCanvasSession(null); setCanvasReady(false); setRevision(v=>v+1);
   };
   const duration = model?.clips[clipIndex]?.duration ?? 0;
   const togglePlay = () => {
@@ -205,7 +233,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     setTime(active.time);
   };
   const swap = async (channel: MapChannel, file?: File) => {
-    if (!file || !model || !selected || busy || grayActive) return;
+    if (!file || !model || !selected || busy || grayActive || canvasSession) return;
     const source = model;
     setBusy(true);
     setError('');
@@ -218,7 +246,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     } finally { if (mounted.current) setBusy(false); }
   };
   const optimizeTextures = () => {
-    if (!model || busy || grayActive) return;
+    if (!model || busy || grayActive || canvasSession) return;
     if (!window.confirm('Downscale textures larger than 2048px? This changes the edited export, not your original file.')) return;
     setError('');
     try {
@@ -229,7 +257,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
     finally { setRevision((v) => v + 1); }
   };
   const saveSnapshot = async () => {
-    if (!model || busy || grayActive) return;
+    if (!model || busy || grayActive || canvasSession) return;
     setBusy(true); setError(''); setLibraryStatus('');
     if (action.current) action.current.paused = true;
     setPlaying(false);
@@ -255,9 +283,10 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       if (savedId === id) { setSavedId(undefined); setDirty(true); }
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)); }
   };
-  const exit = () => { if ((!dirty && !grayActive) || window.confirm('Leave without saving this model or Gray Out preview?')) onExit(); };
+  const exit = () => { if ((!dirty && !grayActive && !canvasSession) || window.confirm('Leave without saving this model or surface preview?')) onExit(); };
   const exportModel = async () => {
     if (!model || busy) return;
+    if (canvasSession && (!canvasReady || !window.confirm('Export a baked texture GLB copy? Save editable layers separately.'))) return;
     if (grayActive && !window.confirm('Export a baked Gray Out GLB copy? The source remains unchanged, but the preview adjustment cannot be restored from the exported file.')) return;
     setBusy(true);
     setError('');
@@ -278,13 +307,15 @@ export function ImportedModelStudio({ project, onExit }: Props) {
           <div className="text-xs text-neutral-500">Local model · PBR materials · Animation clips</div></div>
         <label className={button + (busy ? ' opacity-40' : ' cursor-pointer')}>
           Import model
-          <input type="file" accept=".glb,.gltf" disabled={busy} className="hidden"
+          <input type="file" accept=".glb,.gltf" disabled={busy || !!canvasSession} className="hidden"
             onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ''; void importFile(f); }} />
         </label>
-        <button className={button} onClick={() => { setCatalogOpen(v=>!v); setLibraryOpen(false); }} disabled={busy}>Product GLBs ({PRODUCT_GLB_CATALOG.length})</button>
-        <button className={button} onClick={() => { setLibraryOpen(v=>!v); setCatalogOpen(false); }} disabled={busy}>Library ({savedModels.length})</button>
-        <button className={button} onClick={saveSnapshot} disabled={!model || busy || grayActive}>{dirty ? 'Save model •' : 'Save model'}</button>
-        <button className={button} onClick={exportModel} disabled={!model || busy}>Export edited GLB</button>
+        <button className={button} onClick={() => { setCatalogOpen(v=>!v); setLibraryOpen(false); }} disabled={busy || !!canvasSession}>Product GLBs ({PRODUCT_GLB_CATALOG.length})</button>
+        <button className={button} onClick={() => { setLibraryOpen(v=>!v); setCatalogOpen(false); }} disabled={busy || !!canvasSession}>Library ({savedModels.length})</button>
+        <button className={button+' border-sky-500/40 text-sky-300'} onClick={openCanvas} disabled={!selected || busy || !!canvasSession}>Open Texture Canvas</button>
+        {canvasSession && <div className="flex gap-1">{(['split','2d','3d'] as const).map(mode=><button key={mode} className={button+(canvasMode===mode?' border-sky-500 text-sky-300':'')} onClick={()=>setCanvasMode(mode)}>{mode==='split'?'Split':mode==='2d'?'2D':'3D'}</button>)}</div>}
+        <button className={button} onClick={saveSnapshot} disabled={!model || busy || grayActive || !!canvasSession}>{dirty ? 'Save model •' : 'Save model'}</button>
+        <button className={button} onClick={exportModel} disabled={!model || busy || (!!canvasSession && !canvasReady)}>Export edited GLB</button>
       </header>
       {downloadStatus && <div role="status" className="flex items-center justify-between gap-2 bg-sky-500/10 px-4 py-2 text-xs text-sky-300"><span>{downloadStatus}</span><button className={button} onClick={()=>downloadController.current?.abort()}>Cancel download</button></div>}
       {catalogOpen && <section className="max-h-72 overflow-y-auto border-b border-white/10 p-4 space-y-3">
@@ -306,7 +337,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
       {libraryOpen && <section className="max-h-52 overflow-y-auto border-b border-white/10 p-4 space-y-2"><h3 className="text-xs font-semibold">Saved models · local device</h3>{!savedModels.length && <p className="text-xs text-neutral-500">No saved models yet.</p>}{savedModels.map(item => <div key={item.id} className="flex items-center gap-2 text-xs"><span className="mr-auto truncate">{item.name} · {(item.size/1048576).toFixed(1)} MB</span><button className={button} disabled={busy} onClick={()=>void openSnapshot(item.id)}>Open</button><button className={button} disabled={busy} onClick={()=>void deleteSnapshot(item.id)}>Delete</button></div>)}</section>}
       {error && <div role="alert" className="border-b border-red-500/30 bg-red-950/30 px-4 py-2 text-xs text-red-300">{error}</div>}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <main className="relative flex-1 min-w-0"
+        <main className={canvasSession && canvasMode==='2d' ? 'hidden' : 'relative flex-1 min-w-0'}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void importFile(e.dataTransfer.files[0]); }}>
           {model ? <Viewport3D project={viewportProject} importedGroup={model.display} onFrame={tick} quality={effectiveQuality} /> :
@@ -332,7 +363,8 @@ export function ImportedModelStudio({ project, onExit }: Props) {
             </div>
           </div>}
         </main>
-        <aside className="w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4">
+        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} onClose={closeCanvas} onReady={setCanvasReady} onError={setError}/></div>}
+        <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
             {model && <p className="text-xs text-neutral-500">{model.meshCount} meshes · {model.triangles.toLocaleString()} triangles · {model.clips.length} clips</p>}
@@ -350,7 +382,7 @@ export function ImportedModelStudio({ project, onExit }: Props) {
               <p>Estimated texture memory: {(budget.estimatedTextureBytes / 1048576).toFixed(1)} MB</p>
               <p>Geometry buffers: {(budget.geometryBytes / 1048576).toFixed(1)} MB</p>
               <p>Largest texture: {budget.largestTexture}px</p>
-              <button className={button + ' w-full'} disabled={busy || grayActive || budget.largestTexture <= 2048} onClick={optimizeTextures}>Downscale textures to 2K</button>
+              <button className={button + ' w-full'} disabled={busy || grayActive || !!canvasSession || budget.largestTexture <= 2048} onClick={optimizeTextures}>Downscale textures to 2K</button>
               <p className="text-neutral-500">Optional; changes exported textures. Original file stays intact.</p>
               {optimizationNote && <p role="status" className="text-sky-300">{optimizationNote}</p>}
             </div>}
