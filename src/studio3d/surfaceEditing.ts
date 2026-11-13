@@ -118,7 +118,7 @@ export function collectUVGuide(root:THREE.Object3D,material:THREE.MeshStandardMa
     const slots=Array.isArray(node.material)?node.material:[node.material];
     if(!slots.includes(material))return;
     const count=geo.index?.count??uv.count;
-    const groups=Array.isArray(node.material)?geo.groups.filter(g=>slots[g.materialIndex??0]===material):[{start:0,count}];
+    const groups=Array.isArray(node.material)?geo.groups.filter((g:{start:number;count:number;materialIndex?:number})=>slots[g.materialIndex??0]===material):[{start:0,count}];
     const index=(i:number)=>geo.index?geo.index.getX(i):i;
     const point=(p:THREE.Vector2,i:number)=>{p.fromBufferAttribute(uv,index(i));if(map)map.transformUv(p);};
     const edge=(p:THREE.Vector2,q:THREE.Vector2)=>{
