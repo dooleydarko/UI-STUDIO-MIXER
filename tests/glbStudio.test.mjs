@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // Compile only the targeted modules, preserving normal package resolution.
 const temp = await mkdtemp(path.join(process.cwd(), '.glb-test-'));
 try {
-  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts', 'surfaceEditing']) {
+  for (const name of ['disposal', 'glbLoader', 'glbTextureSwapper', 'modelPerformance', 'detailedProducts', 'surfaceEditing', 'textureCanvasEngine']) {
     const source = await readFile(path.join(process.cwd(), 'src/studio3d', name + '.ts'), 'utf8');
     const compiled = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
@@ -108,6 +108,45 @@ try {
     assert(items[2].uvSets.includes('uv'));
     assert.equal(items[2].groups, geo.groups.length);
     geo.dispose(); material.dispose();
+  });
+
+  const { TextureCanvasSession, parseTextureDocument, moveLayer, addStroke } = await import(pathToFileURL(path.join(temp, 'textureCanvasEngine.mjs')));
+  await test('layer document round-trips editable artwork and strokes, rejects unsupported data', () => {
+    const common = { visible:true, locked:false, opacity:1 };
+    const gray = { ...common, id:'a', name:'Gray Out', kind:'gray', color:'#808080' };
+    const paint = { ...common, id:'b', name:'Paint', kind:'paint', strokes:[] };
+    const artwork = { ...common, id:'c', name:'Artwork', kind:'image', image:'data:image/png;base64,AA==', x:10,y:20,width:100,height:100,rotation:15,flipX:true,flipY:false };
+    const base = { version:1, material:'Cover',width:1024,height:1024,base:'data:image/png;base64,AA==',layers:[gray,paint,artwork] };
+    assert.deepEqual(parseTextureDocument(JSON.stringify(base)),base);
+    assert.deepEqual(moveLayer(base.layers,'c',-1).map(l=>l.id),['a','c','b']);
+    const stroke = {points:[{x:1,y:2}],color:'#ffffff',size:20,opacity:.5,erase:false};
+    const edited=addStroke(base.layers,'b',stroke);
+    assert.equal(edited[1].strokes.length,1);assert.equal(paint.strokes.length,0);
+    assert.equal(addStroke([{...paint,locked:true}],'b',stroke)[0].strokes.length,0);
+    assert.throws(()=>parseTextureDocument(JSON.stringify({...base,layers:[gray,gray]})),/Invalid layer/);
+    assert.throws(()=>parseTextureDocument(JSON.stringify({...base,layers:[{...artwork,image:'https://example.com/image.png'}]})),/Invalid artwork/);
+    assert.throws(()=>parseTextureDocument(JSON.stringify({...base,width:99999})),/Unsupported/);
+  });
+  await test('canvas session retains PBR channels, toggles original and restores source', async () => {
+    const previous=globalThis.document;
+    const drawCalls=[];
+    globalThis.document={createElement:()=>({width:0,height:0,toDataURL:()=> 'data:image/png;base64,AA==',getContext:()=>({fillRect(){},clearRect(){},drawImage(){drawCalls.push(1);},save(){},restore(){}})})};
+    const normal=new THREE.Texture();
+    const material=new THREE.MeshPhysicalMaterial({color:'#123456',normalMap:normal,roughness:.35,metalness:.8,opacity:.5});
+    let session;
+    try {
+      session=new TextureCanvasSession(material,'Cover');
+      assert.equal(session.initial.width,1024);
+      assert.equal(material.map.image,session.output);
+      assert.equal(material.color.getHexString(),'ffffff');
+      assert.equal(material.normalMap,normal);assert.equal(material.roughness,.35);assert.equal(material.metalness,.8);assert.equal(material.opacity,.5);
+      assert(await session.render({...session.initial,layers:[{id:'g',name:'Gray',visible:true,locked:false,opacity:1,kind:'gray',color:'#777777'}]}));
+      session.showOriginal(true);assert.equal(material.map,null);assert.equal(material.color.getHexString(),'123456');
+      session.showOriginal(false);assert.equal(material.map.image,session.output);
+      session.restore();assert.equal(material.map,null);assert.equal(material.color.getHexString(),'123456');
+      assert.equal(await session.render(session.initial),false);
+      assert(drawCalls.length>0);
+    } finally {session?.restore();material.dispose();normal.dispose();if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
   });
 
   await test('model budget counts shared buffers and textures once', () => {
