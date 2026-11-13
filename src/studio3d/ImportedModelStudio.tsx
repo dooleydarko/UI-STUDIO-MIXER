@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Product3DProject } from '../types';
 import { Viewport3D, type SurfacePaintTarget } from './Viewport3D';
-import { GrayOutSession, inspectSurfaces } from './surfaceEditing';
+import { GrayOutSession, inspectSurfaces, collectUVGuide, isolateMeshMaterial } from './surfaceEditing';
 import { TextureCanvasSession, parseTextureDocument, type TextureDocument } from './textureCanvasEngine';
 import { TextureCanvasPanel } from './TextureCanvasPanel';
 import { loadStudioModel, releaseStudioModel, type ImportedStudioModel } from './glbLoader';
@@ -221,7 +221,16 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
   const modelCredit = React.useMemo(() => { let credit: { name: string; creator: string; license: string; source: string; note?: string } | undefined; model?.scene.traverse(node => { const value = node.userData.productCatalogCredit; if (value && typeof value.creator === 'string' && typeof value.license === 'string' && typeof value.source === 'string') credit = value; }); return credit; }, [model]);
   const materials = React.useMemo(() => model ? inspectMaterials(model.scene) : [], [model, revision]);
   const selected = materials.find((entry) => entry.id === materialId);
-  const hierarchy = React.useMemo(() => model ? inspectSurfaces(model.scene) : [], [model]);
+  const hierarchy = React.useMemo(() => model ? inspectSurfaces(model.scene) : [], [model, revision]);
+  const isolateMaterial=(nodeId:string,id:string)=>{
+    if(!model||busy||grayActive||canvasSession)return;
+    const entry=materials.find(m=>m.id===id);
+    if(!entry||entry.meshes.length<2)return;
+    if(!window.confirm('Create an independent material instance on this mesh? The original file and other meshes stay unchanged.'))return;
+    try{const isolated=isolateMeshMaterial(model.scene,nodeId,id);sourceModified.current=true;sourceSnapshot.current=null;setMaterialId(isolated.uuid);setDirty(true);setRevision(v=>v+1);}
+    catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
+  const requestUVGuide=()=>model&&canvasRef.current?collectUVGuide(model.scene,canvasRef.current.paintMaterial):{segments:[],truncated:false};
   const applyGray = () => {
     if (!model || busy || canvasSession) return;
     const targets = grayScope === 'object' ? materials : selected ? [selected] : [];
@@ -435,7 +444,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
             </div>
           </div>}
         </main>
-        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} initialDocument={initialDocument} onDocument={onCanvasDocument} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
+        {canvasSession && <div className={canvasMode==='3d'?'hidden':'min-w-0 flex-1 border-l border-white/10'}><TextureCanvasPanel session={canvasSession} initialDocument={initialDocument} onDocument={onCanvasDocument} onRequestUVGuide={requestUVGuide} onClose={closeCanvas} onReady={setCanvasReady} onError={setError} onPaintTarget={setPaintTarget} busy={busy}/></div>}
         <aside className={(canvasSession?'hidden ':'')+"w-80 shrink-0 overflow-y-auto border-l border-white/10 p-4 space-y-4"}>
           <div><h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Model inspector</h3>
             <p className="mt-2 truncate text-sm" title={model?.name}>{model?.name || 'No model imported'}</p>
@@ -479,7 +488,7 @@ export function ImportedModelStudio({ project, onExit, initialModelId, onSendBac
           </section>}
           {model && <section className="rounded-xl border border-white/10 p-3 text-xs">
             <button className={button + ' w-full text-left'} onClick={()=>setHierarchyOpen(v=>!v)}>{hierarchyOpen ? 'Hide' : 'Show'} object hierarchy · {hierarchy.length} nodes</button>
-            {hierarchyOpen && <div className="mt-2 max-h-64 overflow-auto space-y-1">{hierarchy.map(node=><div key={node.id} style={{paddingLeft: Math.min(node.depth, 10)*8}}><div className="break-all text-neutral-200">{node.name}</div><div className="text-neutral-500">{node.kind}{node.uvSets.length ? ' · '+node.uvSets.join(', ') : ''}{node.groups ? ' · '+node.groups+' groups' : ''}</div>{node.materials.filter(id=>materials.some(m=>m.id===id)).map((id,i)=><button key={id+'-'+i} className="block text-left text-sky-300 hover:underline" onClick={()=>setMaterialId(id)}>{materials.find(m=>m.id===id)?.name}</button>)}</div>)}</div>}
+            {hierarchyOpen && <div className="mt-2 max-h-64 overflow-auto space-y-1">{hierarchy.map(node=><div key={node.id} style={{paddingLeft: Math.min(node.depth, 10)*8}}><div className="break-all text-neutral-200">{node.name}</div><div className="text-neutral-500">{node.kind}{node.uvSets.length ? ' · '+node.uvSets.join(', ') : ''}{node.groups ? ' · '+node.groups+' groups' : ''}</div>{node.materials.filter(id=>materials.some(m=>m.id===id)).map((id,i)=><div key={id+'-'+i} className="flex flex-wrap items-center gap-1"><button className="text-left text-sky-300 hover:underline" onClick={()=>setMaterialId(id)}>{materials.find(m=>m.id===id)?.name}</button>{(materials.find(m=>m.id===id)?.meshes.length??0)>1&&<button className="text-[10px] text-amber-300 hover:underline" disabled={busy||grayActive} onClick={()=>isolateMaterial(node.id,id)}>Isolate on mesh</button>}</div>)}</div>)}</div>}
           </section>}
           <div className="border-t border-white/10 pt-4">
             <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-neutral-400">PBR material library</h3>
