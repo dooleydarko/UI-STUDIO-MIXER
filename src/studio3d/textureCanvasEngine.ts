@@ -198,6 +198,16 @@ export class TextureCanvasSession {
     }
     this.texture.needsUpdate=true; return true;
   }
+  async drawMaskPreview(layer:TextureLayer,destination:HTMLCanvasElement):Promise<void>{
+    const w=destination.width,h=destination.height,ctx=context(destination);
+    const image=layer.maskImage?this.images.get(layer.maskImage)??await loadImage(layer.maskImage):undefined;
+    if(this.disposed)return;
+    const images=new Map<string,HTMLImageElement>();if(image&&layer.maskImage)images.set(layer.maskImage,image);
+    drawMask(ctx,layer,w,h,images);
+    const pixels=ctx.getImageData(0,0,w,h);
+    for(let i=0;i<pixels.data.length;i+=4){const a=255-pixels.data[i+3];pixels.data[i]=255;pixels.data[i+1]=55;pixels.data[i+2]=80;pixels.data[i+3]=Math.round(a*.5);}
+    ctx.putImageData(pixels,0,0);
+  }
   /** Deterministic local fill, not an AI model. Produces an editable patch
    * from the hidden region of a layer mask, sampling surrounding base color. */
   async cleanMaskedRegion(doc:TextureDocument,layerId:string):Promise<{image:string;x:number;y:number;width:number;height:number}>{
