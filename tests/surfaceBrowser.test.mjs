@@ -16,7 +16,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(()=>!!window.surfaceTest,{timeout:30000});
   const results=await page.evaluate(async()=>{
-    const {THREE,engine,psd,library}=window.surfaceTest;
+    const {THREE,engine,psd,library,workspace,ai,inspectMaterials,encodeSceneGlb,loadStudioModel,releaseStudioModel}=window.surfaceTest;
     const check=(value,message)=>{if(!value)throw new Error(message);};
     const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
     const base=canvas(16,16),ctx=base.getContext('2d');
@@ -41,6 +41,14 @@ try {
     check(material.normalMap===normal&&material.roughness===.4&&material.metalness===.3,'Physical channels changed');
     const clone=engine.createClonePatch(session.output,[{x:10,y:10}],{x:6,y:6},2);
     check(clone.startsWith('data:image/png;base64,'),'Clone patch not exported');
+    const inputs=await session.generationInputs(masked,16,16);
+    const imagePixel=async(url,x,y)=>{
+      const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=url;});
+      const tmp=canvas(image.width,image.height),context=tmp.getContext('2d');context.drawImage(image,0,0);
+      return [...context.getImageData(x,y,1,1).data];
+    };
+    check((await imagePixel(inputs.mask,12,3))[0]===255&&(await imagePixel(inputs.mask,4,4))[0]===0,'AI inpainting mask polarity incorrect');
+    check((await imagePixel(inputs.layerMask,12,3))[3]===255&&(await imagePixel(inputs.layerMask,4,4))[3]===0,'Accepted AI patch mask would alter unselected region');
     const cleaned=await session.cleanMaskedRegion(doc,masked.id);
     const cleanup={...engine.layerDefaults('Cleanup patch'),kind:'image',...cleaned,rotation:0,flipX:false,flipY:false};
     await session.render({...doc,layers:[...doc.layers,cleanup]});
@@ -64,8 +72,55 @@ try {
     await library.removeSavedModel(saved.id);
     session.showOriginal(true);check(material.map===map,'Original comparison failed');
     session.restore();check(material.map===map&&material.normalMap===normal,'Session restoration failed');
-    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration'];
+    const root=new THREE.Group();
+    const first=new THREE.MeshStandardMaterial({name:'Front',map:new THREE.CanvasTexture(base)});
+    const second=new THREE.MeshStandardMaterial({name:'Back',map:new THREE.CanvasTexture(base)});
+    first.map.flipY=false;second.map.flipY=false;first.map.colorSpace=second.map.colorSpace=THREE.SRGBColorSpace;
+    root.add(new THREE.Mesh(new THREE.PlaneGeometry(),first),new THREE.Mesh(new THREE.PlaneGeometry(),second));
+    const sourceGlb=await encodeSceneGlb(root);
+    const ws=new workspace.SurfaceWorkspace(), entries=inspectMaterials(root);
+    const a1=ws.open(entries,0),a2=ws.open(entries,1);
+    const d1={...a1.document,layers:[{...engine.layerDefaults('Red front'),kind:'gray',color:'#ff0000'}]};
+    const d2={...a2.document,layers:[{...engine.layerDefaults('Blue back'),kind:'gray',color:'#0000ff'}]};
+    ws.update(a1.session,d1);ws.update(a2.session,d2);
+    await a1.session.render(d1);await a2.session.render(d2);
+    const pixel=(session)=>[...session.output.getContext('2d').getImageData(5,5,1,1).data];
+    check(pixel(a1.session)[0]===255&&pixel(a2.session)[2]===255,'Independent canvas edits not retained');
+    ws.updateHistory(a1.session,{past:[a1.session.initial],future:[]});
+    check(ws.open(entries,0)===a1&&a1.history.past.length===1&&a2.history.past.length===0,'Switching lost or mixed the first material history');
+    const bindings=ws.bindings();
+    const multi={source:sourceGlb,sourceName:'multi.glb',materialIndex:1,materialName:'Back',document:d2,documents:bindings,lighting:'studio',projectId:'multi'};
+    const bakedGlb=await encodeSceneGlb(root);
+    const savedMulti=await library.saveSurfaceProject('Multi material',bakedGlb,multi);
+    const record=await library.readSurfaceProject(savedMulti.id);
+    const loaded=await loadStudioModel(new File([record.source],'multi.glb'));
+    const reopened=new workspace.SurfaceWorkspace();
+    const active=await reopened.reopen(inspectMaterials(loaded.scene),record);
+    check(reopened.size===2&&active.materialName==='Back','Saved active document or multi-material layers missing');
+    const restoredEntries=inspectMaterials(loaded.scene);
+    check(pixel(reopened.get(restoredEntries[0].id).session)[0]===255&&pixel(active.session)[2]===255,'Actual GLB reopen lost material edits');
+    const legacy=workspace.surfaceBindings({materialIndex:0,materialName:'Front',document:d1});
+    check(legacy.length===1,'Legacy saved workspace incompatible');
+    let rejectedDuplicate=false;try{workspace.surfaceBindings({...multi,documents:[bindings[0],bindings[0]]});}catch{rejectedDuplicate=true;}
+    check(rejectedDuplicate,'Duplicate material binding accepted');
+    await library.saveSurfaceDraft(savedMulti.id,'multi',d1,'neon',{documents:bindings,materialIndex:0,materialName:'Front'});
+    const latest=await library.readSurfaceProject(savedMulti.id);
+    check(latest.documents.length===2&&latest.materialName==='Front'&&latest.lighting==='neon','Multi-material autosave discarded a document');
+    await library.removeSavedModel(savedMulti.id);reopened.restoreAll();releaseStudioModel(loaded);ws.restoreAll();
+
+    const size=ai.generationSize(4096,2048);
+    check(size.width===1024&&size.height===512,'Provider resolution cap failed');
+    let sent;
+    const provider=new ai.Automatic1111Provider('http://127.0.0.1:7860',async(url,options)=>{
+      sent={url,body:JSON.parse(options.body)};
+      return new Response(JSON.stringify({images:[artwork.toDataURL().split(',')[1]],info:JSON.stringify({seed:42})}),{headers:{'Content-Type':'application/json'}});
+    });
+    const result=await provider.generate({mode:'inpaint',prompt:'repair paper',width:16,height:16,reference:artwork.toDataURL(),mask:artwork.toDataURL()},new AbortController().signal);
+    check(sent.url.endsWith('/sdapi/v1/img2img')&&sent.body.mask&&result.seed===42&&result.image.startsWith('data:image/png'),'Local provider contract failed');
+    let refused=false;try{new ai.Automatic1111Provider('https://example.com');}catch{refused=true;}
+    check(refused,'Remote AI endpoint was not rejected');
+    return ['actual Canvas alpha / Gray Out / artwork / paint / mask','Clone Stamp and local masked cleanup patch','layered PSD adapter round-trip','IndexedDB editable project + autosave','original PBR restoration','actual multi-material GLB save/reopen','mocked local AI provider contract'];
   });
-  assert.equal(results.length,5);
+  assert.equal(results.length,7);
   console.log('Browser acceptance passed:',results);
 }finally{await browser?.close();server.kill();}

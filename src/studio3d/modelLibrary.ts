@@ -1,8 +1,9 @@
 import type { TextureDocument } from './textureCanvasEngine';
+import type { SurfaceBinding } from './surfaceWorkspace';
 import type { LightingPreset } from '../types';
 
 export interface SavedModelInfo { id: string; name: string; savedAt: number; size: number; layered?: boolean; projectId?: string; draftSavedAt?: number }
-export interface SurfaceProjectData { source: Blob; sourceName: string; materialIndex: number; materialName: string; document: TextureDocument; lighting: LightingPreset; projectId: string }
+export interface SurfaceProjectData { source: Blob; sourceName: string; materialIndex: number; materialName: string; document: TextureDocument; documents?: SurfaceBinding[]; lighting: LightingPreset; projectId: string }
 interface SavedModel extends SavedModelInfo { blob: Blob; surface?: SurfaceProjectData }
 const DATABASE = 'ui-studio-model-library';
 const STORE = 'models';
@@ -41,7 +42,7 @@ export async function saveSurfaceProject(name:string,baked:Blob,surface:SurfaceP
   await transact('readwrite',store=>store.put(record));
   const {blob:_blob,surface:_surface,...info}=record;return info;
 }
-export async function saveSurfaceDraft(id:string,projectId:string,document:TextureDocument,lighting:LightingPreset):Promise<number>{
+export async function saveSurfaceDraft(id:string,projectId:string,document:TextureDocument,lighting:LightingPreset,workspace?:{documents:SurfaceBinding[];materialIndex:number;materialName:string}):Promise<number>{
   const db=await openLibrary();
   try{return await new Promise<number>((resolve,reject)=>{
     const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE),req=store.get(id);
@@ -49,7 +50,7 @@ export async function saveSurfaceDraft(id:string,projectId:string,document:Textu
     req.onsuccess=()=>{
       const record=req.result as SavedModel|undefined;
       if(!record?.surface||record.projectId!==projectId){reason=new Error('Saved surface project is missing or belongs to another project.');tx.abort();return;}
-      timestamp=Date.now();store.put({...record,draftSavedAt:timestamp,surface:{...record.surface,document,lighting}});
+      timestamp=Date.now();store.put({...record,draftSavedAt:timestamp,surface:{...record.surface,document,lighting,...workspace}});
     };
     tx.oncomplete=()=>resolve(timestamp);tx.onerror=()=>reject(tx.error??req.error);tx.onabort=()=>reject(reason??tx.error??new Error('Surface draft autosave aborted.'));
   });}finally{db.close();}

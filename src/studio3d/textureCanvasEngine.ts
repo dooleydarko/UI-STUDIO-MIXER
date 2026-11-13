@@ -198,6 +198,27 @@ export class TextureCanvasSession {
     }
     this.texture.needsUpdate=true; return true;
   }
+  async generationInputs(layer:TextureLayer|undefined,width:number,height:number):Promise<{reference:string;mask?:string;layerMask?:string}>{
+    const c=canvas(width,height),ctx=context(c);ctx.drawImage(this.output,0,0,width,height);
+    const reference=c.toDataURL('image/png');c.width=c.height=1;
+    if(!layer)return {reference};
+    if(!layer.mask?.length&&!layer.maskImage)throw new Error('Paint a mask over the unwanted texture first.');
+    const w=this.initial.width,h=this.initial.height,full=canvas(w,h),fc=context(full);
+    try{
+      const images=new Map<string,HTMLImageElement>();
+      if(layer.maskImage)images.set(layer.maskImage,this.images.get(layer.maskImage)??await loadImage(layer.maskImage));
+      drawMask(fc,layer,w,h,images);
+      const pixels=fc.getImageData(0,0,w,h);
+      let selected=false;
+      for(let i=0;i<pixels.data.length;i+=4){const a=255-pixels.data[i+3];if(a>5)selected=true;pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=255;pixels.data[i+3]=a;}
+      if(!selected)throw new Error('Mask has no selected region. Erase the mask over unwanted texture.');
+      fc.putImageData(pixels,0,0);
+      const layerMask=full.toDataURL('image/png');
+      const mask=canvas(width,height),mc=context(mask);mc.fillStyle='#000000';mc.fillRect(0,0,width,height);mc.drawImage(full,0,0,width,height);
+      const maskData=mask.toDataURL('image/png');mask.width=mask.height=1;
+      return {reference,mask:maskData,layerMask};
+    }finally{full.width=full.height=1;}
+  }
   async drawMaskPreview(layer:TextureLayer,destination:HTMLCanvasElement):Promise<void>{
     const w=destination.width,h=destination.height,ctx=context(destination);
     const image=layer.maskImage?this.images.get(layer.maskImage)??await loadImage(layer.maskImage):undefined;
