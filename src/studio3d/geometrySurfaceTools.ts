@@ -125,13 +125,17 @@ function sharpParts(selected:Face[],source:THREE.BufferGeometry,angle:number):Fa
   const groups=new Map<number,Face[]>();selected.forEach((face,i)=>{const id=find(i),group=groups.get(id)??[];group.push(face);groups.set(id,group);});
   return [...groups.values()];
 }
-export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMode,retainOriginal=false,angle=45):{parts:THREE.Mesh[];triangles:number}{
+export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMode|'manual',retainOriginal=false,angle=45,manualFaces:readonly number[]=[]):{parts:THREE.Mesh[];triangles:number}{
   const mesh=meshFrom(root,nodeId),source=mesh.geometry,selected=faces(mesh);
   const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
   let chunks:Face[][];
   if(mode==='materials'){const map=new Map<number,Face[]>();for(const face of selected){const part=map.get(face.slot)??[];part.push(face);map.set(face.slot,part);}chunks=[...map.values()];}
   else if(mode==='connected')chunks=connectedParts(selected,source);
   else if(mode==='sharp')chunks=sharpParts(selected,source,angle);
+  else if(mode==='manual'){
+    const chosen=new Set(manualFaces);if(!chosen.size||chosen.size>=selected.length||[...chosen].some(i=>!Number.isInteger(i)||i<0||i>=selected.length))throw new Error('Select a nonempty proper subset of mesh faces.');
+    chunks=[selected.filter((_,i)=>!chosen.has(i)),selected.filter((_,i)=>chosen.has(i))];
+  }
   else throw new Error('Unknown separation mode.');
   if(chunks.length<2)throw new Error('No separate parts found for this mode.');
   if(chunks.length>MAX_PARTS)throw new Error('Separation would create more than 64 parts.');
@@ -140,7 +144,8 @@ export function separateMesh(root:THREE.Object3D,nodeId:string,mode:SeparationMo
     for(const chunk of chunks){
       const slots=[...new Set(chunk.map(face=>face.slot))],geo=buildGeometry(source,chunk);
       const mapped=chunk.map(face=>({...face,slot:slots.indexOf(face.slot)}));assignGroups(geo,mapped);
-      prepared.push({geometry:geo,material:slots.length===1?materials[slots[0]]:slots.map(slot=>materials[slot])});
+      const partMaterials=slots.map(slot=>{const m=materials[slot];if(mode!=='manual'||prepared.length===0)return m;const clone=m.clone();clone.name=(m.name||'Material')+' — selected region';return clone;});
+      prepared.push({geometry:geo,material:partMaterials.length===1?partMaterials[0]:partMaterials});
     }
   }catch(e){prepared.forEach(p=>p.geometry.dispose());throw e;}
   // Keep original mesh as transform/animation anchor; children use identity transforms.
