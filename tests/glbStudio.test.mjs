@@ -21,7 +21,7 @@ try {
 
   const { estimateModelBudget, recommendQuality, scaledTextureSize } = await import(pathToFileURL(path.join(temp, 'modelPerformance.mjs')));
 
-  const { GrayOutSession, neutralizePixels, inspectSurfaces } = await import(pathToFileURL(path.join(temp, 'surfaceEditing.mjs')));
+  const { GrayOutSession, neutralizePixels, inspectSurfaces, collectUVGuide, isolateMeshMaterial } = await import(pathToFileURL(path.join(temp, 'surfaceEditing.mjs')));
 
   await test('gray out pixel neutralization preserves transparency and supports intensity', () => {
     const data = new Uint8ClampedArray([10, 20, 30, 0, 100, 120, 140, 180]);
@@ -110,7 +110,7 @@ try {
     geo.dispose(); material.dispose();
   });
 
-  const { TextureCanvasSession, parseTextureDocument, moveLayer, addStroke } = await import(pathToFileURL(path.join(temp, 'textureCanvasEngine.mjs')));
+  const { TextureCanvasSession, parseTextureDocument, moveLayer, addStroke, addMaskStroke, blendPixels } = await import(pathToFileURL(path.join(temp, 'textureCanvasEngine.mjs')));
   await test('layer document round-trips editable artwork and strokes, rejects unsupported data', () => {
     const common = { visible:true, locked:false, opacity:1 };
     const gray = { ...common, id:'a', name:'Gray Out', kind:'gray', color:'#808080' };
@@ -147,6 +147,40 @@ try {
       assert.equal(await session.render(session.initial),false);
       assert(drawCalls.length>0);
     } finally {session?.restore();material.dispose();normal.dispose();if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+  });
+
+  await test('layer mask edits preserve source layer and blend operations preserve base alpha',()=>{
+    const layer={id:'a',name:'Gray',kind:'gray',color:'#808080',visible:true,locked:false,opacity:1};
+    const stroke={points:[{x:2,y:3}],color:'#ffffff',size:12,opacity:.5,erase:true};
+    const edited=addMaskStroke([layer],'a',stroke);
+    assert.equal(edited[0].mask.length,1);assert.equal(layer.mask,undefined);
+    const dest=new Uint8ClampedArray([100,120,140,90,50,60,70,0]),src=new Uint8ClampedArray([128,128,128,255,255,255,255,255]);
+    blendPixels(dest,src,'multiply',1);
+    assert.deepEqual([...dest],[50,60,70,90,50,60,70,0]);
+    assert.equal(addMaskStroke([{...layer,locked:true}],'a',stroke)[0].mask,undefined);
+  });
+  await test('UV outlines target the correct material and isolation preserves unrelated meshes',()=>{
+    const root=new THREE.Group(),geo=new THREE.PlaneGeometry(),otherGeo=new THREE.BoxGeometry();
+    const material=new THREE.MeshStandardMaterial({name:'Shared'}),other=new THREE.MeshStandardMaterial({name:'Other'});
+    const a=new THREE.Mesh(geo,material),b=new THREE.Mesh(geo,material),c=new THREE.Mesh(otherGeo,other);
+    root.add(a,b,c);
+    const guide=collectUVGuide(root,material);
+    assert.equal(guide.segments.length,5);assert.equal(guide.truncated,false);
+    assert.equal(collectUVGuide(root,material,2).truncated,true);
+    const isolated=isolateMeshMaterial(root,a.uuid,material.uuid);
+    assert.equal(a.material,isolated);assert.equal(b.material,material);assert.equal(c.material,other);assert.equal(a.geometry,geo);
+    assert.notEqual(isolated,material);
+    geo.dispose();otherGeo.dispose();material.dispose();other.dispose();isolated.dispose();
+  });
+  await test('PSD library writes a genuine layered 8-bit RGB binary and preserves layer names',async()=>{
+    const {writePsd,readPsd}=await import('ag-psd');
+    const imageData={width:2,height:1,data:new Uint8ClampedArray([255,0,0,255,0,255,0,255])};
+    const bytes=writePsd({width:2,height:1,children:[{name:'Artwork',imageData,opacity:.5,blendMode:'multiply'},{name:'Original',imageData}]},{noBackground:true});
+    assert.equal(new DataView(bytes).getUint32(0),0x38425053);
+    const decoded=readPsd(bytes,{useImageData:true,skipCompositeImageData:true,skipThumbnail:true});
+    assert.deepEqual(decoded.children.map(l=>l.name),['Artwork','Original']);
+    assert.equal(decoded.children[0].blendMode,'multiply');assert(Math.abs(decoded.children[0].opacity-.5)<.01);
+    assert.deepEqual([...decoded.children[0].imageData.data],[...imageData.data]);
   });
 
   await test('model budget counts shared buffers and textures once', () => {
